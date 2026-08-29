@@ -202,7 +202,8 @@ Chosen for existing familiarity (another active project already on this stack) o
 
 - **Route handlers** for the capture sync endpoint and XML export, alongside UI in one repo/deploy.
 - **Server Components** for reconciliation/admin screens, keeping heavy table rendering off the phone bundle.
-- **Runtime constraint:** the PDF generation route (§5.6) must declare `export const runtime = 'nodejs'` — `@react-pdf/renderer` doesn't run on Edge.
+- **Runtime constraint:** the PDF generation route (§5.6) needs the Node.js runtime — `@react-pdf/renderer` doesn't run on Edge. As of Next.js 16.3 the Edge Runtime is deprecated and Node.js is the only/default runtime, so no `export const runtime` is written (or needed) any more; under Cache Components (§5.16) that export is now a build error. If a future Next.js version reintroduces a runtime choice, re-add it explicitly for this route.
+- **Cache Components note:** this project has `cacheComponents: true` set from the starter. Every Server Component that reads Supabase/auth data is pushed down into a `<Suspense>`-wrapped child so routes partially prerender instead of falling back fully dynamic — the one exception is the auth-gating layout (`app/meets/layout.tsx`), which opts out via `export const instant = false` since its redirect decision has to resolve before anything below it can render (the documented case for that escape hatch).
 
 ### 5.3 Supabase — Postgres, Auth, Realtime, RLS
 
