@@ -4,8 +4,7 @@ create type gender as enum ('M', 'F');
 
 create table athlete (
   athlete_no integer primary key,
-  first_name text not null,
-  last_name text not null,
+  full_name text not null,
   gender gender not null
 );
 
@@ -58,3 +57,33 @@ create table points_table (
 );
 
 alter table points_table enable row level security;
+
+-- Phase 0: no public-facing reads yet (that's Phase 4, §3/§6.1). Every
+-- operator screen sits behind Supabase Auth (§5.3), so for now the model is
+-- simply "authenticated operator, full access" on the operational tables,
+-- and "authenticated read-only" on the reference points table. There's no
+-- per-row ownership to check (no user_id column) — anon stays default-deny
+-- via RLS-enabled-with-no-anon-policy.
+
+create policy "Authenticated users can manage athletes"
+  on athlete for all
+  to authenticated
+  using (true)
+  with check (true);
+
+create policy "Authenticated users can manage meets"
+  on meet for all
+  to authenticated
+  using (true)
+  with check (true);
+
+create policy "Authenticated users can manage entries"
+  on entry for all
+  to authenticated
+  using (true)
+  with check (true);
+
+create policy "Authenticated users can read points table"
+  on points_table for select
+  to authenticated
+  using (true);
