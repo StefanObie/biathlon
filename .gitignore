@@ -43,3 +43,6 @@ next-env.d.ts
 
 # Swim Data
 2. 2026-08-25-GNB-League-1-Session-1-results.txt
+
+# playwright-cli session artifacts
+/.playwright-cli/
