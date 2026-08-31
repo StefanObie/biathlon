@@ -30,21 +30,6 @@ export default function BibsPage({
           </Suspense>
         </CardContent>
       </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Position cards</CardTitle>
-          <CardDescription>
-            Reusable, numbered 1–20. Print once — not tied to a specific meet or
-            athlete.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Suspense fallback={null}>
-            <PositionCardsDownloadLink params={params} />
-          </Suspense>
-        </CardContent>
-      </Card>
     </div>
   );
 }
@@ -59,25 +44,6 @@ async function BibsDownloadLink({
     <Button asChild>
       <a href={`/meets/${meetId}/bibs/pdf`} target="_blank" rel="noreferrer">
         Download bibs PDF
-      </a>
-    </Button>
-  );
-}
-
-async function PositionCardsDownloadLink({
-  params,
-}: {
-  params: Promise<{ meetId: string }>;
-}) {
-  const { meetId } = await params;
-  return (
-    <Button asChild variant="outline">
-      <a
-        href={`/meets/${meetId}/bibs/position-cards`}
-        target="_blank"
-        rel="noreferrer"
-      >
-        Download position cards PDF
       </a>
     </Button>
   );

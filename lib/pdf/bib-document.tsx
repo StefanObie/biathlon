@@ -18,51 +18,69 @@ export interface BibData {
   swimLane: number;
 }
 
-const QR_MM = 30; // spec §4.1: >=30mm square, ECC level Q, quiet zone maintained
+const QR_MM = 25;
+const PAGE_MARGIN_MM = 10;
+const TAG_PADDING_MM = 2; // cutting-tolerance margin inside the tag border
+// A4 width (210mm) minus left+right page margins, split 3 across.
+const TAG_WIDTH_MM = (210 - PAGE_MARGIN_MM * 2) / 3;
+const TAG_HEIGHT_MM = QR_MM + 4 + TAG_PADDING_MM * 2;
 
 const styles = StyleSheet.create({
   page: {
-    padding: 10,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    padding: `${PAGE_MARGIN_MM}mm`,
   },
-  bib: {
-    width: "100%",
-    height: 130,
-    border: "1pt solid #000",
-    padding: 8,
-    marginBottom: 8,
+  tag: {
+    width: `${TAG_WIDTH_MM}mm`,
+    height: `${TAG_HEIGHT_MM}mm`,
+    border: "0.5pt solid #000",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    padding: `${TAG_PADDING_MM}mm`,
+  },
+  left: {
+    width: `${QR_MM}mm`,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 1,
   },
   qrWrapper: {
-    width: QR_MM,
-    height: QR_MM,
-    padding: 4, // quiet zone
+    width: `${QR_MM}mm`,
+    height: `${QR_MM}mm`,
     backgroundColor: "#fff",
   },
-  info: {
-    flexDirection: "column",
-    alignItems: "flex-end",
-  },
   athleteNo: {
-    fontSize: 36,
+    fontSize: 14,
     fontFamily: "Helvetica-Bold",
   },
+  right: {
+    flex: 1,
+    height: "100%",
+    paddingVertical: 2,
+    paddingRight: 3,
+    marginLeft: "4mm",
+    justifyContent: "center",
+  },
   name: {
-    fontSize: 12,
-    marginTop: 4,
+    fontSize: 11,
+    fontFamily: "Helvetica-Bold",
   },
   heats: {
     fontSize: 9,
     color: "#333",
-    marginTop: 2,
+    marginTop: 1,
   },
 });
 
 function QrCode({ payload, sizeMm }: { payload: string; sizeMm: number }) {
   const { path, size } = buildQrPath(payload);
   return (
-    <Svg width={sizeMm} height={sizeMm} viewBox={`0 0 ${size} ${size}`}>
+    <Svg
+      width={`${sizeMm}mm`}
+      height={`${sizeMm}mm`}
+      viewBox={`0 0 ${size} ${size}`}
+    >
       <Path d={path} fill="#000" />
     </Svg>
   );
@@ -70,17 +88,20 @@ function QrCode({ payload, sizeMm }: { payload: string; sizeMm: number }) {
 
 function Bib({ athlete }: { athlete: BibData }) {
   return (
-    <View style={styles.bib} wrap={false}>
-      <View style={styles.qrWrapper}>
-        <QrCode payload={`SAB-${athlete.athleteNo}`} sizeMm={QR_MM - 8} />
-      </View>
-      <View style={styles.info}>
+    <View style={styles.tag} wrap={false}>
+      <View style={styles.left}>
+        <View style={styles.qrWrapper}>
+          <QrCode payload={`BCL-${athlete.athleteNo}`} sizeMm={QR_MM} />
+        </View>
         <Text style={styles.athleteNo}>{athlete.athleteNo}</Text>
-        <Text style={styles.name}>{athlete.fullName}</Text>
-        <Text style={styles.heats}>
-          Run heat {athlete.runHeat} · Swim heat {athlete.swimHeat} · Lane{" "}
-          {athlete.swimLane}
+      </View>
+      <View style={styles.right}>
+        <Text style={styles.name} hyphenationCallback={(word) => [word]}>
+          {athlete.fullName}
         </Text>
+        <Text style={styles.heats}>Run Heat {athlete.runHeat}</Text>
+        <Text style={styles.heats}>Swim Heat {athlete.swimHeat}</Text>
+        <Text style={styles.heats}>Swim Lane {athlete.swimLane}</Text>
       </View>
     </View>
   );

@@ -96,7 +96,7 @@ Public results have nowhere else to live, so they're a page in this same app (Ph
 
 Import entry TSV → generate PDFs (not browser print — see §5.6):
 
-- **Athlete bibs:** QR payload `SAB-{athleteNo}` (short prefix keeps modules large and scan-fast, and lets the scanner reject foreign QR codes), athlete number in large human-readable digits, name, run heat, swim heat, swim lane.
+- **Athlete bibs:** QR payload `BCL-{athleteNo}` (short prefix keeps modules large and scan-fast, and lets the scanner reject foreign QR codes), athlete number in large human-readable digits, name, run heat, swim heat, swim lane.
 - **Position cards:** reusable, printed once, numbered 1–20. **Not scanned** — see §4.3. Matte stock; glare is the primary cause of outdoor scan failure. QR ECC level Q, ≥30mm square, quiet zone maintained.
 
 ### 4.2 Finish line → table
@@ -257,7 +257,7 @@ Browser print CSS is unreliable — "shrink to fit" can silently rescale a 30mm 
 QR codes stay vector — extract path data from the `qrcode` package and render via SVG primitives:
 
 ```tsx
-const d = QRCode.toString(`SAB-${athleteNo}`, {
+const d = QRCode.toString(`BCL-${athleteNo}`, {
   type: "svg",
   errorCorrectionLevel: "Q",
 });

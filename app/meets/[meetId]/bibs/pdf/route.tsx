@@ -31,13 +31,15 @@ export async function GET(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const athletes = (entries ?? []).map((entry) => ({
-    athleteNo: entry.athlete_no,
-    fullName: entry.athlete?.full_name ?? "",
-    runHeat: entry.run_heat,
-    swimHeat: entry.swim_heat,
-    swimLane: entry.swim_lane,
-  }));
+  const athletes = (entries ?? [])
+    .map((entry) => ({
+      athleteNo: entry.athlete_no,
+      fullName: entry.athlete?.full_name ?? "",
+      runHeat: entry.run_heat,
+      swimHeat: entry.swim_heat,
+      swimLane: entry.swim_lane,
+    }))
+    .sort((a, b) => a.fullName.localeCompare(b.fullName));
 
   const buffer = await renderToBuffer(<BibsDocument athletes={athletes} />);
 
