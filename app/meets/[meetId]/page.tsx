@@ -8,16 +8,16 @@ export default function MeetIndexPage({
 }) {
   return (
     <Suspense fallback={null}>
-      <RedirectToRoster params={params} />
+      <RedirectToStartList params={params} />
     </Suspense>
   );
 }
 
-async function RedirectToRoster({
+async function RedirectToStartList({
   params,
 }: {
   params: Promise<{ meetId: string }>;
 }): Promise<never> {
   const { meetId } = await params;
-  redirect(`/meets/${meetId}/roster`);
+  redirect(`/meets/${meetId}/start-list`);
 }

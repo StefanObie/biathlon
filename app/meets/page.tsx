@@ -60,7 +60,7 @@ async function MeetsList() {
   return (
     <div className="flex flex-col gap-2">
       {meets.map((meet) => (
-        <Link key={meet.id} href={`/meets/${meet.id}/roster`}>
+        <Link key={meet.id} href={`/meets/${meet.id}/start-list`}>
           <Card className="hover:bg-accent transition-colors">
             <CardHeader>
               <CardTitle>{meet.name}</CardTitle>

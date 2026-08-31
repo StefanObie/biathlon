@@ -4,8 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
-import { parseUploadedEntryFile } from "@/lib/import/parse-file";
-import { parseEntryRows, resolveColumns } from "@/lib/import/entry-row";
+import type { ParsedEntryRow } from "@/lib/import/entry-row";
 
 export interface CreateMeetState {
   error?: string;
@@ -35,50 +34,26 @@ export async function createMeet(
   }
 
   revalidatePath("/meets");
-  redirect(`/meets/${data.id}/import`);
+  redirect(`/meets/${data.id}/start-list`);
 }
 
-export interface ImportEntriesState {
-  imported?: number;
-  errors?: { rowNumber: number; reason: string }[];
+export interface SaveStartListState {
+  saved?: number;
   fatalError?: string;
 }
 
-export async function importEntries(
+/**
+ * Overwrites the meet's start list with rows already parsed client-side
+ * (see components/meets/start-list.tsx) — the source file is finalized data
+ * from a third party, so there's no server-side re-validation step, just
+ * upsert-by-athlete-number.
+ */
+export async function saveStartList(
   meetId: number,
-  _prevState: ImportEntriesState,
-  formData: FormData,
-): Promise<ImportEntriesState> {
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) {
-    return { fatalError: "Choose a CSV or XLSX file to import." };
-  }
-
-  let rawRows: Record<string, string>[];
-  try {
-    rawRows = await parseUploadedEntryFile(file);
-  } catch (err) {
-    return {
-      fatalError: err instanceof Error ? err.message : "Could not read file.",
-    };
-  }
-
-  if (rawRows.length === 0) {
-    return { fatalError: "File has no data rows." };
-  }
-
-  const columns = resolveColumns(Object.keys(rawRows[0]));
-  if (!columns) {
-    return {
-      fatalError:
-        "Couldn't find all required columns (Age Group, Athlete name, Athlete No, Run Heat, Swim Heat, Swim Lane).",
-    };
-  }
-
-  const { parsed, errors } = parseEntryRows(rawRows, columns);
-
+  parsed: ParsedEntryRow[],
+): Promise<SaveStartListState> {
   if (parsed.length === 0) {
-    return { imported: 0, errors };
+    return { fatalError: "No rows to save." };
   }
 
   const supabase = await createClient();
@@ -110,6 +85,6 @@ export async function importEntries(
     return { fatalError: `Failed to save entries: ${entryError.message}` };
   }
 
-  revalidatePath(`/meets/${meetId}/roster`);
-  return { imported: parsed.length, errors };
+  revalidatePath(`/meets/${meetId}/start-list`);
+  return { saved: parsed.length };
 }
