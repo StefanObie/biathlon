@@ -1,7 +1,13 @@
 import { Suspense } from "react";
 
 import { ImportEntriesForm } from "@/components/meets/import-entries-form";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export default function ImportPage({
   params,
@@ -12,11 +18,11 @@ export default function ImportPage({
     <Card>
       <CardHeader>
         <CardTitle>Import entries</CardTitle>
-        <p className="text-sm text-muted-foreground">
+        <CardDescription>
           Columns needed (any order): Age Group, Athlete name, Athlete No, Run
           Heat, Swim Heat, Swim Lane. Re-importing updates existing athletes by
           athlete number.
-        </p>
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <Suspense fallback={null}>

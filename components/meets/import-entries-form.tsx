@@ -5,7 +5,13 @@ import { useActionState } from "react";
 import { importEntries, type ImportEntriesState } from "@/lib/meets/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 
 const initialState: ImportEntriesState = {};
 
@@ -17,41 +23,51 @@ export function ImportEntriesForm({ meetId }: { meetId: number }) {
   );
 
   return (
-    <form action={formAction} className="flex flex-col gap-4 max-w-md">
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="file">Entry list (.csv or .xlsx)</Label>
-        <Input id="file" name="file" type="file" accept=".csv,.xlsx" required />
-      </div>
-      <Button type="submit" disabled={pending}>
-        {pending ? "Importing…" : "Import entries"}
-      </Button>
+    <form action={formAction} className="max-w-md">
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="file">Entry list (.csv or .xlsx)</FieldLabel>
+          <Input
+            id="file"
+            name="file"
+            type="file"
+            accept=".csv,.xlsx"
+            required
+          />
+        </Field>
+        <Button type="submit" disabled={pending}>
+          {pending ? "Importing…" : "Import entries"}
+        </Button>
 
-      {state.fatalError && (
-        <p className="text-sm text-destructive">{state.fatalError}</p>
-      )}
+        {state.fatalError && (
+          <Field data-invalid>
+            <FieldError>{state.fatalError}</FieldError>
+          </Field>
+        )}
 
-      {state.imported !== undefined && (
-        <p className="text-sm">
-          Imported <strong>{state.imported}</strong> entr
-          {state.imported === 1 ? "y" : "ies"}.
-        </p>
-      )}
+        {state.imported !== undefined && (
+          <FieldDescription className="text-success">
+            Imported <strong>{state.imported}</strong> entr
+            {state.imported === 1 ? "y" : "ies"}.
+          </FieldDescription>
+        )}
 
-      {state.errors && state.errors.length > 0 && (
-        <div className="flex flex-col gap-1">
-          <p className="text-sm font-medium text-destructive">
-            {state.errors.length} row{state.errors.length === 1 ? "" : "s"}{" "}
-            skipped:
-          </p>
-          <ul className="text-sm text-muted-foreground list-disc pl-5">
-            {state.errors.map((e) => (
-              <li key={e.rowNumber}>
-                Row {e.rowNumber}: {e.reason}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+        {state.errors && state.errors.length > 0 && (
+          <Field data-invalid>
+            <FieldError>
+              {state.errors.length} row{state.errors.length === 1 ? "" : "s"}{" "}
+              skipped:
+              <ul className="ml-4 list-disc">
+                {state.errors.map((e) => (
+                  <li key={e.rowNumber}>
+                    Row {e.rowNumber}: {e.reason}
+                  </li>
+                ))}
+              </ul>
+            </FieldError>
+          </Field>
+        )}
+      </FieldGroup>
     </form>
   );
 }

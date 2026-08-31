@@ -12,6 +12,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
 
 export default function RosterPage({
   params,
@@ -52,13 +60,19 @@ async function RosterTable({
 
   if (!entries || entries.length === 0) {
     return (
-      <p className="text-muted-foreground">
-        No entries yet.{" "}
-        <Link href={`/meets/${meetIdNum}/import`} className="underline">
-          Import the entry list
-        </Link>{" "}
-        to get started.
-      </p>
+      <Empty>
+        <EmptyHeader>
+          <EmptyTitle>No entries yet</EmptyTitle>
+          <EmptyDescription>
+            Import the entry list to get started.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button asChild>
+            <Link href={`/meets/${meetIdNum}/import`}>Import entries</Link>
+          </Button>
+        </EmptyContent>
+      </Empty>
     );
   }
 
@@ -79,16 +93,24 @@ async function RosterTable({
         <TableBody>
           {entries.map((entry) => (
             <TableRow key={entry.athlete_no}>
-              <TableCell>{entry.athlete_no}</TableCell>
+              <TableCell className="font-mono tabular-nums">
+                {entry.athlete_no}
+              </TableCell>
               <TableCell>{entry.athlete?.full_name}</TableCell>
               <TableCell>
                 <Badge variant="outline">
                   {entry.age_group_code} {entry.athlete?.gender}
                 </Badge>
               </TableCell>
-              <TableCell>{entry.run_heat}</TableCell>
-              <TableCell>{entry.swim_heat}</TableCell>
-              <TableCell>{entry.swim_lane}</TableCell>
+              <TableCell className="font-mono tabular-nums">
+                {entry.run_heat}
+              </TableCell>
+              <TableCell className="font-mono tabular-nums">
+                {entry.swim_heat}
+              </TableCell>
+              <TableCell className="font-mono tabular-nums">
+                {entry.swim_lane}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { MeetTabs } from "@/components/meets/meet-tabs";
 
 const TABS = [
   { href: "import", label: "Import" },
@@ -23,7 +24,7 @@ export default function MeetLayout({
         <MeetHeader params={params} />
       </Suspense>
       <Suspense fallback={null}>
-        <MeetTabs params={params} />
+        <MeetTabsSection params={params} />
       </Suspense>
       {children}
     </div>
@@ -60,20 +61,12 @@ async function MeetHeader({ params }: { params: Promise<{ meetId: string }> }) {
   );
 }
 
-async function MeetTabs({ params }: { params: Promise<{ meetId: string }> }) {
+async function MeetTabsSection({
+  params,
+}: {
+  params: Promise<{ meetId: string }>;
+}) {
   const { meetId } = await params;
 
-  return (
-    <nav className="flex gap-4 border-b">
-      {TABS.map((tab) => (
-        <Link
-          key={tab.href}
-          href={`/meets/${meetId}/${tab.href}`}
-          className="pb-2 text-sm font-medium text-muted-foreground hover:text-foreground border-b-2 border-transparent"
-        >
-          {tab.label}
-        </Link>
-      ))}
-    </nav>
-  );
+  return <MeetTabs meetId={meetId} tabs={TABS} />;
 }

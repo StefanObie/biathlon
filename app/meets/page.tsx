@@ -4,6 +4,12 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { CreateMeetForm } from "@/components/meets/create-meet-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
 
 export default function MeetsPage() {
   return (
@@ -42,7 +48,12 @@ async function MeetsList() {
 
   if (!meets || meets.length === 0) {
     return (
-      <p className="text-muted-foreground">No meets yet — create one below.</p>
+      <Empty>
+        <EmptyHeader>
+          <EmptyTitle>No meets yet</EmptyTitle>
+          <EmptyDescription>Create one below to get started.</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 
