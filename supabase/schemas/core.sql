@@ -10,32 +10,32 @@ create table athlete (
 
 alter table athlete enable row level security;
 
-create table meet (
+create table league (
   id integer primary key generated always as identity,
   name text not null,
-  meet_date date not null,
+  league_date date not null,
   season integer not null
 );
 
-alter table meet enable row level security;
+alter table league enable row level security;
 
 -- age_group_code is intentionally not an FK to points_table: that table's key
 -- includes effective_from/gender, which entry doesn't carry. Validated at
 -- import time instead (see spec §6.1's trade-off note).
 create table entry (
-  meet_id integer not null references meet (id),
+  league_id integer not null references league (id),
   athlete_no integer not null references athlete (athlete_no),
   run_heat integer not null,
   swim_heat integer not null,
   swim_lane integer not null,
   age_group_code text not null,
-  primary key (meet_id, athlete_no)
+  primary key (league_id, athlete_no)
 );
 
 alter table entry enable row level security;
 
-create index entry_run_heat_idx on entry (meet_id, run_heat);
-create index entry_swim_heat_lane_idx on entry (meet_id, swim_heat, swim_lane);
+create index entry_run_heat_idx on entry (league_id, run_heat);
+create index entry_swim_heat_lane_idx on entry (league_id, swim_heat, swim_lane);
 
 create table points_table (
   effective_from date not null,
@@ -71,8 +71,8 @@ create policy "Authenticated users can manage athletes"
   using (true)
   with check (true);
 
-create policy "Authenticated users can manage meets"
-  on meet for all
+create policy "Authenticated users can manage leagues"
+  on league for all
   to authenticated
   using (true)
   with check (true);

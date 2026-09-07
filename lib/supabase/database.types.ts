@@ -56,7 +56,7 @@ export type Database = {
         Row: {
           age_group_code: string;
           athlete_no: number;
-          meet_id: number;
+          league_id: number;
           run_heat: number;
           swim_heat: number;
           swim_lane: number;
@@ -64,7 +64,7 @@ export type Database = {
         Insert: {
           age_group_code: string;
           athlete_no: number;
-          meet_id: number;
+          league_id: number;
           run_heat: number;
           swim_heat: number;
           swim_lane: number;
@@ -72,7 +72,7 @@ export type Database = {
         Update: {
           age_group_code?: string;
           athlete_no?: number;
-          meet_id?: number;
+          league_id?: number;
           run_heat?: number;
           swim_heat?: number;
           swim_lane?: number;
@@ -86,30 +86,30 @@ export type Database = {
             referencedColumns: ["athlete_no"];
           },
           {
-            foreignKeyName: "entry_meet_id_fkey";
-            columns: ["meet_id"];
+            foreignKeyName: "entry_league_id_fkey";
+            columns: ["league_id"];
             isOneToOne: false;
-            referencedRelation: "meet";
+            referencedRelation: "league";
             referencedColumns: ["id"];
           },
         ];
       };
-      meet: {
+      league: {
         Row: {
           id: number;
-          meet_date: string;
+          league_date: string;
           name: string;
           season: number;
         };
         Insert: {
           id?: never;
-          meet_date: string;
+          league_date: string;
           name: string;
           season: number;
         };
         Update: {
           id?: never;
-          meet_date?: string;
+          league_date?: string;
           name?: string;
           season?: number;
         };
