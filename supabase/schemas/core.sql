@@ -4,39 +4,38 @@ create type gender as enum ('M', 'F');
 
 create table athlete (
   athlete_no integer primary key,
-  first_name text not null,
-  last_name text not null,
+  full_name text not null,
   gender gender not null
 );
 
 alter table athlete enable row level security;
 
-create table meet (
+create table league (
   id integer primary key generated always as identity,
   name text not null,
-  meet_date date not null,
+  league_date date not null,
   season integer not null
 );
 
-alter table meet enable row level security;
+alter table league enable row level security;
 
 -- age_group_code is intentionally not an FK to points_table: that table's key
 -- includes effective_from/gender, which entry doesn't carry. Validated at
 -- import time instead (see spec §6.1's trade-off note).
 create table entry (
-  meet_id integer not null references meet (id),
+  league_id integer not null references league (id),
   athlete_no integer not null references athlete (athlete_no),
   run_heat integer not null,
   swim_heat integer not null,
   swim_lane integer not null,
   age_group_code text not null,
-  primary key (meet_id, athlete_no)
+  primary key (league_id, athlete_no)
 );
 
 alter table entry enable row level security;
 
-create index entry_run_heat_idx on entry (meet_id, run_heat);
-create index entry_swim_heat_lane_idx on entry (meet_id, swim_heat, swim_lane);
+create index entry_run_heat_idx on entry (league_id, run_heat);
+create index entry_swim_heat_lane_idx on entry (league_id, swim_heat, swim_lane);
 
 create table points_table (
   effective_from date not null,
@@ -58,3 +57,33 @@ create table points_table (
 );
 
 alter table points_table enable row level security;
+
+-- Phase 0: no public-facing reads yet (that's Phase 4, §3/§6.1). Every
+-- operator screen sits behind Supabase Auth (§5.3), so for now the model is
+-- simply "authenticated operator, full access" on the operational tables,
+-- and "authenticated read-only" on the reference points table. There's no
+-- per-row ownership to check (no user_id column) — anon stays default-deny
+-- via RLS-enabled-with-no-anon-policy.
+
+create policy "Authenticated users can manage athletes"
+  on athlete for all
+  to authenticated
+  using (true)
+  with check (true);
+
+create policy "Authenticated users can manage leagues"
+  on league for all
+  to authenticated
+  using (true)
+  with check (true);
+
+create policy "Authenticated users can manage entries"
+  on entry for all
+  to authenticated
+  using (true)
+  with check (true);
+
+create policy "Authenticated users can read points table"
+  on points_table for select
+  to authenticated
+  using (true);
