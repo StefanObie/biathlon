@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
-import { CreateMeetForm } from "@/components/meets/create-meet-form";
+import { CreateLeagueForm } from "@/components/leagues/create-league-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Empty,
@@ -11,46 +11,46 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 
-export default function MeetsPage() {
+export default function LeaguesPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-bold mb-4">Meets</h1>
+        <h1 className="text-2xl font-bold mb-4">Leagues</h1>
         <Suspense
-          fallback={<p className="text-muted-foreground">Loading meets…</p>}
+          fallback={<p className="text-muted-foreground">Loading leagues…</p>}
         >
-          <MeetsList />
+          <LeaguesList />
         </Suspense>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>New meet</CardTitle>
+          <CardTitle>New league</CardTitle>
         </CardHeader>
         <CardContent>
-          <CreateMeetForm />
+          <CreateLeagueForm />
         </CardContent>
       </Card>
     </div>
   );
 }
 
-async function MeetsList() {
+async function LeaguesList() {
   const supabase = await createClient();
-  const { data: meets, error } = await supabase
-    .from("meet")
-    .select("id, name, meet_date, season")
-    .order("meet_date", { ascending: false });
+  const { data: leagues, error } = await supabase
+    .from("league")
+    .select("id, name, league_date, season")
+    .order("league_date", { ascending: false });
 
   if (error) {
     return <p className="text-sm text-destructive">{error.message}</p>;
   }
 
-  if (!meets || meets.length === 0) {
+  if (!leagues || leagues.length === 0) {
     return (
       <Empty>
         <EmptyHeader>
-          <EmptyTitle>No meets yet</EmptyTitle>
+          <EmptyTitle>No leagues yet</EmptyTitle>
           <EmptyDescription>Create one below to get started.</EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -59,13 +59,13 @@ async function MeetsList() {
 
   return (
     <div className="flex flex-col gap-2">
-      {meets.map((meet) => (
-        <Link key={meet.id} href={`/meets/${meet.id}/start-list`}>
+      {leagues.map((league) => (
+        <Link key={league.id} href={`/leagues/${league.id}/start-list`}>
           <Card className="hover:bg-accent transition-colors">
             <CardHeader>
-              <CardTitle>{meet.name}</CardTitle>
+              <CardTitle>{league.name}</CardTitle>
               <p className="text-sm text-muted-foreground">
-                {meet.meet_date} · Season {meet.season}
+                {league.league_date} · Season {league.season}
               </p>
             </CardHeader>
           </Card>

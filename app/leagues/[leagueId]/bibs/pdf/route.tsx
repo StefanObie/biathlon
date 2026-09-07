@@ -12,19 +12,19 @@ import { BibsDocument } from "@/lib/pdf/bib-document";
 
 export async function GET(
   _request: Request,
-  { params }: { params: Promise<{ meetId: string }> },
+  { params }: { params: Promise<{ leagueId: string }> },
 ) {
-  const { meetId } = await params;
-  const meetIdNum = Number(meetId);
-  if (!Number.isInteger(meetIdNum)) {
-    return NextResponse.json({ error: "Invalid meet id" }, { status: 400 });
+  const { leagueId } = await params;
+  const leagueIdNum = Number(leagueId);
+  if (!Number.isInteger(leagueIdNum)) {
+    return NextResponse.json({ error: "Invalid league id" }, { status: 400 });
   }
 
   const supabase = await createClient();
   const { data: entries, error } = await supabase
     .from("entry")
     .select("athlete_no, run_heat, swim_heat, swim_lane, athlete(full_name)")
-    .eq("meet_id", meetIdNum)
+    .eq("league_id", leagueIdNum)
     .order("athlete_no");
 
   if (error) {
@@ -46,7 +46,7 @@ export async function GET(
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="bibs-meet-${meetIdNum}.pdf"`,
+      "Content-Disposition": `inline; filename="bibs-league-${leagueIdNum}.pdf"`,
     },
   });
 }

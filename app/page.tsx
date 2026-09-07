@@ -22,10 +22,10 @@ export default function Home() {
           <h1 className="text-3xl font-bold">Race-day results system</h1>
           <p className="text-muted-foreground">
             Entry import, roster management, and bib generation for SA Biathlon
-            meets.
+            leagues.
           </p>
           <Button asChild>
-            <Link href="/meets">Go to meets</Link>
+            <Link href="/leagues">Go to leagues</Link>
           </Button>
         </div>
       </div>

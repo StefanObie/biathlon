@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 
-import { createMeet, type CreateMeetState } from "@/lib/meets/actions";
+import { createLeague, type CreateLeagueState } from "@/lib/leagues/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,21 +12,24 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 
-const initialState: CreateMeetState = {};
+const initialState: CreateLeagueState = {};
 
-export function CreateMeetForm() {
-  const [state, formAction, pending] = useActionState(createMeet, initialState);
+export function CreateLeagueForm() {
+  const [state, formAction, pending] = useActionState(
+    createLeague,
+    initialState,
+  );
 
   return (
     <form action={formAction} className="max-w-sm">
       <FieldGroup>
         <Field>
-          <FieldLabel htmlFor="name">Meet name</FieldLabel>
+          <FieldLabel htmlFor="name">League name</FieldLabel>
           <Input id="name" name="name" required placeholder="GNB League 1" />
         </Field>
         <Field>
-          <FieldLabel htmlFor="meetDate">Date</FieldLabel>
-          <Input id="meetDate" name="meetDate" type="date" required />
+          <FieldLabel htmlFor="leagueDate">Date</FieldLabel>
+          <Input id="leagueDate" name="leagueDate" type="date" required />
         </Field>
         <Field>
           <FieldLabel htmlFor="season">Season</FieldLabel>
@@ -44,7 +47,7 @@ export function CreateMeetForm() {
           </Field>
         )}
         <Button type="submit" disabled={pending}>
-          {pending ? "Creating…" : "Create meet"}
+          {pending ? "Creating…" : "Create league"}
         </Button>
       </FieldGroup>
     </form>

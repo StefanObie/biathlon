@@ -4,48 +4,52 @@ import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 
-export default function MeetLayout({
+export default function LeagueLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
-  params: Promise<{ meetId: string }>;
+  params: Promise<{ leagueId: string }>;
 }) {
   return (
     <div className="flex flex-col gap-6">
       <Suspense fallback={<div className="h-14" />}>
-        <MeetHeader params={params} />
+        <LeagueHeader params={params} />
       </Suspense>
       {children}
     </div>
   );
 }
 
-async function MeetHeader({ params }: { params: Promise<{ meetId: string }> }) {
-  const { meetId } = await params;
-  const meetIdNum = Number(meetId);
-  if (!Number.isInteger(meetIdNum)) notFound();
+async function LeagueHeader({
+  params,
+}: {
+  params: Promise<{ leagueId: string }>;
+}) {
+  const { leagueId } = await params;
+  const leagueIdNum = Number(leagueId);
+  if (!Number.isInteger(leagueIdNum)) notFound();
 
   const supabase = await createClient();
-  const { data: meet } = await supabase
-    .from("meet")
-    .select("id, name, meet_date, season")
-    .eq("id", meetIdNum)
+  const { data: league } = await supabase
+    .from("league")
+    .select("id, name, league_date, season")
+    .eq("id", leagueIdNum)
     .maybeSingle();
 
-  if (!meet) notFound();
+  if (!league) notFound();
 
   return (
     <div>
       <Link
-        href="/meets"
+        href="/leagues"
         className="text-sm text-muted-foreground hover:underline"
       >
-        ← All meets
+        ← All leagues
       </Link>
-      <h1 className="text-2xl font-bold">{meet.name}</h1>
+      <h1 className="text-2xl font-bold">{league.name}</h1>
       <p className="text-sm text-muted-foreground">
-        {meet.meet_date} · Season {meet.season}
+        {league.league_date} · Season {league.season}
       </p>
     </div>
   );

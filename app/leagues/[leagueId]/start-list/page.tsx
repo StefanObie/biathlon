@@ -2,12 +2,15 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
-import { StartList, type StartListEntry } from "@/components/meets/start-list";
+import {
+  StartList,
+  type StartListEntry,
+} from "@/components/leagues/start-list";
 
 export default function StartListPage({
   params,
 }: {
-  params: Promise<{ meetId: string }>;
+  params: Promise<{ leagueId: string }>;
 }) {
   return (
     <Suspense
@@ -21,11 +24,11 @@ export default function StartListPage({
 async function StartListSection({
   params,
 }: {
-  params: Promise<{ meetId: string }>;
+  params: Promise<{ leagueId: string }>;
 }) {
-  const { meetId } = await params;
-  const meetIdNum = Number(meetId);
-  if (!Number.isInteger(meetIdNum)) notFound();
+  const { leagueId } = await params;
+  const leagueIdNum = Number(leagueId);
+  if (!Number.isInteger(leagueIdNum)) notFound();
 
   const supabase = await createClient();
   const { data: entries, error } = await supabase
@@ -33,7 +36,7 @@ async function StartListSection({
     .select(
       "athlete_no, run_heat, swim_heat, swim_lane, age_group_code, athlete(full_name, gender)",
     )
-    .eq("meet_id", meetIdNum)
+    .eq("league_id", leagueIdNum)
     .order("run_heat")
     .order("athlete_no");
 
@@ -51,5 +54,5 @@ async function StartListSection({
     swimLane: entry.swim_lane,
   }));
 
-  return <StartList meetId={meetIdNum} committed={committed} />;
+  return <StartList leagueId={leagueIdNum} committed={committed} />;
 }

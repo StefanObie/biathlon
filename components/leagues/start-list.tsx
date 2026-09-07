@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { UploadIcon } from "lucide-react";
 
-import { saveStartList } from "@/lib/meets/actions";
+import { saveStartList } from "@/lib/leagues/actions";
 import { parseUploadedEntryFile } from "@/lib/import/parse-file";
 import {
   parseEntryRows,
@@ -48,10 +48,10 @@ type Stage =
   | { name: "parsing" };
 
 export function StartList({
-  meetId,
+  leagueId,
   committed,
 }: {
-  meetId: number;
+  leagueId: number;
   committed: StartListEntry[];
 }) {
   const [stage, setStage] = useState<Stage>({ name: "committed" });
@@ -98,7 +98,7 @@ export function StartList({
     const { parsed } = stage;
     setSaveError(null);
     startSaving(async () => {
-      const result = await saveStartList(meetId, parsed);
+      const result = await saveStartList(leagueId, parsed);
       if (result.fatalError) {
         setSaveError(result.fatalError);
         return;
@@ -134,7 +134,7 @@ export function StartList({
         <Dropzone onFile={handleFile} error={parseError} />
       ) : (
         <CommittedTable
-          meetId={meetId}
+          leagueId={leagueId}
           entries={committed}
           onFile={handleFile}
           error={parseError}
@@ -208,12 +208,12 @@ function Dropzone({
 }
 
 function CommittedTable({
-  meetId,
+  leagueId,
   entries,
   onFile,
   error,
 }: {
-  meetId: number;
+  leagueId: number;
   entries: StartListEntry[];
   onFile: (file: File) => void;
   error: string | null;
@@ -229,7 +229,7 @@ function CommittedTable({
         <div className="flex items-center gap-2">
           <Button asChild variant="outline">
             <a
-              href={`/meets/${meetId}/bibs/pdf`}
+              href={`/leagues/${leagueId}/bibs/pdf`}
               target="_blank"
               rel="noreferrer"
             >

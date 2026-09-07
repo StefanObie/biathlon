@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 
-export default function MeetIndexPage({
+export default function LeagueIndexPage({
   params,
 }: {
-  params: Promise<{ meetId: string }>;
+  params: Promise<{ leagueId: string }>;
 }) {
   return (
     <Suspense fallback={null}>
@@ -16,8 +16,8 @@ export default function MeetIndexPage({
 async function RedirectToStartList({
   params,
 }: {
-  params: Promise<{ meetId: string }>;
+  params: Promise<{ leagueId: string }>;
 }): Promise<never> {
-  const { meetId } = await params;
-  redirect(`/meets/${meetId}/start-list`);
+  const { leagueId } = await params;
+  redirect(`/leagues/${leagueId}/start-list`);
 }

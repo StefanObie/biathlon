@@ -6,35 +6,35 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { ParsedEntryRow } from "@/lib/import/entry-row";
 
-export interface CreateMeetState {
+export interface CreateLeagueState {
   error?: string;
 }
 
-export async function createMeet(
-  _prevState: CreateMeetState,
+export async function createLeague(
+  _prevState: CreateLeagueState,
   formData: FormData,
-): Promise<CreateMeetState> {
+): Promise<CreateLeagueState> {
   const name = String(formData.get("name") ?? "").trim();
-  const meetDate = String(formData.get("meetDate") ?? "").trim();
+  const leagueDate = String(formData.get("leagueDate") ?? "").trim();
   const season = Number(formData.get("season"));
 
-  if (!name || !meetDate || !Number.isInteger(season)) {
+  if (!name || !leagueDate || !Number.isInteger(season)) {
     return { error: "Name, date, and season are all required." };
   }
 
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("meet")
-    .insert({ name, meet_date: meetDate, season })
+    .from("league")
+    .insert({ name, league_date: leagueDate, season })
     .select("id")
     .single();
 
   if (error || !data) {
-    return { error: error?.message ?? "Failed to create meet." };
+    return { error: error?.message ?? "Failed to create league." };
   }
 
-  revalidatePath("/meets");
-  redirect(`/meets/${data.id}/start-list`);
+  revalidatePath("/leagues");
+  redirect(`/leagues/${data.id}/start-list`);
 }
 
 export interface SaveStartListState {
@@ -43,13 +43,13 @@ export interface SaveStartListState {
 }
 
 /**
- * Overwrites the meet's start list with rows already parsed client-side
- * (see components/meets/start-list.tsx) — the source file is finalized data
+ * Overwrites the league's start list with rows already parsed client-side
+ * (see components/leagues/start-list.tsx) — the source file is finalized data
  * from a third party, so there's no server-side re-validation step, just
  * upsert-by-athlete-number.
  */
 export async function saveStartList(
-  meetId: number,
+  leagueId: number,
   parsed: ParsedEntryRow[],
 ): Promise<SaveStartListState> {
   if (parsed.length === 0) {
@@ -71,7 +71,7 @@ export async function saveStartList(
   }
 
   const entries = parsed.map((p) => ({
-    meet_id: meetId,
+    league_id: leagueId,
     athlete_no: p.row.athleteNo,
     run_heat: p.row.runHeat,
     swim_heat: p.row.swimHeat,
@@ -80,11 +80,11 @@ export async function saveStartList(
   }));
   const { error: entryError } = await supabase
     .from("entry")
-    .upsert(entries, { onConflict: "meet_id,athlete_no" });
+    .upsert(entries, { onConflict: "league_id,athlete_no" });
   if (entryError) {
     return { fatalError: `Failed to save entries: ${entryError.message}` };
   }
 
-  revalidatePath(`/meets/${meetId}/start-list`);
+  revalidatePath(`/leagues/${leagueId}/start-list`);
   return { saved: parsed.length };
 }
