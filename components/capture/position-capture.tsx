@@ -15,7 +15,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { getDeviceId } from "@/lib/offline/device-id";
+import { parseBibPayload } from "@/lib/scan/payload";
 import { nextPosition } from "@/lib/scan/position";
+import { QrScanner } from "@/components/capture/qr-scanner";
 import {
   getCapturesForHeat,
   putCapture,
@@ -129,6 +131,26 @@ export function PositionCapture({
     void syncPendingCaptures();
   }
 
+  // Shared by manual entry and QR scan: resolves an athlete number against
+  // the roster and either records the capture directly or, for an
+  // out-of-heat athlete, routes through the confirmation dialog. Returns an
+  // error message on failure so each caller can surface it its own way
+  // (inline field error vs. toast).
+  async function resolveAndRecord(athleteNo: number): Promise<string | null> {
+    const athlete = rosterByNo.get(athleteNo);
+    if (!athlete) {
+      return `Athlete ${athleteNo} is not entered in this league.`;
+    }
+    if (athlete.runHeat !== runHeat) {
+      // Confirm before logging — the mismatch itself is resolved later in
+      // reconciliation, this screen just shouldn't lose the capture.
+      setPendingOutOfHeat(athlete);
+      return null;
+    }
+    await recordCapture(athleteNo);
+    return null;
+  }
+
   async function handleManualSubmit() {
     setInputError(null);
     const athleteNo = Number(athleteNoInput.trim());
@@ -136,19 +158,22 @@ export function PositionCapture({
       setInputError("Enter a valid athlete number.");
       return;
     }
-    const athlete = rosterByNo.get(athleteNo);
-    if (!athlete) {
-      setInputError(`Athlete ${athleteNo} is not entered in this league.`);
+    const error = await resolveAndRecord(athleteNo);
+    if (error) {
+      setInputError(error);
       return;
     }
-    if (athlete.runHeat !== runHeat) {
-      // Confirm before logging — the mismatch itself is resolved later in
-      // reconciliation, this screen just shouldn't lose the capture.
-      setPendingOutOfHeat(athlete);
-      return;
-    }
-    await recordCapture(athleteNo);
     setAthleteNoInput("");
+  }
+
+  async function handleScanDetect(text: string) {
+    const athleteNo = parseBibPayload(text);
+    if (athleteNo === null) {
+      toast.error("Not a bib QR code");
+      return;
+    }
+    const error = await resolveAndRecord(athleteNo);
+    if (error) toast.error(error);
   }
 
   async function confirmOutOfHeatCapture() {
@@ -201,6 +226,11 @@ export function PositionCapture({
           {loaded ? position : "—"}
         </p>
       </div>
+
+      <QrScanner
+        onDetect={(text) => void handleScanDetect(text)}
+        paused={pendingOutOfHeat !== null}
+      />
 
       <div className="flex w-full max-w-sm flex-col gap-2">
         <input
