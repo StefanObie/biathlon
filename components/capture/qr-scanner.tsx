@@ -56,6 +56,7 @@ export function QrScanner({
     let cancelled = false;
 
     startBarcodeScan(video, {
+      isCancelled: () => cancelled,
       onDetect: (text) => {
         if (pausedRef.current) return;
         playBeep();
@@ -72,8 +73,9 @@ export function QrScanner({
         setStatus("active");
       })
       .catch((err) => {
+        if (cancelled) return;
         console.error("Camera scan failed to start", err);
-        if (!cancelled) setStatus("error");
+        setStatus("error");
       });
 
     return () => {
