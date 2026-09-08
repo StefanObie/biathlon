@@ -8,7 +8,7 @@
 
 Finishing position next to the athlete numbers are written down by hand at the finish line today. Run times come from a CSV file produced by a timing app. Manual stopwatch time is also written down by hand as a backup, but the CSV is what's generally used. Afterwards, someone sits and combines the written positions with the CSV run times. With a large number of athletes, this process can be slow.
 
-This project aims to speed up the running results. Position and time get captured live as athletes finish and checked against each other automatically. An official corrects any discrepancies and approves the result. Long term the system will also handle the swim-time matching and final results export, built on top of the existing swim timing file.
+This project aims to speed up the running results. Position and time get captured live as athletes finish and checked against each other automatically. An official corrects any discrepancies and approves the result. The system will also handle the swim-time matching and final results export, built on top of the existing swim timing file.
 
 No new equipment to buy. It runs on two phones you already have, plus your usual printer for bibs. Position cards are the ones you already have and use today, this system doesn't print those.
 
@@ -28,7 +28,7 @@ After each heat, the two records (who finished where, and what time they ran) ge
 
 Swim times already come from your existing swim timing system. The app reads that file automatically and matches each swimmer to their run time using their athlete number.
 
-The final output is one combined file per athlete with their swim time and run time, in the format your national body requires.
+The final output is one combined file per athlete with their swim time and run time, in the XML format that the national body requires.
 
 ---
 
@@ -44,9 +44,9 @@ The final output is one combined file per athlete with their swim time and run t
 
 Two things are out of scope for the first version, and it's a choice, not a difficulty.
 
-Age-based bonus points need exact age (a date of birth), which isn't part of the athlete data we receive. So for now the system calculates points from running and swimming performance only, with a clear note that bonus points aren't included and the total isn't an official score. This only affects athletes 28 and older. If date of birth becomes available later, adding it back in is a small change, not a rebuild.
+Public results display and points calculation in general are low priority right now, and there's no existing website to plug into. When it does get built, it'll live inside this same system rather than as a separate project.
 
-Public results display and points calculation in general are low priority for you right now, and there's no existing website to plug into. When it does get built, it'll live inside this same system rather than as a separate project.
+Age-based bonus points need exact age, which isn't part of the athlete data we receive. So for now the system calculates points from running and swimming performance only, with a clear note that bonus points aren't included and the total isn't an official score. This only affects athletes 28 and older. If date of birth becomes available later, adding it back in is a small change, not a rebuild.
 
 ---
 
@@ -65,23 +65,11 @@ Before this replaces your current process at a real event, we'll run it side by 
 ## If something goes wrong on the day
 
 - Paper capture sheets stay in every heat bag as a backup. Any heat can be completed by hand if needed.
-- Power banks are recommended for both phones, since the camera uses more battery than normal.
-- A spare stopwatch at the finish line costs nothing to keep in the bag.
+- A spare stopwatch at the finish line.
 - The position cards remain a paper record of finishing order, exactly as they are today.
-
----
-
-## What we need from you
-
-A short list, nothing blocking the start of the work.
-
-1. Check with your national body (SA Biathlon) whether there's an official specification for the results file format: the exact layout expected, and what to do for an athlete who's missing one of their two times.
-2. Flag a possible error to whoever maintains the points table. One row in the worked example doesn't add up: a run time of 2:48.52 should give 996.96 points by the stated formula, but the table shows 988.96. Worth a quick check with them.
-3. Decide on a tie-break rule for running times. They're hand-captured to the hundredth of a second, which is finer than a thumb on a button can really guarantee. Worth deciding in advance whether very close times count as a tie or get ranked by whichever was captured first.
-4. Give us a rough idea of mobile signal strength at the venues you use most. The system is built to survive a brief signal drop, but it helps to know in advance if a venue is a known dead spot.
 
 ---
 
 ## Bottom line
 
-Low technical risk, and no real cost or equipment burden. The finish-line timekeeper role is the one place worth being careful: a missed press is the only error that can affect a whole heat, which is why that screen gets the most attention in the design. Start with the bib printing since it's useful on its own from day one, then build toward the shadow-run test.
+Low technical risk and no equipment expenses. The finish-line timekeeper role is the one place worth being careful: a missed press is the only error that can affect a whole heat, which is why that screen gets the most attention in the design. Start with the bib printing since it's useful on its own from day one, then build toward the shadow-run test.
