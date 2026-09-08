@@ -11,7 +11,7 @@ export default function Home() {
         <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
           <div className="w-full max-w-5xl flex justify-between items-center p-3 px-5 text-sm">
             <Link href="/" className="font-semibold">
-              SA Biathlon Race Day
+              Gauteng North Biathlon
             </Link>
             <Suspense>
               <AuthButton />
@@ -19,10 +19,10 @@ export default function Home() {
           </div>
         </nav>
         <div className="flex-1 flex flex-col gap-8 max-w-2xl p-5 items-center text-center">
-          <h1 className="text-3xl font-bold">Race-day results system</h1>
+          <h1 className="text-3xl font-bold">Gauteng North Biathlon</h1>
           <p className="text-muted-foreground">
-            Entry import, roster management, and bib generation for SA Biathlon
-            leagues.
+            Race-day results system for entry import, roster management, and bib
+            generation.
           </p>
           <Button asChild>
             <Link href="/leagues">Go to leagues</Link>
