@@ -9,6 +9,11 @@ export interface DecoderOptions {
   /** Ignore repeat reads of the same code within this window (§4.3 req 3) —
    * a card lingering in frame shouldn't double-register. */
   dedupeWindowMs?: number;
+  /** Checked right after the camera stream is acquired — if true by then,
+   * the stream is stopped immediately instead of being attached to the
+   * video element. Guards against React Strict Mode's double-invoked
+   * effects racing two overlapping `getUserMedia` calls onto one element. */
+  isCancelled?: () => boolean;
 }
 
 export function isBarcodeDetectorSupported(): boolean {
@@ -25,7 +30,7 @@ export function isBarcodeDetectorSupported(): boolean {
  */
 export async function startBarcodeScan(
   videoElement: HTMLVideoElement,
-  { onDetect, dedupeWindowMs = 1500 }: DecoderOptions,
+  { onDetect, dedupeWindowMs = 1500, isCancelled }: DecoderOptions,
 ): Promise<ScannerControls> {
   let lastText: string | null = null;
   let lastAt = 0;
@@ -39,7 +44,7 @@ export async function startBarcodeScan(
   }
 
   if (isBarcodeDetectorSupported()) {
-    return startNativeScan(videoElement, emit);
+    return startNativeScan(videoElement, emit, isCancelled);
   }
   return startZXingScan(videoElement, emit);
 }
@@ -47,12 +52,34 @@ export async function startBarcodeScan(
 async function startNativeScan(
   videoElement: HTMLVideoElement,
   emit: (text: string) => void,
+  isCancelled?: () => boolean,
 ): Promise<ScannerControls> {
   const stream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: "environment" },
   });
+
+  function abortStream(): never {
+    stream.getTracks().forEach((track) => track.stop());
+    throw new DOMException(
+      "Scan cancelled before camera attached",
+      "AbortError",
+    );
+  }
+
+  if (isCancelled?.()) abortStream();
+
   videoElement.srcObject = stream;
-  await videoElement.play();
+  try {
+    await videoElement.play();
+  } catch (err) {
+    // A cancellation racing this play() call (e.g. Strict Mode's
+    // double-invoked effect tearing down mid-play) surfaces here as
+    // AbortError — treat it the same as the pre-attach cancellation
+    // check above rather than letting it become an unhandled rejection.
+    if (isCancelled?.()) abortStream();
+    throw err;
+  }
+  if (isCancelled?.()) abortStream();
 
   const detector = new BarcodeDetector({ formats: ["qr_code"] });
   let stopped = false;
@@ -80,24 +107,43 @@ async function startNativeScan(
   };
 }
 
+/** In-flight or active zxing scan per video element. `decodeFromVideoDevice`
+ * attaches the stream and calls play() internally before it resolves, so
+ * there is no seam to cancel it partway; overlapping starts on one element
+ * (React Strict Mode's double-invoked effect) leave the second load
+ * interrupting the first's play(), and the loser's teardown clears the
+ * srcObject the winner is using — a permanently black preview. Serializing
+ * on the element keeps a single scan attached at a time. */
+const zxingScans = new WeakMap<HTMLVideoElement, Promise<ScannerControls>>();
+
 async function startZXingScan(
   videoElement: HTMLVideoElement,
   emit: (text: string) => void,
 ): Promise<ScannerControls> {
+  const previous = zxingScans.get(videoElement);
+  if (previous) {
+    await previous.then(
+      (controls) => controls.stop(),
+      () => {},
+    );
+  }
+
   const reader = new BrowserQRCodeReader();
   // deviceId left undefined: zxing picks a device, preferring the
   // environment-facing camera when available.
-  const controls = await reader.decodeFromVideoDevice(
-    undefined,
-    videoElement,
-    (result) => {
+  const started = reader
+    .decodeFromVideoDevice(undefined, videoElement, (result) => {
       if (result) emit(result.getText());
-    },
-  );
+    })
+    .then((controls) => ({
+      stop() {
+        if (zxingScans.get(videoElement) === started) {
+          zxingScans.delete(videoElement);
+        }
+        controls.stop();
+      },
+    }));
 
-  return {
-    stop() {
-      controls.stop();
-    },
-  };
+  zxingScans.set(videoElement, started);
+  return started;
 }
