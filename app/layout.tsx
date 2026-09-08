@@ -10,7 +10,7 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "SA Biathlon Race Day",
+  title: "Gauteng North Biathlon",
   description: "Race-day results system for SA Biathlon leagues",
   icons: {
     icon: "/favicon.ico",
