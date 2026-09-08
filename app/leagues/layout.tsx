@@ -25,9 +25,9 @@ export default async function LeaguesLayout({
 
   return (
     <main className="min-h-screen flex flex-col items-center">
-      <div className="flex-1 w-full flex flex-col gap-12 items-center">
-        <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
-          <div className="w-full max-w-5xl flex justify-between items-center p-3 px-5 text-sm">
+      <div className="flex-1 w-full flex flex-col items-center">
+        <nav className="w-full flex justify-center border-b border-b-foreground/10 h-14">
+          <div className="w-full max-w-5xl flex justify-between items-center px-5 text-sm">
             <Link href="/leagues" className="font-semibold">
               SA Biathlon Race Day
             </Link>
@@ -36,7 +36,7 @@ export default async function LeaguesLayout({
             </Suspense>
           </div>
         </nav>
-        <div className="flex-1 flex flex-col gap-8 w-full max-w-5xl p-5">
+        <div className="flex-1 flex flex-col gap-4 w-full max-w-5xl p-5">
           {children}
         </div>
       </div>

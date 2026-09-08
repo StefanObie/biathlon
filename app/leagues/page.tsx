@@ -60,7 +60,7 @@ async function LeaguesList() {
   return (
     <div className="flex flex-col gap-2">
       {leagues.map((league) => (
-        <Link key={league.id} href={`/leagues/${league.id}/start-list`}>
+        <Link key={league.id} href={`/leagues/${league.id}`}>
           <Card className="hover:bg-accent transition-colors">
             <CardHeader>
               <CardTitle>{league.name}</CardTitle>

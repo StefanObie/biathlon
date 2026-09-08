@@ -52,6 +52,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      audit_log: {
+        Row: {
+          action: string;
+          actor: string;
+          after: Json | null;
+          at: string;
+          before: Json | null;
+          entity: string;
+          id: string;
+          reason: string | null;
+        };
+        Insert: {
+          action: string;
+          actor: string;
+          after?: Json | null;
+          at?: string;
+          before?: Json | null;
+          entity: string;
+          id?: string;
+          reason?: string | null;
+        };
+        Update: {
+          action?: string;
+          actor?: string;
+          after?: Json | null;
+          at?: string;
+          before?: Json | null;
+          entity?: string;
+          id?: string;
+          reason?: string | null;
+        };
+        Relationships: [];
+      };
       entry: {
         Row: {
           age_group_code: string;
@@ -165,6 +198,155 @@ export type Database = {
           swim_points_per_second?: number;
         };
         Relationships: [];
+      };
+      position_capture: {
+        Row: {
+          athlete_no: number | null;
+          device_id: string;
+          id: string;
+          league_id: number;
+          position: number;
+          run_heat: number;
+          scanned_at: string;
+          void_reason: string | null;
+          voided: boolean;
+        };
+        Insert: {
+          athlete_no?: number | null;
+          device_id: string;
+          id: string;
+          league_id: number;
+          position: number;
+          run_heat: number;
+          scanned_at: string;
+          void_reason?: string | null;
+          voided?: boolean;
+        };
+        Update: {
+          athlete_no?: number | null;
+          device_id?: string;
+          id?: string;
+          league_id?: number;
+          position?: number;
+          run_heat?: number;
+          scanned_at?: string;
+          void_reason?: string | null;
+          voided?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "position_capture_athlete_no_fkey";
+            columns: ["athlete_no"];
+            isOneToOne: false;
+            referencedRelation: "athlete";
+            referencedColumns: ["athlete_no"];
+          },
+          {
+            foreignKeyName: "position_capture_league_id_fkey";
+            columns: ["league_id"];
+            isOneToOne: false;
+            referencedRelation: "league";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      run_result: {
+        Row: {
+          athlete_no: number;
+          league_id: number;
+          overridden_by: string | null;
+          override_reason: string | null;
+          run_heat: number;
+          run_time: string | null;
+          run_time_cs: number | null;
+          source: string;
+          status: string;
+        };
+        Insert: {
+          athlete_no: number;
+          league_id: number;
+          overridden_by?: string | null;
+          override_reason?: string | null;
+          run_heat: number;
+          run_time?: string | null;
+          run_time_cs?: number | null;
+          source: string;
+          status?: string;
+        };
+        Update: {
+          athlete_no?: number;
+          league_id?: number;
+          overridden_by?: string | null;
+          override_reason?: string | null;
+          run_heat?: number;
+          run_time?: string | null;
+          run_time_cs?: number | null;
+          source?: string;
+          status?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "run_result_athlete_no_fkey";
+            columns: ["athlete_no"];
+            isOneToOne: false;
+            referencedRelation: "athlete";
+            referencedColumns: ["athlete_no"];
+          },
+          {
+            foreignKeyName: "run_result_league_id_fkey";
+            columns: ["league_id"];
+            isOneToOne: false;
+            referencedRelation: "league";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      time_capture: {
+        Row: {
+          captured_at: string;
+          device_id: string;
+          elapsed_time: string;
+          id: string;
+          is_placeholder: boolean;
+          league_id: number;
+          run_heat: number;
+          seq: number;
+          void_reason: string | null;
+          voided: boolean;
+        };
+        Insert: {
+          captured_at: string;
+          device_id: string;
+          elapsed_time: string;
+          id: string;
+          is_placeholder?: boolean;
+          league_id: number;
+          run_heat: number;
+          seq: number;
+          void_reason?: string | null;
+          voided?: boolean;
+        };
+        Update: {
+          captured_at?: string;
+          device_id?: string;
+          elapsed_time?: string;
+          id?: string;
+          is_placeholder?: boolean;
+          league_id?: number;
+          run_heat?: number;
+          seq?: number;
+          void_reason?: string | null;
+          voided?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "time_capture_league_id_fkey";
+            columns: ["league_id"];
+            isOneToOne: false;
+            referencedRelation: "league";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
     Views: {

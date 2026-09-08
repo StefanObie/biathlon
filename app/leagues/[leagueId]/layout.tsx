@@ -47,7 +47,11 @@ async function LeagueHeader({
       >
         ← All leagues
       </Link>
-      <h1 className="text-2xl font-bold">{league.name}</h1>
+      <h1 className="text-2xl font-bold">
+        <Link href={`/leagues/${leagueId}`} className="hover:underline">
+          {league.name}
+        </Link>
+      </h1>
       <p className="text-sm text-muted-foreground">
         {league.league_date} · Season {league.season}
       </p>
