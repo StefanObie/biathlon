@@ -87,3 +87,112 @@ create policy "Authenticated users can read points table"
   on points_table for select
   to authenticated
   using (true);
+
+-- Phase 1 capture and result tables. See spec §6.5-6.6.
+--
+-- heat_id from the spec is not a real column: a heat is the pair
+-- (league_id, run_heat), same as entry (§6.2) — no separate heat table.
+--
+-- position_capture/time_capture are immutable raw captures (§1): rows are
+-- never UPDATE'd or DELETE'd after insert. Corrections are soft-voids
+-- (voided/void_reason) or overlay rows in run_result, never edits to the
+-- capture tables themselves.
+
+create table position_capture (
+  id text primary key,              -- ULID, client-generated (§5.8)
+  league_id integer not null references league (id),
+  run_heat integer not null,
+  position integer not null,
+  athlete_no integer references athlete (athlete_no), -- null = skip, no scan attempted
+  device_id text not null,
+  scanned_at timestamptz not null,
+  voided boolean not null default false,
+  void_reason text
+);
+
+alter table position_capture enable row level security;
+
+create index position_capture_run_heat_idx
+  on position_capture (league_id, run_heat);
+
+create table time_capture (
+  id text primary key,              -- ULID, client-generated (§5.8)
+  league_id integer not null references league (id),
+  run_heat integer not null,
+  seq integer not null,
+  elapsed_time text not null,       -- mm:SS.ss, see run_time format below
+  is_placeholder boolean not null default false,
+  device_id text not null,
+  captured_at timestamptz not null,
+  voided boolean not null default false,
+  void_reason text
+);
+
+alter table time_capture enable row level security;
+
+create index time_capture_run_heat_idx
+  on time_capture (league_id, run_heat);
+
+-- Derived, overridable result (§6.5). Every mutation here is either
+-- 'auto' (from reconciling captures) or 'manual' (an operator override),
+-- and never touches position_capture/time_capture.
+create table run_result (
+  league_id integer not null references league (id),
+  athlete_no integer not null references athlete (athlete_no),
+  run_heat integer not null,
+  run_time text check (run_time ~ '^\d{2}:\d{2}\.\d{2}$'),
+  run_time_cs integer generated always as (
+    case when run_time is null then null else
+      substring(run_time from 1 for 2)::int * 6000
+      + substring(run_time from 4 for 2)::int * 100
+      + substring(run_time from 7 for 2)::int
+    end
+  ) stored,
+  status text not null default 'ok', -- ok | dns | dnf | dq
+  source text not null,              -- auto | manual
+  overridden_by text,
+  override_reason text,
+  primary key (league_id, athlete_no, run_heat)
+);
+
+alter table run_result enable row level security;
+
+create index run_result_run_heat_idx
+  on run_result (league_id, run_heat);
+
+create table audit_log (
+  id uuid primary key default gen_random_uuid(),
+  at timestamptz not null default now(),
+  actor text not null,
+  entity text not null,
+  action text not null,
+  before jsonb,
+  after jsonb,
+  reason text
+);
+
+alter table audit_log enable row level security;
+
+create policy "Authenticated users can manage position captures"
+  on position_capture for all
+  to authenticated
+  using (true)
+  with check (true);
+
+create policy "Authenticated users can manage time captures"
+  on time_capture for all
+  to authenticated
+  using (true)
+  with check (true);
+
+create policy "Authenticated users can manage run results"
+  on run_result for all
+  to authenticated
+  using (true)
+  with check (true);
+
+create policy "Authenticated users can manage audit log"
+  on audit_log for all
+  to authenticated
+  using (true)
+  with check (true);
