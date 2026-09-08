@@ -162,32 +162,21 @@ export function PositionCapture({
     await recordCapture(null);
   }
 
-  // Undoing must proceed from the highest position downward — voiding a
+  // Only the highest active position can be undone at a time — voiding a
   // middle position while later ones stay active would break the
-  // contiguous counter. Undoing a row also undoes everything captured
-  // after it (same list, sorted by scanned_at descending, is contiguous
-  // with "most recent first").
-  async function handleUndoFrom(capture: LocalPositionCapture) {
-    const toUndo = allCaptures.filter(
-      (c) => !c.voided && c.scanned_at >= capture.scanned_at,
-    );
-    for (const c of toUndo) {
-      await voidCapture(c.id, "operator undo");
-    }
-    const undoneIds = new Set(toUndo.map((c) => c.id));
+  // contiguous counter. Undoing the top one makes the next-highest
+  // available, one at a time (deliberate friction against careless undo).
+  async function handleUndoTop(capture: LocalPositionCapture) {
+    await voidCapture(capture.id, "operator undo");
     setCaptures((prev) =>
       prev.map((c) =>
-        undoneIds.has(c.id)
+        c.id === capture.id
           ? { ...c, voided: true, void_reason: "operator undo", synced: false }
           : c,
       ),
     );
     void syncPendingCaptures();
-    toast(
-      toUndo.length === 1
-        ? "Capture undone"
-        : `${toUndo.length} captures undone`,
-    );
+    toast("Capture undone");
   }
 
   const activeCapturesDesc = allCaptures.filter((c) => !c.voided);
@@ -198,12 +187,11 @@ export function PositionCapture({
       <div className="flex w-full max-w-sm items-center justify-between">
         <p className="text-sm text-muted-foreground">Run heat {runHeat}</p>
         {nextHeat !== null && (
-          <Link
-            href={`/leagues/${leagueId}/position/${nextHeat}`}
-            className="text-sm text-muted-foreground hover:underline"
-          >
-            Next heat ({nextHeat}) →
-          </Link>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/leagues/${leagueId}/position/${nextHeat}`}>
+              Next heat ({nextHeat}) →
+            </Link>
+          </Button>
         )}
       </div>
 
@@ -266,13 +254,13 @@ export function PositionCapture({
                     ? `${c.athlete_no} ${rosterByNo.get(c.athlete_no)?.fullName ?? ""}`
                     : "skip"}
               </span>
-              {!c.voided && (
+              {!c.voided && c.id === mostRecentActive?.id && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => void handleUndoFrom(c)}
+                  onClick={() => void handleUndoTop(c)}
                 >
-                  {c.id === mostRecentActive?.id ? "Undo" : "Undo from here"}
+                  Undo
                 </Button>
               )}
             </li>
