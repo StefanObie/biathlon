@@ -46,7 +46,8 @@ async function HeatList({ params }: { params: Promise<{ leagueId: string }> }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold">Table capture — pick a heat</h2>
+      <h1 className="text-lg font-semibold">Running Position Capture</h1>
+      <h2 className="text-lg font-semibold">Select a Heat</h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {heats.map((heat) => (
           <Link

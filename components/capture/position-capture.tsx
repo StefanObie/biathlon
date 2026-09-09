@@ -109,9 +109,9 @@ export function PositionCapture({
     .filter((c) => !c.voided)
     .map((c) => c.position);
   const position = nextPosition(activePositions);
-  const allCaptures = [...captures].sort((a, b) =>
-    b.scanned_at.localeCompare(a.scanned_at),
-  );
+  const allCaptures = [...captures]
+    .filter((c) => !c.voided)
+    .sort((a, b) => b.scanned_at.localeCompare(a.scanned_at));
 
   async function recordCapture(athleteNo: number | null) {
     const row: LocalPositionCapture = {
@@ -140,6 +140,9 @@ export function PositionCapture({
     const athlete = rosterByNo.get(athleteNo);
     if (!athlete) {
       return `Athlete ${athleteNo} is not entered in this league.`;
+    }
+    if (captures.some((c) => !c.voided && c.athlete_no === athleteNo)) {
+      return `Athlete ${athleteNo} ${athlete.fullName} is already captured in this heat.`;
     }
     if (athlete.runHeat !== runHeat) {
       // Confirm before logging — the mismatch itself is resolved later in
@@ -201,11 +204,10 @@ export function PositionCapture({
       ),
     );
     void syncPendingCaptures();
-    toast("Capture undone");
+    // toast.success("Capture undone");
   }
 
-  const activeCapturesDesc = allCaptures.filter((c) => !c.voided);
-  const mostRecentActive = activeCapturesDesc[0];
+  const mostRecentActive = allCaptures[0];
 
   return (
     <div className="flex flex-col items-center gap-8">
@@ -268,7 +270,7 @@ export function PositionCapture({
 
       <div className="w-full max-w-sm">
         <p className="mb-2 text-sm font-medium text-muted-foreground">
-          Captures ({activeCapturesDesc.length})
+          Captures ({allCaptures.length})
         </p>
         <ul className="flex flex-col gap-1">
           {allCaptures.map((c) => (
@@ -278,13 +280,11 @@ export function PositionCapture({
             >
               <span className="tabular-nums">
                 #{c.position}{" "}
-                {c.voided
-                  ? "voided"
-                  : c.athlete_no
-                    ? `${c.athlete_no} ${rosterByNo.get(c.athlete_no)?.fullName ?? ""}`
-                    : "skip"}
+                {c.athlete_no
+                  ? `${c.athlete_no} ${rosterByNo.get(c.athlete_no)?.fullName ?? ""}`
+                  : "skip"}
               </span>
-              {!c.voided && c.id === mostRecentActive?.id && (
+              {c.id === mostRecentActive?.id && (
                 <Button
                   variant="ghost"
                   size="sm"
