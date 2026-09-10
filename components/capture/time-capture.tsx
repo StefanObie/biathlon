@@ -24,12 +24,12 @@ import {
   type LocalTimeCapture,
 } from "@/lib/offline/time-capture-queue";
 import {
-  clearHeatTimerStart,
-  getHeatTimerStart,
-  putHeatTimerStart,
-  startHeatTimerStartSyncSweep,
-  syncPendingHeatTimerStarts,
-} from "@/lib/offline/heat-timer-start-queue";
+  clearLeagueRaceStart,
+  getLeagueRace,
+  putLeagueRace,
+  startLeagueRaceSyncSweep,
+  syncPendingLeagueRaces,
+} from "@/lib/offline/league-race-queue";
 
 export interface RemoteTimeCapture {
   id: string;
@@ -42,9 +42,9 @@ export interface RemoteTimeCapture {
   device_id: string;
 }
 
-export interface RemoteHeatTimerStart {
-  started_at: string;
-  device_id: string;
+export interface RemoteLeagueRace {
+  started_at: string | null;
+  device_id: string | null;
 }
 
 export function TimeCapture({
@@ -52,19 +52,19 @@ export function TimeCapture({
   runHeat,
   nextHeat,
   remoteCaptures,
-  remoteHeatTimerStart,
+  remoteLeagueRace,
 }: {
   leagueId: number;
   runHeat: number;
   nextHeat: number | null;
   remoteCaptures: RemoteTimeCapture[];
-  remoteHeatTimerStart: RemoteHeatTimerStart | null;
+  remoteLeagueRace: RemoteLeagueRace | null;
 }) {
   const [captures, setCaptures] = useState<LocalTimeCapture[]>([]);
   const [loaded, setLoaded] = useState(false);
   // Wall-clock ms (Date.now() epoch), not performance.now() — this value
   // has to outlive the tab (refresh, dropped phone handed to someone else),
-  // so it's read from the synced heat_timer_start row rather than kept only
+  // so it's read from the synced league_race row rather than kept only
   // in memory.
   const [startedAtMs, setStartedAtMs] = useState<number | null>(null);
   const [now, setNow] = useState<number | null>(null);
@@ -96,22 +96,22 @@ export function TimeCapture({
         await putCapture(row);
       }
 
-      let start = await getHeatTimerStart(leagueId, runHeat);
-      if (!start && remoteHeatTimerStart) {
-        start = {
+      let race = await getLeagueRace(leagueId, runHeat);
+      if (!race && remoteLeagueRace) {
+        race = {
           league_id: leagueId,
           run_heat: runHeat,
-          started_at: remoteHeatTimerStart.started_at,
-          device_id: remoteHeatTimerStart.device_id,
+          started_at: remoteLeagueRace.started_at,
+          device_id: remoteLeagueRace.device_id,
           synced: true,
         };
-        await putHeatTimerStart(start);
+        await putLeagueRace(race);
       }
 
       if (cancelled) return;
       setCaptures([...local, ...remoteOnly]);
-      if (start) {
-        const startMs = new Date(start.started_at).getTime();
+      if (race?.started_at) {
+        const startMs = new Date(race.started_at).getTime();
         startedAtMsRef.current = startMs;
         setStartedAtMs(startMs);
       }
@@ -120,7 +120,7 @@ export function TimeCapture({
 
     void load();
     const stopCaptureSweep = startSyncSweep();
-    const stopStartSweep = startHeatTimerStartSyncSweep();
+    const stopStartSweep = startLeagueRaceSyncSweep();
     return () => {
       cancelled = true;
       stopCaptureSweep();
@@ -160,14 +160,14 @@ export function TimeCapture({
     const startMs = Date.now();
     startedAtMsRef.current = startMs;
     setStartedAtMs(startMs);
-    await putHeatTimerStart({
+    await putLeagueRace({
       league_id: leagueId,
       run_heat: runHeat,
       started_at: new Date(startMs).toISOString(),
       device_id: getDeviceId(),
       synced: false,
     });
-    void syncPendingHeatTimerStarts();
+    void syncPendingLeagueRaces();
   }
 
   async function handleResetStart() {
@@ -179,7 +179,7 @@ export function TimeCapture({
     startedAtMsRef.current = null;
     setStartedAtMs(null);
     setConfirmingReset(false);
-    await clearHeatTimerStart(leagueId, runHeat);
+    await clearLeagueRaceStart(leagueId, runHeat);
   }
 
   async function recordCapture(isPlaceholder: boolean) {
