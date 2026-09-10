@@ -133,6 +133,21 @@ alter table time_capture enable row level security;
 create index time_capture_run_heat_idx
   on time_capture (league_id, run_heat);
 
+-- Heat-level timer start, kept separate from time_capture: this isn't a
+-- finisher row, it's the clock anchor every elapsed_time in the heat is
+-- measured against. One row per heat — upserted, not appended, so a second
+-- operator (or the same operator after a refresh/dropped phone) reads the
+-- same start instead of racing to create their own (§4.4 hand-off case).
+create table heat_timer_start (
+  league_id integer not null references league (id),
+  run_heat integer not null,
+  started_at timestamptz not null,
+  device_id text not null,
+  primary key (league_id, run_heat)
+);
+
+alter table heat_timer_start enable row level security;
+
 -- Derived, overridable result (§6.5). Every mutation here is either
 -- 'auto' (from reconciling captures) or 'manual' (an operator override),
 -- and never touches position_capture/time_capture.
@@ -181,6 +196,12 @@ create policy "Authenticated users can manage position captures"
 
 create policy "Authenticated users can manage time captures"
   on time_capture for all
+  to authenticated
+  using (true)
+  with check (true);
+
+create policy "Authenticated users can manage heat timer starts"
+  on heat_timer_start for all
   to authenticated
   using (true)
   with check (true);

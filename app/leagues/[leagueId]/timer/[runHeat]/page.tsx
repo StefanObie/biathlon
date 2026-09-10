@@ -30,18 +30,27 @@ async function TimerHeatSection({
 
   const supabase = await createClient();
 
-  const [{ data: entries, error: entriesError }, { data: captures }] =
-    await Promise.all([
-      supabase.from("entry").select("run_heat").eq("league_id", leagueIdNum),
-      supabase
-        .from("time_capture")
-        .select(
-          "id, seq, elapsed_time, is_placeholder, voided, void_reason, captured_at, device_id",
-        )
-        .eq("league_id", leagueIdNum)
-        .eq("run_heat", runHeatNum)
-        .order("seq"),
-    ]);
+  const [
+    { data: entries, error: entriesError },
+    { data: captures },
+    { data: heatTimerStart },
+  ] = await Promise.all([
+    supabase.from("entry").select("run_heat").eq("league_id", leagueIdNum),
+    supabase
+      .from("time_capture")
+      .select(
+        "id, seq, elapsed_time, is_placeholder, voided, void_reason, captured_at, device_id",
+      )
+      .eq("league_id", leagueIdNum)
+      .eq("run_heat", runHeatNum)
+      .order("seq"),
+    supabase
+      .from("heat_timer_start")
+      .select("started_at, device_id")
+      .eq("league_id", leagueIdNum)
+      .eq("run_heat", runHeatNum)
+      .maybeSingle(),
+  ]);
 
   if (entriesError) {
     return <p className="text-sm text-destructive">{entriesError.message}</p>;
@@ -66,6 +75,7 @@ async function TimerHeatSection({
       runHeat={runHeatNum}
       nextHeat={nextHeat}
       remoteCaptures={captures ?? []}
+      remoteHeatTimerStart={heatTimerStart ?? null}
     />
   );
 }
