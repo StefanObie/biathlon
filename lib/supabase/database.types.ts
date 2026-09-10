@@ -127,6 +127,35 @@ export type Database = {
           },
         ];
       };
+      heat_timer_start: {
+        Row: {
+          device_id: string;
+          league_id: number;
+          run_heat: number;
+          started_at: string;
+        };
+        Insert: {
+          device_id: string;
+          league_id: number;
+          run_heat: number;
+          started_at: string;
+        };
+        Update: {
+          device_id?: string;
+          league_id?: number;
+          run_heat?: number;
+          started_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "heat_timer_start_league_id_fkey";
+            columns: ["league_id"];
+            isOneToOne: false;
+            referencedRelation: "league";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       league: {
         Row: {
           id: number;

@@ -15,6 +15,12 @@ import {
   voidCapture,
   type LocalTimeCapture,
 } from "@/lib/offline/time-capture-queue";
+import {
+  getHeatTimerStart,
+  putHeatTimerStart,
+  startHeatTimerStartSyncSweep,
+  syncPendingHeatTimerStarts,
+} from "@/lib/offline/heat-timer-start-queue";
 
 export interface RemoteTimeCapture {
   id: string;
@@ -27,26 +33,40 @@ export interface RemoteTimeCapture {
   device_id: string;
 }
 
+export interface RemoteHeatTimerStart {
+  started_at: string;
+  device_id: string;
+}
+
 export function TimeCapture({
   leagueId,
   runHeat,
   nextHeat,
   remoteCaptures,
+  remoteHeatTimerStart,
 }: {
   leagueId: number;
   runHeat: number;
   nextHeat: number | null;
   remoteCaptures: RemoteTimeCapture[];
+  remoteHeatTimerStart: RemoteHeatTimerStart | null;
 }) {
   const [captures, setCaptures] = useState<LocalTimeCapture[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [startedAt, setStartedAt] = useState<number | null>(null);
+  // Wall-clock ms (Date.now() epoch), not performance.now() — this value
+  // has to outlive the tab (refresh, dropped phone handed to someone else),
+  // so it's read from the synced heat_timer_start row rather than kept only
+  // in memory.
+  const [startedAtMs, setStartedAtMs] = useState<number | null>(null);
   const [now, setNow] = useState<number | null>(null);
-  const startedAtRef = useRef<number | null>(null);
+  const startedAtMsRef = useRef<number | null>(null);
 
   // Load Dexie rows first (unsynced local state wins on conflict with the
   // server snapshot passed down from the page — same id, local is either
   // identical or a not-yet-synced edit), merging in any remote-only rows.
+  // Same pattern for the heat's start time: Dexie first, then the server
+  // snapshot if Dexie has nothing yet — whichever phone started the clock
+  // first, every phone converges on that same value.
   useEffect(() => {
     let cancelled = false;
 
@@ -66,32 +86,52 @@ export function TimeCapture({
         await putCapture(row);
       }
 
+      let start = await getHeatTimerStart(leagueId, runHeat);
+      if (!start && remoteHeatTimerStart) {
+        start = {
+          league_id: leagueId,
+          run_heat: runHeat,
+          started_at: remoteHeatTimerStart.started_at,
+          device_id: remoteHeatTimerStart.device_id,
+          synced: true,
+        };
+        await putHeatTimerStart(start);
+      }
+
       if (cancelled) return;
       setCaptures([...local, ...remoteOnly]);
+      if (start) {
+        const startMs = new Date(start.started_at).getTime();
+        startedAtMsRef.current = startMs;
+        setStartedAtMs(startMs);
+      }
       setLoaded(true);
     }
 
     void load();
-    const stopSweep = startSyncSweep();
+    const stopCaptureSweep = startSyncSweep();
+    const stopStartSweep = startHeatTimerStartSyncSweep();
     return () => {
       cancelled = true;
-      stopSweep();
+      stopCaptureSweep();
+      stopStartSweep();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leagueId, runHeat]);
 
   // Clock tick, only while a heat is running — drives the live elapsed
-  // display. Not used for the captured time itself (that's computed fresh
-  // from performance.now() at press time, see recordCapture).
+  // display via Date.now(), the same wall clock the anchor is stored in.
+  // Not used for the captured time itself (that's computed fresh at press
+  // time, see recordCapture), just the on-screen ticker.
   useEffect(() => {
-    if (startedAt === null) {
+    if (startedAtMs === null) {
       setNow(null);
       return;
     }
-    setNow(performance.now());
-    const interval = setInterval(() => setNow(performance.now()), 47);
+    setNow(Date.now());
+    const interval = setInterval(() => setNow(Date.now()), 47);
     return () => clearInterval(interval);
-  }, [startedAt]);
+  }, [startedAtMs]);
 
   const activeSeqs = captures.filter((c) => !c.voided).map((c) => c.seq);
   const seq = nextSeq(activeSeqs);
@@ -102,19 +142,27 @@ export function TimeCapture({
   const mostRecent = allCaptures[0];
 
   const liveElapsed = useMemo(() => {
-    if (startedAt === null || now === null) return null;
-    return formatElapsed(now - startedAt);
-  }, [startedAt, now]);
+    if (startedAtMs === null || now === null) return null;
+    return formatElapsed(now - startedAtMs);
+  }, [startedAtMs, now]);
 
-  function handleStart() {
-    const start = performance.now();
-    startedAtRef.current = start;
-    setStartedAt(start);
+  async function handleStart() {
+    const startMs = Date.now();
+    startedAtMsRef.current = startMs;
+    setStartedAtMs(startMs);
+    await putHeatTimerStart({
+      league_id: leagueId,
+      run_heat: runHeat,
+      started_at: new Date(startMs).toISOString(),
+      device_id: getDeviceId(),
+      synced: false,
+    });
+    void syncPendingHeatTimerStarts();
   }
 
   async function recordCapture(isPlaceholder: boolean) {
-    if (startedAtRef.current === null) return;
-    const elapsedMs = performance.now() - startedAtRef.current;
+    if (startedAtMsRef.current === null) return;
+    const elapsedMs = Date.now() - startedAtMsRef.current;
     const row: LocalTimeCapture = {
       id: ulid(),
       league_id: leagueId,
@@ -172,7 +220,7 @@ export function TimeCapture({
 
       <div className="text-center">
         <p className="text-sm text-muted-foreground">
-          {startedAt === null ? "Not started" : "Elapsed"}
+          {startedAtMs === null ? "Not started" : "Elapsed"}
         </p>
         <p className="text-6xl font-bold tabular-nums">
           {liveElapsed ?? "00:00.00"}
@@ -182,11 +230,11 @@ export function TimeCapture({
         </p>
       </div>
 
-      {startedAt === null ? (
+      {startedAtMs === null ? (
         <Button
           size="lg"
           className="h-24 w-full max-w-sm text-2xl"
-          onClick={handleStart}
+          onClick={() => void handleStart()}
           disabled={!loaded}
           suppressHydrationWarning
         >
