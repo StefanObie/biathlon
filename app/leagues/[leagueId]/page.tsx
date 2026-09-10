@@ -31,8 +31,8 @@ const SECTIONS: NavSection[] = [
   {
     href: (id) => `/leagues/${id}/reconcile`,
     title: "Reconcile",
-    description: "Match positions to times, fix gaps, publish results.",
-    available: false,
+    description: "Match positions to times, fix gaps, save results.",
+    available: true,
   },
 ];
 
