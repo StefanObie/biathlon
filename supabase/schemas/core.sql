@@ -90,8 +90,10 @@ create policy "Authenticated users can read points table"
 
 -- Phase 1 capture and result tables. See spec §6.5-6.6.
 --
--- heat_id from the spec is not a real column: a heat is the pair
--- (league_id, run_heat), same as entry (§6.2) — no separate heat table.
+-- A heat's identity is still the pair (league_id, run_heat), same as entry
+-- (§6.2) — league_race (below) holds a heat's timer state, not a surrogate
+-- id; position_capture/time_capture/run_result key on the pair directly
+-- rather than a league_race FK.
 --
 -- position_capture/time_capture are immutable raw captures (§1): rows are
 -- never UPDATE'd or DELETE'd after insert. Corrections are soft-voids
@@ -132,6 +134,24 @@ alter table time_capture enable row level security;
 
 create index time_capture_run_heat_idx
   on time_capture (league_id, run_heat);
+
+-- Heat-level timer start, kept separate from time_capture: this isn't a
+-- finisher row, it's the clock anchor every elapsed_time in the heat is
+-- measured against. One row per heat — upserted, not appended, so a second
+-- operator (or the same operator after a refresh/dropped phone) reads the
+-- same start instead of racing to create their own (§4.4 hand-off case).
+-- There is no separate publish gate: a heat's run_result rows being saved
+-- (§6.5) is itself the signal that reconciliation is done, so league_race
+-- only ever holds timer state.
+create table league_race (
+  league_id integer not null references league (id),
+  run_heat integer not null,
+  started_at timestamptz,
+  device_id text,
+  primary key (league_id, run_heat)
+);
+
+alter table league_race enable row level security;
 
 -- Derived, overridable result (§6.5). Every mutation here is either
 -- 'auto' (from reconciling captures) or 'manual' (an operator override),
@@ -185,6 +205,12 @@ create policy "Authenticated users can manage time captures"
   using (true)
   with check (true);
 
+create policy "Authenticated users can manage league races"
+  on league_race for all
+  to authenticated
+  using (true)
+  with check (true);
+
 create policy "Authenticated users can manage run results"
   on run_result for all
   to authenticated
@@ -196,3 +222,8 @@ create policy "Authenticated users can manage audit log"
   to authenticated
   using (true)
   with check (true);
+
+-- Reconciliation (§4.5/§5.3) subscribes to these two tables so the screen
+-- updates live as captures sync in from field phones.
+alter publication supabase_realtime add table position_capture;
+alter publication supabase_realtime add table time_capture;

@@ -148,6 +148,35 @@ export type Database = {
         };
         Relationships: [];
       };
+      league_race: {
+        Row: {
+          device_id: string | null;
+          league_id: number;
+          run_heat: number;
+          started_at: string | null;
+        };
+        Insert: {
+          device_id?: string | null;
+          league_id: number;
+          run_heat: number;
+          started_at?: string | null;
+        };
+        Update: {
+          device_id?: string | null;
+          league_id?: number;
+          run_heat?: number;
+          started_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "league_race_league_id_fkey";
+            columns: ["league_id"];
+            isOneToOne: false;
+            referencedRelation: "league";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       points_table: {
         Row: {
           age_from: number;
