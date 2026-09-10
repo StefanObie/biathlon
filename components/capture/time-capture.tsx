@@ -171,6 +171,11 @@ export function TimeCapture({
   }
 
   async function handleResetStart() {
+    // Belt-and-braces alongside the disabled Reset button: never clear a
+    // clock that recorded finishes are still measured against — bad data
+    // otherwise (§ operator must undo captures first, this isn't a
+    // reachable UI path but the invariant should hold regardless).
+    if (allCaptures.length > 0) return;
     startedAtMsRef.current = null;
     setStartedAtMs(null);
     setConfirmingReset(false);
@@ -282,11 +287,22 @@ export function TimeCapture({
               variant="destructive"
               className="h-12 w-12 shrink-0 p-0 text-sm"
               onClick={() => setConfirmingReset(true)}
+              disabled={allCaptures.length > 0}
+              title={
+                allCaptures.length > 0
+                  ? "Undo all recorded finishes before resetting the clock"
+                  : undefined
+              }
               suppressHydrationWarning
             >
               Reset
             </Button>
           </div>
+          {allCaptures.length > 0 && (
+            <p className="text-center text-xs text-muted-foreground">
+              Undo all recorded finishes before resetting the clock.
+            </p>
+          )}
         </div>
       )}
 
@@ -328,21 +344,8 @@ export function TimeCapture({
           <DialogHeader>
             <DialogTitle>Reset heat start?</DialogTitle>
             <DialogDescription>
-              {allCaptures.length > 0 ? (
-                <>
-                  {allCaptures.length} finish
-                  {allCaptures.length === 1 ? " has" : "es have"} already been
-                  recorded against this clock. Resetting clears the start time
-                  only — recorded finishes are kept, but their elapsed times
-                  were measured from the start you&rsquo;re about to clear. This
-                  can&rsquo;t be undone.
-                </>
-              ) : (
-                <>
-                  This clears the heat&rsquo;s start time. Use this if Start
-                  heat was pressed by accident.
-                </>
-              )}
+              This clears the heat&rsquo;s start time. Use this if Start heat
+              was pressed by accident.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
