@@ -188,6 +188,20 @@ create table audit_log (
 
 alter table audit_log enable row level security;
 
+-- Publish gate (§4.5): a heat's run_result rows aren't visible for export or
+-- public display until an official confirms them. Row presence = published,
+-- same upsert-not-append shape as heat_timer_start. Reopening deletes the
+-- row and requires a reason, logged to audit_log by the caller.
+create table heat_publish (
+  league_id integer not null references league (id),
+  run_heat integer not null,
+  published_at timestamptz not null default now(),
+  published_by text not null,
+  primary key (league_id, run_heat)
+);
+
+alter table heat_publish enable row level security;
+
 create policy "Authenticated users can manage position captures"
   on position_capture for all
   to authenticated
@@ -217,3 +231,14 @@ create policy "Authenticated users can manage audit log"
   to authenticated
   using (true)
   with check (true);
+
+create policy "Authenticated users can manage heat publish"
+  on heat_publish for all
+  to authenticated
+  using (true)
+  with check (true);
+
+-- Reconciliation (§4.5/§5.3) subscribes to these two tables so the screen
+-- updates live as captures sync in from field phones.
+alter publication supabase_realtime add table position_capture;
+alter publication supabase_realtime add table time_capture;
