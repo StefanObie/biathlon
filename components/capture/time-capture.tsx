@@ -5,6 +5,14 @@ import Link from "next/link";
 import { ulid } from "ulid";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { getDeviceId } from "@/lib/offline/device-id";
 import { formatElapsed, nextSeq } from "@/lib/scan/time";
 import {
@@ -16,6 +24,7 @@ import {
   type LocalTimeCapture,
 } from "@/lib/offline/time-capture-queue";
 import {
+  clearHeatTimerStart,
   getHeatTimerStart,
   putHeatTimerStart,
   startHeatTimerStartSyncSweep,
@@ -59,6 +68,7 @@ export function TimeCapture({
   // in memory.
   const [startedAtMs, setStartedAtMs] = useState<number | null>(null);
   const [now, setNow] = useState<number | null>(null);
+  const [confirmingReset, setConfirmingReset] = useState(false);
   const startedAtMsRef = useRef<number | null>(null);
 
   // Load Dexie rows first (unsynced local state wins on conflict with the
@@ -160,6 +170,13 @@ export function TimeCapture({
     void syncPendingHeatTimerStarts();
   }
 
+  async function handleResetStart() {
+    startedAtMsRef.current = null;
+    setStartedAtMs(null);
+    setConfirmingReset(false);
+    await clearHeatTimerStart(leagueId, runHeat);
+  }
+
   async function recordCapture(isPlaceholder: boolean) {
     if (startedAtMsRef.current === null) return;
     const elapsedMs = Date.now() - startedAtMsRef.current;
@@ -228,6 +245,16 @@ export function TimeCapture({
         <p className="mt-2 text-sm text-muted-foreground">
           {allCaptures.length} recorded
         </p>
+        {startedAtMs !== null && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-1 text-muted-foreground"
+            onClick={() => setConfirmingReset(true)}
+          >
+            Reset
+          </Button>
+        )}
       </div>
 
       {startedAtMs === null ? (
@@ -248,7 +275,7 @@ export function TimeCapture({
             onClick={() => void handleFinish()}
             suppressHydrationWarning
           >
-            Finish
+            Record finish
           </Button>
           <Button
             size="lg"
@@ -294,6 +321,42 @@ export function TimeCapture({
           )}
         </ul>
       </div>
+
+      <Dialog open={confirmingReset} onOpenChange={setConfirmingReset}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset heat start?</DialogTitle>
+            <DialogDescription>
+              {allCaptures.length > 0 ? (
+                <>
+                  {allCaptures.length} finish
+                  {allCaptures.length === 1 ? " has" : "es have"} already been
+                  recorded against this clock. Resetting clears the start time
+                  only — recorded finishes are kept, but their elapsed times
+                  were measured from the start you&rsquo;re about to clear. This
+                  can&rsquo;t be undone.
+                </>
+              ) : (
+                <>
+                  This clears the heat&rsquo;s start time. Use this if Start
+                  heat was pressed by accident.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmingReset(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => void handleResetStart()}
+            >
+              Reset
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

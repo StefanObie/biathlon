@@ -72,6 +72,26 @@ export async function getHeatTimerStart(
   return row ? fromStored(row) : undefined;
 }
 
+/**
+ * Resets a heat's start (operator pressed Start by accident) — this row has
+ * no voided concept like the capture tables, so "clear" is a real delete,
+ * both locally and on the server. Recorded time_capture rows for the heat
+ * are untouched; the confirmation dialog is responsible for warning the
+ * operator about those before calling this.
+ */
+export async function clearHeatTimerStart(
+  leagueId: number,
+  runHeat: number,
+): Promise<void> {
+  await db.heat_timer_starts.delete(toId(leagueId, runHeat));
+  const supabase = createClient();
+  await supabase
+    .from("heat_timer_start")
+    .delete()
+    .eq("league_id", leagueId)
+    .eq("run_heat", runHeat);
+}
+
 async function getUnsyncedHeatTimerStarts(): Promise<LocalHeatTimerStart[]> {
   const rows = await db.heat_timer_starts.where("synced").equals(0).toArray();
   return rows.map(fromStored);
@@ -99,12 +119,10 @@ export async function syncPendingHeatTimerStarts(): Promise<void> {
       started_at: row.started_at,
       device_id: row.device_id,
     }));
-    const { error } = await supabase
-      .from("heat_timer_start")
-      .upsert(rows, {
-        onConflict: "league_id,run_heat",
-        ignoreDuplicates: true,
-      });
+    const { error } = await supabase.from("heat_timer_start").upsert(rows, {
+      onConflict: "league_id,run_heat",
+      ignoreDuplicates: true,
+    });
     if (error) return;
 
     await db.heat_timer_starts.bulkUpdate(
