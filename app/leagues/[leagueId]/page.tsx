@@ -26,7 +26,7 @@ const SECTIONS: NavSection[] = [
     href: (id) => `/leagues/${id}/timer`,
     title: "Timer",
     description: "Finish-line timer — one button per finisher.",
-    available: false,
+    available: true,
   },
   {
     href: (id) => `/leagues/${id}/reconcile`,
