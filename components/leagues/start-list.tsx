@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { UploadIcon } from "lucide-react";
 
 import { saveStartList } from "@/lib/leagues/actions";
+import { AddWalkUpAthleteForm } from "@/components/leagues/add-walk-up-athlete-form";
 import { parseUploadedEntryFile } from "@/lib/import/parse-file";
 import {
   parseEntryRows,
@@ -236,6 +237,7 @@ function CommittedTable({
               Download QR codes
             </a>
           </Button>
+          <AddWalkUpAthleteForm leagueId={leagueId} />
           <Button variant="outline" onClick={() => inputRef.current?.click()}>
             Import new data
           </Button>
