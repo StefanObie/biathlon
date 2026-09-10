@@ -33,7 +33,7 @@ async function TimerHeatSection({
   const [
     { data: entries, error: entriesError },
     { data: captures },
-    { data: heatTimerStart },
+    { data: leagueRace },
   ] = await Promise.all([
     supabase.from("entry").select("run_heat").eq("league_id", leagueIdNum),
     supabase
@@ -45,7 +45,7 @@ async function TimerHeatSection({
       .eq("run_heat", runHeatNum)
       .order("seq"),
     supabase
-      .from("heat_timer_start")
+      .from("league_race")
       .select("started_at, device_id")
       .eq("league_id", leagueIdNum)
       .eq("run_heat", runHeatNum)
@@ -75,7 +75,7 @@ async function TimerHeatSection({
       runHeat={runHeatNum}
       nextHeat={nextHeat}
       remoteCaptures={captures ?? []}
-      remoteHeatTimerStart={heatTimerStart ?? null}
+      remoteLeagueRace={leagueRace ?? null}
     />
   );
 }

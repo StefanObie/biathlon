@@ -90,8 +90,10 @@ create policy "Authenticated users can read points table"
 
 -- Phase 1 capture and result tables. See spec §6.5-6.6.
 --
--- heat_id from the spec is not a real column: a heat is the pair
--- (league_id, run_heat), same as entry (§6.2) — no separate heat table.
+-- A heat's identity is still the pair (league_id, run_heat), same as entry
+-- (§6.2) — league_race (below) holds a heat's timer state, not a surrogate
+-- id; position_capture/time_capture/run_result key on the pair directly
+-- rather than a league_race FK.
 --
 -- position_capture/time_capture are immutable raw captures (§1): rows are
 -- never UPDATE'd or DELETE'd after insert. Corrections are soft-voids
@@ -138,15 +140,18 @@ create index time_capture_run_heat_idx
 -- measured against. One row per heat — upserted, not appended, so a second
 -- operator (or the same operator after a refresh/dropped phone) reads the
 -- same start instead of racing to create their own (§4.4 hand-off case).
-create table heat_timer_start (
+-- There is no separate publish gate: a heat's run_result rows being saved
+-- (§6.5) is itself the signal that reconciliation is done, so league_race
+-- only ever holds timer state.
+create table league_race (
   league_id integer not null references league (id),
   run_heat integer not null,
-  started_at timestamptz not null,
-  device_id text not null,
+  started_at timestamptz,
+  device_id text,
   primary key (league_id, run_heat)
 );
 
-alter table heat_timer_start enable row level security;
+alter table league_race enable row level security;
 
 -- Derived, overridable result (§6.5). Every mutation here is either
 -- 'auto' (from reconciling captures) or 'manual' (an operator override),
@@ -188,20 +193,6 @@ create table audit_log (
 
 alter table audit_log enable row level security;
 
--- Publish gate (§4.5): a heat's run_result rows aren't visible for export or
--- public display until an official confirms them. Row presence = published,
--- same upsert-not-append shape as heat_timer_start. Reopening deletes the
--- row and requires a reason, logged to audit_log by the caller.
-create table heat_publish (
-  league_id integer not null references league (id),
-  run_heat integer not null,
-  published_at timestamptz not null default now(),
-  published_by text not null,
-  primary key (league_id, run_heat)
-);
-
-alter table heat_publish enable row level security;
-
 create policy "Authenticated users can manage position captures"
   on position_capture for all
   to authenticated
@@ -214,8 +205,8 @@ create policy "Authenticated users can manage time captures"
   using (true)
   with check (true);
 
-create policy "Authenticated users can manage heat timer starts"
-  on heat_timer_start for all
+create policy "Authenticated users can manage league races"
+  on league_race for all
   to authenticated
   using (true)
   with check (true);
@@ -228,12 +219,6 @@ create policy "Authenticated users can manage run results"
 
 create policy "Authenticated users can manage audit log"
   on audit_log for all
-  to authenticated
-  using (true)
-  with check (true);
-
-create policy "Authenticated users can manage heat publish"
-  on heat_publish for all
   to authenticated
   using (true)
   with check (true);

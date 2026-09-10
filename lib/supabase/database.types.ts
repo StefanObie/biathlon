@@ -127,64 +127,6 @@ export type Database = {
           },
         ];
       };
-      heat_publish: {
-        Row: {
-          league_id: number;
-          published_at: string;
-          published_by: string;
-          run_heat: number;
-        };
-        Insert: {
-          league_id: number;
-          published_at?: string;
-          published_by: string;
-          run_heat: number;
-        };
-        Update: {
-          league_id?: number;
-          published_at?: string;
-          published_by?: string;
-          run_heat?: number;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "heat_publish_league_id_fkey";
-            columns: ["league_id"];
-            isOneToOne: false;
-            referencedRelation: "league";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      heat_timer_start: {
-        Row: {
-          device_id: string;
-          league_id: number;
-          run_heat: number;
-          started_at: string;
-        };
-        Insert: {
-          device_id: string;
-          league_id: number;
-          run_heat: number;
-          started_at: string;
-        };
-        Update: {
-          device_id?: string;
-          league_id?: number;
-          run_heat?: number;
-          started_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "heat_timer_start_league_id_fkey";
-            columns: ["league_id"];
-            isOneToOne: false;
-            referencedRelation: "league";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
       league: {
         Row: {
           id: number;
@@ -205,6 +147,35 @@ export type Database = {
           season?: number;
         };
         Relationships: [];
+      };
+      league_race: {
+        Row: {
+          device_id: string | null;
+          league_id: number;
+          run_heat: number;
+          started_at: string | null;
+        };
+        Insert: {
+          device_id?: string | null;
+          league_id: number;
+          run_heat: number;
+          started_at?: string | null;
+        };
+        Update: {
+          device_id?: string | null;
+          league_id?: number;
+          run_heat?: number;
+          started_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "league_race_league_id_fkey";
+            columns: ["league_id"];
+            isOneToOne: false;
+            referencedRelation: "league";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       points_table: {
         Row: {
