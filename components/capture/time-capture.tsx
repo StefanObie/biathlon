@@ -245,16 +245,6 @@ export function TimeCapture({
         <p className="mt-2 text-sm text-muted-foreground">
           {allCaptures.length} recorded
         </p>
-        {startedAtMs !== null && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mt-1 text-muted-foreground"
-            onClick={() => setConfirmingReset(true)}
-          >
-            Reset
-          </Button>
-        )}
       </div>
 
       {startedAtMs === null ? (
@@ -277,15 +267,26 @@ export function TimeCapture({
           >
             Record finish
           </Button>
-          <Button
-            size="lg"
-            variant="outline"
-            className="h-14 text-lg"
-            onClick={() => void handleMissedOne()}
-            suppressHydrationWarning
-          >
-            Missed one
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="lg"
+              variant="outline"
+              className="h-12 flex-1 text-base"
+              onClick={() => void handleMissedOne()}
+              suppressHydrationWarning
+            >
+              Missed finish
+            </Button>
+            <Button
+              size="lg"
+              variant="destructive"
+              className="h-12 w-12 shrink-0 p-0 text-sm"
+              onClick={() => setConfirmingReset(true)}
+              suppressHydrationWarning
+            >
+              Reset
+            </Button>
+          </div>
         </div>
       )}
 
@@ -301,7 +302,7 @@ export function TimeCapture({
             >
               <span className="tabular-nums">
                 #{c.seq} {c.elapsed_time}
-                {c.is_placeholder && " (missed one)"}
+                {c.is_placeholder && " (missed finish)"}
               </span>
               {c.id === mostRecent?.id && (
                 <Button
