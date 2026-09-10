@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseAgeGroup } from "./age-group";
+import { AGE_GROUP_LABELS, parseAgeGroup } from "./age-group";
 
 describe("parseAgeGroup", () => {
   it.each([
@@ -41,4 +41,11 @@ describe("parseAgeGroup", () => {
     expect(parseAgeGroup("SENIORS")).toBeNull();
     expect(parseAgeGroup("")).toBeNull();
   });
+
+  it.each(AGE_GROUP_LABELS)(
+    "AGE_GROUP_LABELS entry %s parses successfully",
+    (label) => {
+      expect(parseAgeGroup(label)).not.toBeNull();
+    },
+  );
 });

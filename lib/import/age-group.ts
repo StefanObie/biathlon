@@ -6,6 +6,40 @@ export interface ParsedAgeGroup {
 }
 
 /**
+ * The finite set of age-group labels the club's import files use (§6.1) —
+ * every one of these must parse via parseAgeGroup below (enforced in
+ * age-group.test.ts). Exported so UI that needs a closed list to pick from
+ * (rather than free-text entry, e.g. a walk-up athlete form) can reuse the
+ * same vocabulary instead of guessing at it separately.
+ */
+export const AGE_GROUP_LABELS = [
+  "U/08 GIRLS",
+  "U/08 BOYS",
+  "U/09 GIRLS",
+  "U/09 BOYS",
+  "U/11 GIRLS",
+  "U/11 BOYS",
+  "U/13 GIRLS",
+  "U/13 BOYS",
+  "U/15 GIRLS",
+  "U/15 BOYS",
+  "U/17 GIRLS",
+  "U/17 BOYS",
+  "U/19 GIRLS",
+  "U/19 BOYS",
+  "JNR WOMEN",
+  "JNR MEN",
+  "MASTERS 40+ WOMEN",
+  "MASTERS 40+ MEN",
+  "MASTERS 50+ WOMEN",
+  "MASTERS 50+ MEN",
+  "MASTERS 60+ WOMEN",
+  "MASTERS 60+ MEN",
+  "MASTERS 70+ WOMEN",
+  "MASTERS 70+ MEN",
+] as const;
+
+/**
  * Normalizes an SA Biathlon age-group label into a stable code + gender.
  *
  * Confirmed label shapes (full set as supplied by the club, see
