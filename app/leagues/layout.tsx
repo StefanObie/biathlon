@@ -29,7 +29,7 @@ export default async function LeaguesLayout({
         <nav className="w-full flex justify-center border-b border-b-foreground/10 h-14">
           <div className="w-full max-w-5xl flex justify-between items-center px-5 text-sm">
             <Link href="/leagues" className="font-semibold">
-              Gauteng North Biathlon
+              Crossland Biathlon
             </Link>
             <Suspense>
               <AuthButton />

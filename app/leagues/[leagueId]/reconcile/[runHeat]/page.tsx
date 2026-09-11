@@ -36,6 +36,7 @@ async function ReconcileHeatSection({
     { data: timeCaptures },
     { data: runResults },
     { data: leagueRunResults },
+    { data: league },
   ] = await Promise.all([
     // Whole league, not just this heat: reassigning an athlete or logging
     // one who ran outside their assigned heat (§4.5) needs to search past
@@ -75,6 +76,7 @@ async function ReconcileHeatSection({
       .select("athlete_no, run_heat")
       .eq("league_id", leagueIdNum)
       .neq("run_heat", runHeatNum),
+    supabase.from("league").select("name").eq("id", leagueIdNum).maybeSingle(),
   ]);
 
   if (entriesError) {
@@ -90,8 +92,7 @@ async function ReconcileHeatSection({
     );
   }
 
-  const nextHeat =
-    [...heats].sort((a, b) => a - b).find((h) => h > runHeatNum) ?? null;
+  const sortedHeats = [...heats].sort((a, b) => a - b);
 
   const leagueRoster = (leagueEntries ?? []).map((e) => ({
     athleteNo: e.athlete_no,
@@ -107,8 +108,9 @@ async function ReconcileHeatSection({
   return (
     <Reconcile
       leagueId={leagueIdNum}
+      leagueName={league?.name ?? `League ${leagueIdNum}`}
       runHeat={runHeatNum}
-      nextHeat={nextHeat}
+      heats={sortedHeats}
       roster={roster}
       leagueRoster={leagueRoster}
       remotePositionCaptures={positionCaptures ?? []}

@@ -1,7 +1,6 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -32,6 +31,7 @@ import {
   type AthleteOption,
 } from "@/components/capture/athlete-combobox";
 import { RowInsertDivider } from "@/components/capture/row-insert-divider";
+import { HeatContextBar } from "@/components/leagues/heat-context-bar";
 
 export interface RemotePositionCapture {
   id: string;
@@ -80,8 +80,9 @@ const TIME_PATTERN = /^\d{2}:\d{2}\.\d{2}$/;
 
 export function Reconcile({
   leagueId,
+  leagueName,
   runHeat,
-  nextHeat,
+  heats,
   roster,
   leagueRoster,
   remotePositionCaptures,
@@ -90,8 +91,9 @@ export function Reconcile({
   duplicateRunResults,
 }: {
   leagueId: number;
+  leagueName: string;
   runHeat: number;
-  nextHeat: number | null;
+  heats: number[];
   roster: RosterAthlete[];
   leagueRoster: RosterAthlete[];
   remotePositionCaptures: RemotePositionCapture[];
@@ -328,18 +330,7 @@ export function Reconcile({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex w-full items-center justify-between">
-        <p className="text-sm text-muted-foreground">Run heat {runHeat}</p>
-        <div className="flex items-center gap-2">
-          {nextHeat !== null && (
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/leagues/${leagueId}/reconcile/${nextHeat}`}>
-                Next heat ({nextHeat}) →
-              </Link>
-            </Button>
-          )}
-        </div>
-      </div>
+      <p className="text-sm text-muted-foreground">Run heat {runHeat}</p>
 
       {checks.length > 0 && (
         <div className="flex flex-col gap-1 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
@@ -438,6 +429,14 @@ export function Reconcile({
           {saving ? "Saving…" : "Save"}
         </Button>
       </div>
+
+      <HeatContextBar
+        leagueId={leagueId}
+        leagueName={leagueName}
+        mode="reconcile"
+        runHeat={runHeat}
+        heats={heats}
+      />
     </div>
   );
 }
