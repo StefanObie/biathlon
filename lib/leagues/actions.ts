@@ -137,13 +137,32 @@ export async function addWalkUpAthlete(
 
   const supabase = await createClient();
 
-  const { error: athleteError } = await supabase.from("athlete").upsert({
-    athlete_no: athleteNo,
-    full_name: fullName,
-    gender: ageGroup.gender,
-  });
-  if (athleteError) {
-    return { error: `Failed to save athlete: ${athleteError.message}` };
+  const { data: existing, error: lookupError } = await supabase
+    .from("athlete")
+    .select("full_name, gender")
+    .eq("athlete_no", athleteNo)
+    .maybeSingle();
+  if (lookupError) {
+    return { error: `Failed to check athlete number: ${lookupError.message}` };
+  }
+  if (
+    existing &&
+    (existing.full_name !== fullName || existing.gender !== ageGroup.gender)
+  ) {
+    return {
+      error: `Athlete number ${athleteNo} is already registered to ${existing.full_name}. Use a different athlete number.`,
+    };
+  }
+
+  if (!existing) {
+    const { error: athleteError } = await supabase.from("athlete").insert({
+      athlete_no: athleteNo,
+      full_name: fullName,
+      gender: ageGroup.gender,
+    });
+    if (athleteError) {
+      return { error: `Failed to save athlete: ${athleteError.message}` };
+    }
   }
 
   const { error: entryError } = await supabase.from("entry").upsert(

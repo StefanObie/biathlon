@@ -104,6 +104,7 @@ export function TimeCapture({
           started_at: remoteLeagueRace.started_at,
           device_id: remoteLeagueRace.device_id,
           synced: true,
+          pendingDelete: false,
         };
         await putLeagueRace(race);
       }
@@ -166,6 +167,7 @@ export function TimeCapture({
       started_at: new Date(startMs).toISOString(),
       device_id: getDeviceId(),
       synced: false,
+      pendingDelete: false,
     });
     void syncPendingLeagueRaces();
   }
