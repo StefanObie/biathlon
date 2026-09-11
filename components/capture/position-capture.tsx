@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { ulid } from "ulid";
 import { toast } from "sonner";
 
@@ -14,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { HeatContextBar } from "@/components/leagues/heat-context-bar";
 import { getDeviceId } from "@/lib/offline/device-id";
 import { parseBibPayload } from "@/lib/scan/payload";
 import { nextPosition } from "@/lib/scan/position";
@@ -45,14 +45,16 @@ export interface RemoteCapture {
 
 export function PositionCapture({
   leagueId,
+  leagueName,
   runHeat,
-  nextHeat,
+  heats,
   leagueRoster,
   remoteCaptures,
 }: {
   leagueId: number;
+  leagueName: string;
   runHeat: number;
-  nextHeat: number | null;
+  heats: number[];
   leagueRoster: LeagueRosterAthlete[];
   remoteCaptures: RemoteCapture[];
 }) {
@@ -211,17 +213,6 @@ export function PositionCapture({
 
   return (
     <div className="flex flex-col items-center gap-8">
-      <div className="flex w-full max-w-sm items-center justify-between">
-        <p className="text-sm text-muted-foreground">Run heat {runHeat}</p>
-        {nextHeat !== null && (
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/leagues/${leagueId}/position/${nextHeat}`}>
-              Next heat ({nextHeat}) →
-            </Link>
-          </Button>
-        )}
-      </div>
-
       <div className="text-center">
         <p className="text-sm text-muted-foreground">Position</p>
         <p className="text-8xl font-bold tabular-nums">
@@ -331,6 +322,14 @@ export function PositionCapture({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <HeatContextBar
+        leagueId={leagueId}
+        leagueName={leagueName}
+        mode="position"
+        runHeat={runHeat}
+        heats={heats}
+      />
     </div>
   );
 }

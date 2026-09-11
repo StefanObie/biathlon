@@ -41,12 +41,6 @@ async function LeagueHeader({
 
   return (
     <div>
-      <Link
-        href="/leagues"
-        className="text-sm text-muted-foreground hover:underline"
-      >
-        ← All leagues
-      </Link>
       <h1 className="text-2xl font-bold">
         <Link href={`/leagues/${leagueId}`} className="hover:underline">
           {league.name}

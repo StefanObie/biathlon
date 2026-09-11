@@ -30,24 +30,28 @@ async function PositionHeatSection({
 
   const supabase = await createClient();
 
-  const [{ data: leagueEntries, error: entriesError }, { data: captures }] =
-    await Promise.all([
-      // Whole league, not just this heat: an operator can log an athlete who
-      // ran in the wrong heat (confirmed on the capture screen) — reassigning
-      // them to the correct heat happens later, in reconciliation.
-      supabase
-        .from("entry")
-        .select("athlete_no, run_heat, athlete(full_name)")
-        .eq("league_id", leagueIdNum),
-      supabase
-        .from("position_capture")
-        .select(
-          "id, position, athlete_no, voided, void_reason, scanned_at, device_id",
-        )
-        .eq("league_id", leagueIdNum)
-        .eq("run_heat", runHeatNum)
-        .order("position"),
-    ]);
+  const [
+    { data: leagueEntries, error: entriesError },
+    { data: captures },
+    { data: league },
+  ] = await Promise.all([
+    // Whole league, not just this heat: an operator can log an athlete who
+    // ran in the wrong heat (confirmed on the capture screen) — reassigning
+    // them to the correct heat happens later, in reconciliation.
+    supabase
+      .from("entry")
+      .select("athlete_no, run_heat, athlete(full_name)")
+      .eq("league_id", leagueIdNum),
+    supabase
+      .from("position_capture")
+      .select(
+        "id, position, athlete_no, voided, void_reason, scanned_at, device_id",
+      )
+      .eq("league_id", leagueIdNum)
+      .eq("run_heat", runHeatNum)
+      .order("position"),
+    supabase.from("league").select("name").eq("id", leagueIdNum).maybeSingle(),
+  ]);
 
   if (entriesError) {
     return <p className="text-sm text-destructive">{entriesError.message}</p>;
@@ -70,13 +74,13 @@ async function PositionHeatSection({
   const heats = [...new Set(leagueRoster.map((a) => a.runHeat))].sort(
     (a, b) => a - b,
   );
-  const nextHeat = heats.find((h) => h > runHeatNum) ?? null;
 
   return (
     <PositionCapture
       leagueId={leagueIdNum}
+      leagueName={league?.name ?? `League ${leagueIdNum}`}
       runHeat={runHeatNum}
-      nextHeat={nextHeat}
+      heats={heats}
       leagueRoster={leagueRoster}
       remoteCaptures={captures ?? []}
     />

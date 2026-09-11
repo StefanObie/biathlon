@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { ulid } from "ulid";
 
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { HeatContextBar } from "@/components/leagues/heat-context-bar";
 import { getDeviceId } from "@/lib/offline/device-id";
 import { formatElapsed, nextSeq } from "@/lib/scan/time";
 import {
@@ -49,14 +49,16 @@ export interface RemoteLeagueRace {
 
 export function TimeCapture({
   leagueId,
+  leagueName,
   runHeat,
-  nextHeat,
+  heats,
   remoteCaptures,
   remoteLeagueRace,
 }: {
   leagueId: number;
+  leagueName: string;
   runHeat: number;
-  nextHeat: number | null;
+  heats: number[];
   remoteCaptures: RemoteTimeCapture[];
   remoteLeagueRace: RemoteLeagueRace | null;
 }) {
@@ -231,17 +233,6 @@ export function TimeCapture({
 
   return (
     <div className="flex flex-col items-center gap-8">
-      <div className="flex w-full max-w-sm items-center justify-between">
-        <p className="text-sm text-muted-foreground">Run heat {runHeat}</p>
-        {nextHeat !== null && (
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/leagues/${leagueId}/timer/${nextHeat}`}>
-              Next heat ({nextHeat}) →
-            </Link>
-          </Button>
-        )}
-      </div>
-
       <div className="text-center">
         <p className="text-sm text-muted-foreground">
           {startedAtMs === null ? "Not started" : "Elapsed"}
@@ -363,6 +354,14 @@ export function TimeCapture({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <HeatContextBar
+        leagueId={leagueId}
+        leagueName={leagueName}
+        mode="timer"
+        runHeat={runHeat}
+        heats={heats}
+      />
     </div>
   );
 }
