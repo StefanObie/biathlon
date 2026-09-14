@@ -29,6 +29,8 @@ export const AGE_GROUP_LABELS = [
   "U/19 BOYS",
   "JNR WOMEN",
   "JNR MEN",
+  "SENIORS WOMEN",
+  "SENIORS MEN",
   "MASTERS 40+ WOMEN",
   "MASTERS 40+ MEN",
   "MASTERS 50+ WOMEN",
@@ -37,6 +39,8 @@ export const AGE_GROUP_LABELS = [
   "MASTERS 60+ MEN",
   "MASTERS 70+ WOMEN",
   "MASTERS 70+ MEN",
+  "SPECIAL NEEDS FEMALE",
+  "SPECIAL NEEDS MALE",
 ] as const;
 
 /**
@@ -50,6 +54,10 @@ export const AGE_GROUP_LABELS = [
  *   "MASTERS 40+ MEN"   -> { code: "M40", gender: "M" }
  *   "JNR WOMEN"         -> { code: "JNR", gender: "F" }
  *   "JNR MEN"           -> { code: "JNR", gender: "M" }
+ *   "SENIORS WOMEN"     -> { code: "SEN", gender: "F" }
+ *   "SENIORS MEN"       -> { code: "SEN", gender: "M" }
+ *   "SPECIAL NEEDS FEMALE" -> { code: "SN", gender: "F" }
+ *   "SPECIAL NEEDS MALE"   -> { code: "SN", gender: "M" }
  *
  * Returns null for anything that doesn't match a known shape — callers
  * must route unrecognised labels to the import exception queue (§6.1's
@@ -58,10 +66,14 @@ export const AGE_GROUP_LABELS = [
 export function parseAgeGroup(label: string): ParsedAgeGroup | null {
   const normalized = label.trim().toUpperCase();
 
-  const genderWord = normalized.match(/\b(GIRLS|BOYS|WOMEN|MEN)\b/);
+  const genderWord = normalized.match(/\b(GIRLS|BOYS|WOMEN|MEN|FEMALE|MALE)\b/);
   if (!genderWord) return null;
   const gender: Gender =
-    genderWord[1] === "GIRLS" || genderWord[1] === "WOMEN" ? "F" : "M";
+    genderWord[1] === "GIRLS" ||
+    genderWord[1] === "WOMEN" ||
+    genderWord[1] === "FEMALE"
+      ? "F"
+      : "M";
 
   const under = normalized.match(/^U\/(\d{1,2})\s+(GIRLS|BOYS)$/);
   if (under) {
@@ -76,6 +88,16 @@ export function parseAgeGroup(label: string): ParsedAgeGroup | null {
   const junior = normalized.match(/^JNR\s+(WOMEN|MEN)$/);
   if (junior) {
     return { code: "JNR", gender };
+  }
+
+  const seniors = normalized.match(/^SENIORS\s+(WOMEN|MEN)$/);
+  if (seniors) {
+    return { code: "SEN", gender };
+  }
+
+  const specialNeeds = normalized.match(/^SPECIAL NEEDS\s+(FEMALE|MALE)$/);
+  if (specialNeeds) {
+    return { code: "SN", gender };
   }
 
   return null;
