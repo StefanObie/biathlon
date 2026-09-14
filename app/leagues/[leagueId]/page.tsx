@@ -40,6 +40,12 @@ const SECTIONS: NavSection[] = [
     description: "Upload the swim results file, review, and save times.",
     available: true,
   },
+  {
+    href: (id) => `/leagues/${id}/export`,
+    title: "Export",
+    description: "Review combined swim and run times, download the XML.",
+    available: true,
+  },
 ];
 
 export default function LeagueIndexPage({
