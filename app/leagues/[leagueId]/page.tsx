@@ -34,6 +34,12 @@ const SECTIONS: NavSection[] = [
     description: "Match positions to times, fix gaps, save results.",
     available: true,
   },
+  {
+    href: (id) => `/leagues/${id}/swim`,
+    title: "Swim import",
+    description: "Upload the swim results file, review, and save times.",
+    available: true,
+  },
 ];
 
 export default function LeagueIndexPage({

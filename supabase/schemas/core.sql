@@ -223,6 +223,59 @@ create policy "Authenticated users can manage audit log"
   using (true)
   with check (true);
 
+-- Phase 2 swim results (§4.6/§6.5). Unlike run_result, there is no capture
+-- stream to reconcile: the Time Drops export arrives complete, is parsed
+-- and reviewed client-side, and lands here in one confirmed write.
+--
+-- Key is (league_id, athlete_no) — biathlon is one run and one swim, so a
+-- second event for the same athlete is a conflict an operator resolves at
+-- import time, never a silent second row. event_no/heat/lane are retained
+-- as source metadata (and for the (swim_heat, swim_lane) resolution key,
+-- §2 Finding 3), not as identity.
+create table swim_result (
+  league_id integer not null references league (id),
+  athlete_no integer not null references athlete (athlete_no),
+  event_no integer not null,
+  heat integer not null,
+  lane integer not null,
+  distance_m integer,
+  swim_time text check (swim_time ~ '^\d{2}:\d{2}\.\d{2}$'),
+  -- Generated, not client-supplied, for the same reason as run_time_cs:
+  -- a hand-maintained duplicate of swim_time can drift out of sync with it.
+  swim_time_cs integer generated always as (
+    case when swim_time is null then null else
+      substring(swim_time from 1 for 2)::int * 6000
+      + substring(swim_time from 4 for 2)::int * 100
+      + substring(swim_time from 7 for 2)::int
+    end
+  ) stored,
+  -- Heat placing from the source file, null when the file recorded 0.
+  -- Source metadata only: heats are not seeded by ability, so this is
+  -- lane order within one heat and never a standing (§4.6).
+  place integer,
+  status text not null default 'ok', -- ok | dns | dnf | dq
+  source text not null,              -- import | manual
+  overridden_by text,
+  override_reason text,
+  -- Verbatim source line, kept so an operator reviewing a flagged row can
+  -- see exactly what the file said (§4.6's "source line shown verbatim").
+  source_line text,
+  -- Set for rows the parser could not fully trust: a revised block, or
+  -- backup columns disagreeing with the official TIME column (§4.6).
+  needs_review boolean not null default false,
+  primary key (league_id, athlete_no)
+);
+
+alter table swim_result enable row level security;
+
+create index swim_result_heat_lane_idx on swim_result (league_id, heat, lane);
+
+create policy "Authenticated users can manage swim results"
+  on swim_result for all
+  to authenticated
+  using (true)
+  with check (true);
+
 -- Reconciliation (§4.5/§5.3) subscribes to these two tables so the screen
 -- updates live as captures sync in from field phones.
 alter publication supabase_realtime add table position_capture;

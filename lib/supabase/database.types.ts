@@ -330,6 +330,75 @@ export type Database = {
           },
         ];
       };
+      swim_result: {
+        Row: {
+          athlete_no: number;
+          distance_m: number | null;
+          event_no: number;
+          heat: number;
+          lane: number;
+          league_id: number;
+          needs_review: boolean;
+          overridden_by: string | null;
+          override_reason: string | null;
+          place: number | null;
+          source: string;
+          source_line: string | null;
+          status: string;
+          swim_time: string | null;
+          swim_time_cs: number | null;
+        };
+        Insert: {
+          athlete_no: number;
+          distance_m?: number | null;
+          event_no: number;
+          heat: number;
+          lane: number;
+          league_id: number;
+          needs_review?: boolean;
+          overridden_by?: string | null;
+          override_reason?: string | null;
+          place?: number | null;
+          source: string;
+          source_line?: string | null;
+          status?: string;
+          swim_time?: string | null;
+          swim_time_cs?: number | null;
+        };
+        Update: {
+          athlete_no?: number;
+          distance_m?: number | null;
+          event_no?: number;
+          heat?: number;
+          lane?: number;
+          league_id?: number;
+          needs_review?: boolean;
+          overridden_by?: string | null;
+          override_reason?: string | null;
+          place?: number | null;
+          source?: string;
+          source_line?: string | null;
+          status?: string;
+          swim_time?: string | null;
+          swim_time_cs?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "swim_result_athlete_no_fkey";
+            columns: ["athlete_no"];
+            isOneToOne: false;
+            referencedRelation: "athlete";
+            referencedColumns: ["athlete_no"];
+          },
+          {
+            foreignKeyName: "swim_result_league_id_fkey";
+            columns: ["league_id"];
+            isOneToOne: false;
+            referencedRelation: "league";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       time_capture: {
         Row: {
           captured_at: string;

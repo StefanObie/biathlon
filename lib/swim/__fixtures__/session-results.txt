@@ -1,0 +1,336 @@
+Meet Program was updated  25 Aug 2026 11:20:19
+Time Drops Console version 2026.01.907+a.722db43b
+ 
+ 
+Meet Program was updated  25 Aug 2026 11:21:22
+Time Drops Console version 2026.01.907+a.722db43b
+Time Drops Console version 2026.01.907+a.722db43b
+ 
+ 
+Meet Program was updated  25 Aug 2026 15:48:07
+Time Drops Console version 2026.01.907+a.722db43b
+ 
+ 
+Meet Program was updated  25 Aug 2026 17:13:34
+ 
+ 
+User pressed 'PREV HEAT', now using Event 0 Heat 0 Race 1    05:22:54.77
+Event 0 Heat 0 Race 1 started at 05:25:46.86
+ 
+ 
+Meet 38 Event 0 Heat 0 Race 1 false Start declared!    05:26:13.41
+Event 0 Heat 0 Race 1 started at 05:26:17.87
+ 
+ 
+Meet 38 Event 0 Heat 0 Race 1 false Start declared!    05:26:27.92
+Event 0 Heat 0 Race 1 started at 05:26:29.24
+ 
+ 
+Meet 38 Event 0 Heat 0 Race 1 false Start declared!    05:26:34.12
+Event 0 Heat 0 Race 1 started at 05:26:47.78
+ 
+ 
+Meet 38 Event 0 Heat 0 Race 1 false Start declared!    05:27:01.25
+ 
+ 
+User pressed 'NEXT HEAT', now using Event 1 Heat 1 Race 1    05:27:41.63
+Event 1 Heat 1 Race 1 started at 05:27:44.24
+ 
+ 
+Event #1   Heat 1    Race 1      Open 25 SC Meter Freestyle    (Start: 17:27:44)
+ 
+LANE  PLACE  NAME                                TIME        A         B         C        
+ 
+   1      1  Frankie Pemberton Za (10030)       26.19    26.19                      
+   2      2  Tatum Ellw (8777)                  33.09    33.09                      
+   3      3  Aubrey Norbu                     1:08.45  1:08.45                      
+   4      0  NS                                  0.00                               
+   5      0  NS                                  0.00                               
+   6      0  NS                                  0.00                               
+ 
+ 
+Event 2 Heat 2 Race 2 started at 05:29:52.53
+ 
+ 
+Event #2   Heat 2    Race 2      Open 50 SC Meter Freestyle    (Start: 17:29:52)
+ 
+LANE  PLACE  NAME                                TIME        A         B         C        
+ 
+   1      1  Vale Vancewood Ra (3233)           33.90    33.90                      
+   2      6  Blake Rothwell (3213)            1:05.86  1:05.86                      
+   3      4  Indigo Ro (AFL) (8922)             49.85    49.85                      
+   4      3  Reese Jarrow Pax (5114)            48.36    48.36                      
+   5      5  Wren Jarrow Lu (3215)              54.18    54.18                      
+   6      2  Teagan Lockwoo (AFL) (4911)        36.60    36.60                      
+ 
+ 
+Event 2 Heat 3 Race 3 started at 05:31:53.05
+ 
+ 
+Event #2   Heat 3    Race 3      Open 50 SC Meter Freestyle    (Start: 17:31:53)
+ 
+LANE  PLACE  NAME                                TIME        A         B         C        
+ 
+   1      3  Morgan Aldridge (10019)            59.27    59.27                      
+   2      4  Darcy Birk (10016)               1:13.22  1:13.22                      
+   3      5  Zephyr Marchetti Tam (AFL) (81   1:13.31  1:13.31                      
+   4      1  Bryn Standis (7276)                39.03    39.03                      
+   5      2  Rowan Whitmore Tam (AFL) (5861     39.39    39.39                      
+   6      6  Teagan Rot (10008)               2:01.83  2:01.83                      
+ 
+ 
+Event 2 Heat 4 Race 4 started at 05:34:21.12
+ 
+ 
+User pressed 'NEXT HEAT', now using Event 2 Heat 5 Race 4    05:34:36.20
+ 
+ 
+Event #2   Heat 4    Race 4      Open 50 SC Meter Freestyle    (Start: 17:34:21)
+ 
+LANE  PLACE  NAME                                TIME        A         B         C        
+ 
+   1      3  Noor Halloway Sol                   58.81    58.81                      
+   2      0  Blake Lockwo (AFL)                  0.00                               
+   3      1  Payton Birkensh                     47.62    47.62                      
+   4      4  Cleo Birkensha                   1:32.98  1:32.98                      
+   5      5  Sasha Vancewood                  1:42.25  1:42.25                      
+   6      2  Ellis Ashcom                        52.89    52.89                      
+ 
+ 
+Event 2 Heat 6 Race 5 started at 05:36:24.44
+ 
+ 
+User pressed 'PREV HEAT', now using Event 2 Heat 5 Race 5    05:36:49.63
+ 
+ 
+User pressed 'NEXT HEAT', now using Event 2 Heat 6 Race 5    05:36:58.00
+ 
+ 
+User pressed 'PREV HEAT', now using Event 2 Heat 5 Race 5    05:37:03.15
+ 
+ 
+User pressed 'NEXT HEAT', now using Event 2 Heat 6 Race 5    05:37:05.45
+ 
+ 
+User pressed 'PREV HEAT', now using Event 2 Heat 5 Race 5    05:37:11.15
+ 
+ 
+Event #2   Heat 5    Race 5      Open 50 SC Meter Freestyle    (Start: 17:36:24)
+ 
+LANE  PLACE  NAME                                TIME        A         B         C        
+ 
+   1      0  Marlow Norbu (6686)                 0.00                               
+   2      5  Cleo Jarrow Z (8465)             1:00.47  1:00.47                      
+   3      1  Morgan Dunmo (10022)               42.55    42.55                      
+   4      2  Payton Yardl (5449)                42.65    42.65                      
+   5      4  Frankie Jarrow (6918)              50.34    50.34                      
+   6      3  Rowan Ogilvi (8139)                49.47    49.47                      
+ 
+ 
+ 
+ 
+User pressed 'PREV HEAT', now using Event 2 Heat 5 Race 6    05:37:39.98
+ 
+ 
+User pressed 'NEXT HEAT', now using Event 2 Heat 6 Race 6    05:37:42.92
+ 
+ 
+User pressed 'PREV HEAT', now using Event 2 Heat 5 Race 6    05:37:57.34
+ 
+ 
+User pressed 'NEXT HEAT', now using Event 2 Heat 6 Race 6    05:38:05.95
+Event 2 Heat 6 Race 6 started at 05:38:36.61
+ 
+ 
+Event #2   Heat 6    Race 6      Open 50 SC Meter Freestyle    (Start: 17:38:36)
+ 
+LANE  PLACE  NAME                                TIME        A         B         C        
+ 
+   1      3  Xen Hallowa (AFL) (7718)           50.52    50.52                      
+   2      2  Oakley Whitmor (10010)             47.59    47.59                      
+   3      4  Lior Birkenshaw Lu (AFL) (1000     51.88    51.88                      
+   4      1  Payton Birkenshaw Wyn (AFL) (8     43.42    43.42                      
+   5      6  Sasha Marchetti (8445)           1:09.25  1:09.25                      
+   6      5  Blake Underhill (8444)             57.88    57.88                      
+ 
+ 
+Event 2 Heat 7 Race 7 started at 05:40:10.41
+ 
+ 
+Event #2   Heat 7    Race 7      Open 50 SC Meter Freestyle    (Start: 17:40:10)
+ 
+LANE  PLACE  NAME                                TIME        A         B         C        
+ 
+   1      0  Alex Whitmor (8459)                 0.00                               
+   2      3  Tatum Lockwoo (10021)              46.18    46.18                      
+   3      1  Blake Ogil (8081)                  42.45    42.45                      
+   4      2  Frankie Dunmore (10006)            43.30    43.30                      
+   5      4  Marlow Thorn (10005)               48.01    48.01                      
+   6      0  NS                                  0.00                               
+ 
+ 
+Event 2 Heat 8 Race 8 started at 05:41:26.21
+ 
+ 
+Event #2   Heat 8    Race 8      Open 50 SC Meter Freestyle    (Start: 17:41:26)
+ 
+LANE  PLACE  NAME                                TIME        A         B         C        
+ 
+   1      1  Reese Kingsley (8097)              44.61    44.61                      
+   2      3  Aubrey Underhill (AFL) (8158)      46.67    46.67                      
+   3      5  Ellis Ellwood (8207)               54.24    54.24                      
+   4      6  Aubrey Thorneycroft J (8113)     1:18.20  1:18.20                      
+   5      4  Indigo Ell (6729)                  53.64    53.64                      
+   6      2  Finley Gri (10012)                 45.37    45.37                      
+ 
+ 
+Event 2 Heat 9 Race 9 started at 05:43:15.61
+ 
+ 
+Event #2   Heat 9    Race 9      Open 50 SC Meter Freestyle    (Start: 17:43:15)
+ 
+LANE  PLACE  NAME                                TIME        A         B         C        
+ 
+   1      2  Frankie Mar (7465)                 42.63    42.63                      
+   2      5  Oakley Ogi (8091)                  49.70    49.70                      
+   3      4  Gray Standish (10018)              44.22    44.22                      
+   4      3  Cleo Thorn (AFL) (5969)            42.71    42.71                      
+   5      1  Payton Aldrid (AFL) (6692)         39.33    39.33                      
+   6      0  NS                                  0.00                               
+ 
+ 
+Event 2 Heat 10 Race 10 started at 05:44:35.16
+ 
+ 
+User pressed 'PREV HEAT', now using Event 2 Heat 9 Race 10    05:45:06.03
+ 
+ 
+User pressed 'NEXT HEAT', now using Event 2 Heat 10 Race 10    05:45:17.49
+ 
+ 
+Event #2   Heat 10    Race 10      Open 50 SC Meter Freestyle    (Start: 17:44:35)
+ 
+LANE  PLACE  NAME                                TIME        A         B         C        
+ 
+   1      1  Tatum Kingsley (AFL) (10002)       41.87    41.87                      
+   2      2  Sasha Birkens (8088)               45.94    45.94                      
+   3      6  Bryn Nor (8114)                    54.55    54.55                      
+   4      5  Morgan Whi (8098)                  53.88    53.88                      
+   5      3  Kit Castella (8206)                47.68    47.68                      
+   6      4  Blake Fairhurst (8140)             50.92    50.92                      
+ 
+ 
+Event 2 Heat 11 Race 11 started at 05:46:07.49
+ 
+ 
+Event #2   Heat 11    Race 11      Open 50 SC Meter Freestyle    (Start: 17:46:07)
+ 
+LANE  PLACE  NAME                                TIME        A         B         C        
+ 
+   1      2  Oakley Vancew (8433)               50.56    50.56                      
+   2      3  Jordan R (10007)                   53.35    53.35                      
+   3      4  Tatum Birkenshaw Ve (10026)      1:00.06  1:00.06                      
+   4      1  Noor Lockwoo (8096)                35.44    35.44                      
+   5      0  NS                                  0.00                               
+   6      0  NS                                  0.00                               
+ 
+ 
+Event 2 Heat 12 Race 12 started at 05:47:38.73
+ 
+ 
+Event #2   Heat 12    Race 12      Open 50 SC Meter Freestyle    (Start: 17:47:38)
+ 
+LANE  PLACE  NAME                                TIME        A         B         C        
+ 
+   1      3  Yuri Thorneycro (7254)             52.67    52.67                      
+   2      0  Indigo Birkenshaw Ta (8897)         0.00                               
+   3      2  Emery Norbury Ja (7806)            43.07    43.07                      
+   4      1  Oakley Thorneycroft Wynn (6746     38.81    38.81                      
+   5      0  NS                                  0.00                               
+   6      0  NS                                  0.00                               
+ 
+ 
+Event 3 Heat 13 Race 13 started at 05:48:49.93
+ 
+ 
+Event #3   Heat 13    Race 13      Open 100 SC Meter Freestyle    (Start: 17:48:49)
+ 
+LANE  PLACE  NAME                                TIME        A         B         C        
+ 
+   1      1  Sage Bramley Ra (AFL) (10000)    1:06.40  1:06.40                      
+   2      6  Kit Lockwood (10028)             1:55.77  1:55.77                      
+   3      2  Casey Ivorsen Wyn (7572)         1:12.88  1:12.88                      
+   4      3  Cleo Ellwo (10020)               1:14.45  1:14.45                      
+   5      5  Teagan Fairhurst Za (10013)      1:24.31  1:24.31                      
+   6      4  Noor Dunmore T (10009)           1:18.64  1:18.64                      
+ 
+ 
+Event 3 Heat 14 Race 14 started at 05:51:06.42
+ 
+ 
+Event #3   Heat 14    Race 14      Open 100 SC Meter Freestyle    (Start: 17:51:06)
+ 
+LANE  PLACE  NAME                                TIME        A         B         C        
+ 
+   1      1  Sasha Aldridge (6209)            1:19.70  1:19.70                      
+   2      4  Bryn Aldridge B (AFL) (6723)     1:45.30  1:45.30                      
+   3      3  Ellis Castellan (8157)           1:36.48  1:36.48                      
+   4      0  Wren Norbur (5973)                  0.00                               
+   5      0  Oakley Rot (AFL) (8222)             0.00                               
+   6      2  Casey Birkensh (8087)            1:29.23  1:29.23                      
+ 
+ 
+Event 3 Heat 15 Race 15 started at 05:53:17.66
+ 
+ 
+Event #3   Heat 15    Race 15      Open 100 SC Meter Freestyle    (Start: 17:53:17)
+ 
+LANE  PLACE  NAME                                TIME        A         B         C        
+ 
+   1      4  Reese Marche (AFL) (4933)        1:11.27  1:11.27                      
+   2      6  Casey Thorneycroft Ta (5478)     1:26.70  1:26.70                      
+   3      3  Payton Bramley (AFL) (8447)      1:03.89  1:03.89                      
+   4      1  Umber Pemberto (6345)              57.54    57.54                      
+   5      2  Vale Norbury (5063)              1:01.96  1:01.96                      
+   6      5  Lior Yardley Wyn (3204)          1:15.18  1:15.18                      
+ 
+ 
+Event 3 Heat 16 Race 16 started at 05:55:57.93
+ 
+ 
+Event #3   Heat 16    Race 16      Open 100 SC Meter Freestyle    (Start: 17:55:57)
+ 
+LANE  PLACE  NAME                                TIME        A         B         C        
+ 
+   1      0  Teagan Ivo (AFL) (8921)             0.00                               
+   2      3  Cleo Ashcombe (AFL) (7716)       1:31.49  1:31.49                      
+   3      4  Sasha Aldridge (8125)            1:35.04  1:35.04                      
+   4      2  Reese Jarro (10029)              1:28.21  1:28.21                      
+   5      1  Zephyr Bramley (6756)            1:19.74  1:19.74                      
+   6      0  NS                                  0.00                               
+ 
+ 
+ 
+ 
+User pressed 'PREV HEAT', now using Event 3 Heat 16 Race 17    05:58:03.41
+ 
+ 
+User pressed 'NEXT HEAT', now using Event 3 Heat 17 Race 17    05:58:09.83
+Event 3 Heat 17 Race 17 started at 05:58:25.09
+ 
+ 
+(REVISED FROM EARLIER - USE WITH CAUTION)
+Event #3   Heat 17    Race 17      Open 100 SC Meter Freestyle    (Start: 17:58:25)
+ 
+LANE  PLACE  NAME                                TIME        A         B         C        
+ 
+   1      3  Payton Rothwe (10004)            2:26.60  1:38.43   3:14.77            
+   2      1  Casey Quill Bo (AFL) (4831)      1:10.78  1:10.78                      
+   3      2  Noor Ellwoo (AFL) (10001)        1:35.51  1:35.51                      
+   4      0  Alex Rothwel (AFL) (5986)           0.00                               
+   5      0  Finley Ellwood (AFL) (5031)         0.00                               
+   6      0  NS                                  0.00                               
+ 
+ 
+ 
+1Password menu is available. Press down arrow to select.
