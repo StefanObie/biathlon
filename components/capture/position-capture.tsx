@@ -6,6 +6,16 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -64,6 +74,9 @@ export function PositionCapture({
   const [inputError, setInputError] = useState<string | null>(null);
   const [pendingOutOfHeat, setPendingOutOfHeat] =
     useState<LeagueRosterAthlete | null>(null);
+  const [pendingUndo, setPendingUndo] = useState<LocalPositionCapture | null>(
+    null,
+  );
 
   const rosterByNo = useMemo(() => {
     const map = new Map<number, LeagueRosterAthlete>();
@@ -206,7 +219,8 @@ export function PositionCapture({
       ),
     );
     void syncPendingCaptures();
-    // toast.success("Capture undone");
+    setPendingUndo(null);
+    toast.success("Capture undone");
   }
 
   const mostRecentActive = allCaptures[0];
@@ -279,7 +293,7 @@ export function PositionCapture({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => void handleUndoTop(c)}
+                  onClick={() => setPendingUndo(c)}
                 >
                   Undo
                 </Button>
@@ -322,6 +336,38 @@ export function PositionCapture({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={pendingUndo !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingUndo(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Undo this capture?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingUndo && (
+                <>
+                  Position #{pendingUndo.position}
+                  {pendingUndo.athlete_no
+                    ? ` — ${pendingUndo.athlete_no} ${rosterByNo.get(pendingUndo.athlete_no)?.fullName ?? ""}`
+                    : " — skip"}{" "}
+                  will be voided.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => pendingUndo && void handleUndoTop(pendingUndo)}
+            >
+              Undo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <HeatContextBar
         leagueId={leagueId}

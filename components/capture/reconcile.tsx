@@ -161,7 +161,6 @@ export function Reconcile({
 
   const [rows, setRows] = useState<WorkingRow[]>(initialRows);
   const [saving, setSaving] = useState(false);
-  const [dirty, setDirty] = useState(false);
 
   // Live updates as captures sync in from the field phones (§5.3). Any
   // insert/update on either capture table for this heat re-fetches the
@@ -238,10 +237,6 @@ export function Reconcile({
     [roster.length, rows, rosterAthleteNos, duplicateAthletes],
   );
 
-  function markDirty() {
-    setDirty(true);
-  }
-
   function insertGapAt(index: number) {
     setRows((prev) => {
       const gap: WorkingRow = {
@@ -257,19 +252,16 @@ export function Reconcile({
       next.splice(index, 0, gap);
       return next;
     });
-    markDirty();
   }
 
   function removeRowAt(index: number) {
     setRows((prev) => prev.filter((_, i) => i !== index));
-    markDirty();
   }
 
   function updateRow(localId: string, patch: Partial<WorkingRow>) {
     setRows((prev) =>
       prev.map((r) => (r.localId === localId ? { ...r, ...patch } : r)),
     );
-    markDirty();
   }
 
   async function handleSave() {
@@ -321,7 +313,6 @@ export function Reconcile({
         reason: `Reconciled run heat ${runHeat}`,
       });
 
-      setDirty(false);
       toast.success("Reconciliation saved.");
     } finally {
       setSaving(false);
@@ -424,7 +415,7 @@ export function Reconcile({
         <Button
           variant="outline"
           onClick={() => void handleSave()}
-          disabled={saving || !dirty}
+          disabled={saving || rows.every((r) => r.athleteNo === null)}
         >
           {saving ? "Saving…" : "Save"}
         </Button>

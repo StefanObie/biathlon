@@ -2,8 +2,19 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ulid } from "ulid";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -71,6 +82,7 @@ export function TimeCapture({
   const [startedAtMs, setStartedAtMs] = useState<number | null>(null);
   const [now, setNow] = useState<number | null>(null);
   const [confirmingReset, setConfirmingReset] = useState(false);
+  const [pendingUndo, setPendingUndo] = useState<LocalTimeCapture | null>(null);
   const startedAtMsRef = useRef<number | null>(null);
 
   // Load Dexie rows first (unsynced local state wins on conflict with the
@@ -229,6 +241,8 @@ export function TimeCapture({
       ),
     );
     void syncPendingCaptures();
+    setPendingUndo(null);
+    toast.success("Capture undone");
   }
 
   return (
@@ -317,7 +331,7 @@ export function TimeCapture({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => void handleUndoTop(c)}
+                  onClick={() => setPendingUndo(c)}
                 >
                   Undo
                 </Button>
@@ -354,6 +368,36 @@ export function TimeCapture({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={pendingUndo !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingUndo(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Undo this capture?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingUndo && (
+                <>
+                  #{pendingUndo.seq} {pendingUndo.elapsed_time}
+                  {pendingUndo.is_placeholder && " (missed finish)"} will be
+                  voided.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => pendingUndo && void handleUndoTop(pendingUndo)}
+            >
+              Undo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <HeatContextBar
         leagueId={leagueId}

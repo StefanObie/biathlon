@@ -27,7 +27,7 @@ export interface ParseEntriesResult {
 }
 
 const COLUMN_ALIASES: Record<keyof EntryRow, string[]> = {
-  athleteNo: ["athlete no", "athlete number", "athleteno"],
+  athleteNo: ["athlete no", "athlete number", "athleteno", "athlete hash"],
   fullName: ["athlete name", "name"],
   ageGroupLabel: ["age group", "agegroup"],
   runHeat: ["run heat", "runheat"],
