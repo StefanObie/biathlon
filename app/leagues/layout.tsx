@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { AuthButton } from "@/components/auth-button";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 import { createClient } from "@/lib/supabase/server";
 
 // Auth-gates the whole /leagues subtree: the redirect decision itself needs
@@ -31,9 +32,12 @@ export default async function LeaguesLayout({
             <Link href="/leagues" className="font-semibold">
               Crossland Biathlon
             </Link>
-            <Suspense>
-              <AuthButton />
-            </Suspense>
+            <div className="flex items-center gap-2">
+              <ThemeSwitcher />
+              <Suspense>
+                <AuthButton />
+              </Suspense>
+            </div>
           </div>
         </nav>
         <div className="flex-1 flex flex-col gap-4 w-full max-w-5xl p-5">
