@@ -24,8 +24,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { HeatContextBar } from "@/components/leagues/heat-context-bar";
+import { captureScreenState } from "@/lib/capture/screen-state";
 import { getDeviceId } from "@/lib/offline/device-id";
 import { formatElapsed, nextSeq } from "@/lib/scan/time";
+import { cn } from "@/lib/utils";
 import {
   getCapturesForHeat,
   putCapture,
@@ -63,6 +65,7 @@ export function TimeCapture({
   leagueName,
   runHeat,
   heats,
+  rosterSize,
   remoteCaptures,
   remoteLeagueRace,
 }: {
@@ -70,6 +73,7 @@ export function TimeCapture({
   leagueName: string;
   runHeat: number;
   heats: number[];
+  rosterSize: number;
   remoteCaptures: RemoteTimeCapture[];
   remoteLeagueRace: RemoteLeagueRace | null;
 }) {
@@ -164,6 +168,7 @@ export function TimeCapture({
     .filter((c) => !c.voided)
     .sort((a, b) => b.seq - a.seq);
   const lastThree = allCaptures.slice(0, 3);
+  const { finished, overRoster } = captureScreenState({ captures, rosterSize });
   const mostRecent = allCaptures[0];
 
   const liveElapsed = useMemo(() => {
@@ -254,8 +259,15 @@ export function TimeCapture({
         <p className="text-6xl font-bold tabular-nums">
           {liveElapsed ?? "00:00.00"}
         </p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {allCaptures.length} recorded
+        <p
+          className={cn(
+            "mt-2 text-sm font-medium tabular-nums",
+            overRoster
+              ? "text-amber-600 dark:text-amber-500"
+              : "text-muted-foreground",
+          )}
+        >
+          Finished {finished} / {rosterSize}
         </p>
       </div>
 

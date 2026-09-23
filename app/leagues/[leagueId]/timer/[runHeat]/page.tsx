@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 
+import { heatRosterSize } from "@/lib/capture/screen-state";
 import { createClient } from "@/lib/supabase/server";
 import { TimeCapture } from "@/components/capture/time-capture";
 
@@ -59,6 +60,10 @@ async function TimerHeatSection({
   }
 
   const heats = [...new Set((entries ?? []).map((e) => e.run_heat))];
+  const rosterSize = heatRosterSize(
+    (entries ?? []).map((e) => e.run_heat),
+    runHeatNum,
+  );
 
   if (!heats.includes(runHeatNum)) {
     return (
@@ -74,6 +79,7 @@ async function TimerHeatSection({
       leagueName={league?.name ?? `League ${leagueIdNum}`}
       runHeat={runHeatNum}
       heats={heats}
+      rosterSize={rosterSize}
       remoteCaptures={captures ?? []}
       remoteLeagueRace={leagueRace ?? null}
     />

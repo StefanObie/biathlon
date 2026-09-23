@@ -24,9 +24,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { HeatContextBar } from "@/components/leagues/heat-context-bar";
+import { captureScreenState, heatRosterSize } from "@/lib/capture/screen-state";
 import { getDeviceId } from "@/lib/offline/device-id";
 import { parseBibPayload } from "@/lib/scan/payload";
 import { nextPosition } from "@/lib/scan/position";
+import { cn } from "@/lib/utils";
 import { QrScanner } from "@/components/capture/qr-scanner";
 import {
   getCapturesForHeat,
@@ -127,6 +129,13 @@ export function PositionCapture({
   const allCaptures = [...captures]
     .filter((c) => !c.voided)
     .sort((a, b) => b.scanned_at.localeCompare(a.scanned_at));
+  // The roster is this heat's slice of the league roster; athletes scanned
+  // from another heat count as finishers but not towards the total.
+  const rosterSize = heatRosterSize(
+    leagueRoster.map((a) => a.runHeat),
+    runHeat,
+  );
+  const { finished, overRoster } = captureScreenState({ captures, rosterSize });
 
   async function recordCapture(athleteNo: number | null) {
     const row: LocalPositionCapture = {
@@ -274,8 +283,15 @@ export function PositionCapture({
       </div>
 
       <div className="w-full max-w-sm">
-        <p className="mb-2 text-sm font-medium text-muted-foreground">
-          Captures ({allCaptures.length})
+        <p
+          className={cn(
+            "mb-2 text-sm font-medium tabular-nums",
+            overRoster
+              ? "text-amber-600 dark:text-amber-500"
+              : "text-muted-foreground",
+          )}
+        >
+          Finished {finished} / {rosterSize}
         </p>
         <ul className="flex flex-col gap-1">
           {allCaptures.map((c) => (
