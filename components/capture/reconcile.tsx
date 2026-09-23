@@ -27,6 +27,11 @@ import {
   type WorkingRow,
 } from "@/lib/reconcile/join";
 import {
+  captureScreen,
+  CAPTURE_SCREEN_LABEL,
+} from "@/lib/capture/operator-note";
+import { placeNotes, type OperatorNoteEntry } from "@/lib/reconcile/notes";
+import {
   AthleteCombobox,
   type AthleteOption,
 } from "@/components/capture/athlete-combobox";
@@ -63,6 +68,15 @@ export interface RemoteRunResult {
   override_reason: string | null;
 }
 
+/** An operator note as the reconcile page reads it out of Supabase. */
+export interface RemoteOperatorNote {
+  id: string;
+  ordinal: number;
+  screen: string;
+  body: string;
+  created_at: string;
+}
+
 export interface RosterAthlete {
   athleteNo: number;
   fullName: string;
@@ -78,6 +92,25 @@ const MISMATCH_LABEL: Record<Mismatch, string> = {
 
 const TIME_PATTERN = /^\d{2}:\d{2}\.\d{2}$/;
 
+function NoteList({ notes }: { notes: OperatorNoteEntry[] }) {
+  return (
+    <ul className="flex flex-col gap-1">
+      {notes.map((note) => (
+        <li key={note.id} className="text-sm">
+          <span className="text-muted-foreground">
+            {CAPTURE_SCREEN_LABEL[note.screen]} ·{" "}
+            {note.ordinal === 0
+              ? "before the first finisher"
+              : `finisher ${note.ordinal}`}{" "}
+            —{" "}
+          </span>
+          {note.body}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function Reconcile({
   leagueId,
   leagueName,
@@ -88,6 +121,7 @@ export function Reconcile({
   remotePositionCaptures,
   remoteTimeCaptures,
   remoteRunResults,
+  remoteNotes,
   duplicateRunResults,
 }: {
   leagueId: number;
@@ -99,6 +133,7 @@ export function Reconcile({
   remotePositionCaptures: RemotePositionCapture[];
   remoteTimeCaptures: RemoteTimeCapture[];
   remoteRunResults: RemoteRunResult[];
+  remoteNotes: RemoteOperatorNote[];
   duplicateRunResults: { athlete_no: number; run_heat: number }[];
 }) {
   const rosterByNo = useMemo(() => {
@@ -162,6 +197,24 @@ export function Reconcile({
   const [rows, setRows] = useState<WorkingRow[]>(initialRows);
   const [saving, setSaving] = useState(false);
 
+  // Notes sit against the ordinal they were written at, so inserting a gap
+  // or removing a row re-places them — the note is about the Nth finisher,
+  // not about a particular capture id.
+  const notes = useMemo(
+    () =>
+      placeNotes(
+        remoteNotes.map((n): OperatorNoteEntry => ({
+          id: n.id,
+          ordinal: n.ordinal,
+          screen: captureScreen(n.screen),
+          body: n.body,
+          createdAt: n.created_at,
+        })),
+        rows.length,
+      ),
+    [remoteNotes, rows.length],
+  );
+
   // Live updates as captures sync in from the field phones (§5.3). Any
   // insert/update on either capture table for this heat re-fetches the
   // page's server data on next navigation; here we just nudge the operator
@@ -206,6 +259,17 @@ export function Reconcile({
             filter: `league_id=eq.${leagueId}`,
           },
           () => toast.info("New time captures arrived — refresh to load them."),
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "operator_note",
+            filter: `league_id=eq.${leagueId}`,
+          },
+          () =>
+            toast.info("New operator notes arrived — refresh to read them."),
         )
         .subscribe();
     }
@@ -331,6 +395,13 @@ export function Reconcile({
         </div>
       )}
 
+      {notes.heatLevel.length > 0 && (
+        <div className="flex flex-col gap-2 rounded-md border border-input p-3">
+          <p className="text-sm font-medium">Notes on this heat</p>
+          <NoteList notes={notes.heatLevel} />
+        </div>
+      )}
+
       <Table>
         <TableHeader>
           <TableRow>
@@ -345,6 +416,7 @@ export function Reconcile({
           <RowInsertDivider onInsert={() => insertGapAt(0)} />
           {rows.map((row, index) => {
             const mismatch = mismatchFor(row);
+            const rowNotes = notes.byOrdinal.get(index + 1);
             return (
               <Fragment key={row.localId}>
                 <TableRow>
@@ -397,6 +469,14 @@ export function Reconcile({
                     </Button>
                   </TableCell>
                 </TableRow>
+                {rowNotes && (
+                  <TableRow className="border-0 hover:bg-transparent">
+                    <TableCell />
+                    <TableCell colSpan={4} className="pt-0">
+                      <NoteList notes={rowNotes} />
+                    </TableCell>
+                  </TableRow>
+                )}
                 <RowInsertDivider onInsert={() => insertGapAt(index + 1)} />
               </Fragment>
             );

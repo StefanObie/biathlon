@@ -30,6 +30,7 @@ import { parseBibPayload } from "@/lib/scan/payload";
 import { nextPosition } from "@/lib/scan/position";
 import { cn } from "@/lib/utils";
 import { QrScanner } from "@/components/capture/qr-scanner";
+import { OperatorNotes } from "@/components/capture/operator-notes";
 import {
   getCapturesForHeat,
   putCapture,
@@ -321,6 +322,13 @@ export function PositionCapture({
           )}
         </ul>
       </div>
+
+      <OperatorNotes
+        leagueId={leagueId}
+        runHeat={runHeat}
+        screen="position"
+        ordinal={finished}
+      />
 
       <Dialog
         open={pendingOutOfHeat !== null}

@@ -177,6 +177,47 @@ export type Database = {
           },
         ];
       };
+      operator_note: {
+        Row: {
+          body: string;
+          created_at: string;
+          device_id: string;
+          id: string;
+          league_id: number;
+          ordinal: number;
+          run_heat: number;
+          screen: string;
+        };
+        Insert: {
+          body: string;
+          created_at: string;
+          device_id: string;
+          id: string;
+          league_id: number;
+          ordinal: number;
+          run_heat: number;
+          screen: string;
+        };
+        Update: {
+          body?: string;
+          created_at?: string;
+          device_id?: string;
+          id?: string;
+          league_id?: number;
+          ordinal?: number;
+          run_heat?: number;
+          screen?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "operator_note_league_id_fkey";
+            columns: ["league_id"];
+            isOneToOne: false;
+            referencedRelation: "league";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       points_table: {
         Row: {
           age_from: number;

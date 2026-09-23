@@ -276,7 +276,55 @@ create policy "Authenticated users can manage swim results"
   using (true)
   with check (true);
 
--- Reconciliation (§4.5/§5.3) subscribes to these two tables so the screen
--- updates live as captures sync in from field phones.
+-- Operator notes (#19). Free text an operator writes on a capture screen to
+-- help reconciliation correct an error they saw happen.
+--
+-- Append-only, and more strictly so than the capture tables: there is no
+-- voided/void_reason pair here, because a note is never wrong — it is what
+-- the operator said at the time. A correction is another note.
+--
+-- `ordinal` is how many finishers the screen had accounted for when the note
+-- was written, and 0 when written before the first finisher. Deliberately
+-- not time_capture.seq / position_capture.position: those counters are never
+-- reused, so a voided capture leaves a hole in them, while reconciliation
+-- zips the two streams of *active* captures by ordinal (§4.5). Counting
+-- finishers is what keeps a note pointing at the row the official sees.
+-- One column serves both screens; `screen` records which it came from.
+
+create table operator_note (
+  id text primary key,              -- ULID, client-generated (§5.8)
+  league_id integer not null references league (id),
+  run_heat integer not null,
+  ordinal integer not null check (ordinal >= 0),
+  screen text not null check (screen in ('timer', 'position')),
+  body text not null check (body <> ''),
+  device_id text not null,
+  created_at timestamptz not null
+);
+
+alter table operator_note enable row level security;
+
+create index operator_note_run_heat_idx
+  on operator_note (league_id, run_heat);
+
+-- Insert and select only, so the never-edit rule holds at the database and
+-- not just in the client. RLS covers update and delete; it does not cover
+-- truncate, so that privilege is revoked outright — this is the one table
+-- whose whole point is that nothing already written can change.
+create policy "Authenticated users can read operator notes"
+  on operator_note for select
+  to authenticated
+  using (true);
+
+create policy "Authenticated users can add operator notes"
+  on operator_note for insert
+  to authenticated
+  with check (true);
+
+revoke update, delete, truncate on operator_note from anon, authenticated;
+
+-- Reconciliation (§4.5/§5.3) subscribes to these tables so the screen
+-- updates live as captures and notes sync in from field phones.
 alter publication supabase_realtime add table position_capture;
 alter publication supabase_realtime add table time_capture;
+alter publication supabase_realtime add table operator_note;

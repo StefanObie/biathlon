@@ -24,6 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { HeatContextBar } from "@/components/leagues/heat-context-bar";
+import { OperatorNotes } from "@/components/capture/operator-notes";
 import { captureScreenState } from "@/lib/capture/screen-state";
 import { getDeviceId } from "@/lib/offline/device-id";
 import { formatElapsed, nextSeq } from "@/lib/scan/time";
@@ -357,6 +358,13 @@ export function TimeCapture({
           )}
         </ul>
       </div>
+
+      <OperatorNotes
+        leagueId={leagueId}
+        runHeat={runHeat}
+        screen="timer"
+        ordinal={finished}
+      />
 
       <Dialog open={confirmingReset} onOpenChange={setConfirmingReset}>
         <DialogContent>
