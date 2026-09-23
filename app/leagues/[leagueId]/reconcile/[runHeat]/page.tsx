@@ -36,6 +36,7 @@ async function ReconcileHeatSection({
     { data: timeCaptures },
     { data: runResults },
     { data: leagueRunResults },
+    { data: notes },
     { data: league },
   ] = await Promise.all([
     // Whole league, not just this heat: reassigning an athlete or logging
@@ -76,6 +77,14 @@ async function ReconcileHeatSection({
       .select("athlete_no, run_heat")
       .eq("league_id", leagueIdNum)
       .neq("run_heat", runHeatNum),
+    // Operator notes for this heat, oldest first: a later note correcting
+    // an earlier one has to read after it (#19).
+    supabase
+      .from("operator_note")
+      .select("id, ordinal, screen, body, created_at")
+      .eq("league_id", leagueIdNum)
+      .eq("run_heat", runHeatNum)
+      .order("created_at"),
     supabase.from("league").select("name").eq("id", leagueIdNum).maybeSingle(),
   ]);
 
@@ -116,6 +125,7 @@ async function ReconcileHeatSection({
       remotePositionCaptures={positionCaptures ?? []}
       remoteTimeCaptures={timeCaptures ?? []}
       remoteRunResults={runResults ?? []}
+      remoteNotes={notes ?? []}
       duplicateRunResults={leagueRunResults ?? []}
     />
   );

@@ -7,7 +7,9 @@
  * and the frozen clock value (#14).
  */
 export interface CaptureScreenState {
-  /** Finishers accounted for on this screen: the heat's active captures. */
+  /** Finishers accounted for on this screen: the heat's active captures.
+   * Doubles as the ordinal an operator note written now is tied to — see
+   * lib/capture/operator-note.ts. */
   finished: number;
   /** Athletes on this heat's roster — the denominator of "12 / 20". */
   rosterSize: number;
