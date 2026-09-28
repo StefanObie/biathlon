@@ -18,7 +18,11 @@ export async function createLeague(
   const name = String(formData.get("name") ?? "").trim();
   const leagueDate = String(formData.get("leagueDate") ?? "").trim();
   const season = Number(formData.get("season"));
+  const organizationId = Number(formData.get("organizationId"));
 
+  if (!Number.isInteger(organizationId) || organizationId <= 0) {
+    return { error: "Choose an organization." };
+  }
   if (!name || !leagueDate || !Number.isInteger(season)) {
     return { error: "Name, date, and season are all required." };
   }
@@ -26,7 +30,13 @@ export async function createLeague(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("league")
-    .insert({ name, league_date: leagueDate, season })
+    // RLS only lets an Admin of the organization insert this.
+    .insert({
+      name,
+      league_date: leagueDate,
+      season,
+      organization_id: organizationId,
+    })
     .select("id")
     .single();
 

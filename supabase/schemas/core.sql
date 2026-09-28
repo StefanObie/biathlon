@@ -1,5 +1,11 @@
 -- Core tables. See biathlon-technical-spec.md §6.1-6.2.
 
+-- Holds security definer helpers and trigger functions. Not in the API's
+-- exposed schemas, so nothing here is callable as an RPC.
+create schema private;
+
+grant usage on schema private to authenticated;
+
 create type gender as enum ('M', 'F');
 
 create table athlete (
@@ -10,14 +16,100 @@ create table athlete (
 
 alter table athlete enable row level security;
 
+-- Organizations (#10, #29). An Organization runs Leagues; its Members are
+-- users, and the Admin flag lives on the membership rather than being a
+-- per-League Role. Nothing here writes these tables from the app yet —
+-- creating Organizations and inviting Members come in later tickets.
+create table organization (
+  id integer primary key generated always as identity,
+  name text not null check (name <> '')
+);
+
+alter table organization enable row level security;
+
+create table organization_member (
+  organization_id integer not null references organization (id) on delete cascade,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  is_admin boolean not null default false,
+  primary key (organization_id, user_id)
+);
+
+alter table organization_member enable row level security;
+
+create index organization_member_user_idx on organization_member (user_id);
+
+-- A League's Organization is fixed once it's created (see
+-- league_organization_is_fixed below).
 create table league (
   id integer primary key generated always as identity,
   name text not null,
   league_date date not null,
-  season integer not null
+  season integer not null,
+  organization_id integer not null references organization (id)
 );
 
 alter table league enable row level security;
+
+create index league_organization_idx on league (organization_id);
+
+create function private.league_organization_is_fixed()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.organization_id is distinct from old.organization_id then
+    raise exception 'A league''s organization cannot be changed';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger league_organization_is_fixed
+  before update on league
+  for each row execute function private.league_organization_is_fixed();
+
+-- Access helpers: the one place access is decided, used by every policy.
+-- security definer so they can read organization_member without tripping
+-- its own RLS; they live in `private`, which the API doesn't expose, so
+-- they can't be called as RPCs to probe other users' memberships.
+
+-- Whether the current user is a Member of the Organization, or with
+-- as_admin, an Admin of it.
+create function private.is_org_member(org_id integer, as_admin boolean default false)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.organization_member
+    where organization_id = org_id
+      and user_id = (select auth.uid())
+      and (is_admin or not as_admin)
+  );
+$$;
+
+-- Interim rule until per-League Roles arrive: any Member of the League's
+-- Organization has full access to the League. False for a League that
+-- doesn't exist.
+create function private.can_access_league(target_league_id integer)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(
+    (
+      select private.is_org_member(organization_id)
+      from public.league
+      where id = target_league_id
+    ),
+    false
+  );
+$$;
 
 -- age_group_code is intentionally not an FK to points_table: that table's key
 -- includes effective_from/gender, which entry doesn't carry. Validated at
@@ -58,12 +150,15 @@ create table points_table (
 
 alter table points_table enable row level security;
 
--- Phase 0: no public-facing reads yet (that's Phase 4, §3/§6.1). Every
--- operator screen sits behind Supabase Auth (§5.3), so for now the model is
--- simply "authenticated operator, full access" on the operational tables,
--- and "authenticated read-only" on the reference points table. There's no
--- per-row ownership to check (no user_id column) — anon stays default-deny
--- via RLS-enabled-with-no-anon-policy.
+-- No public-facing reads yet (that's Phase 4, §3/§6.1): anon stays
+-- default-deny via RLS-enabled-with-no-anon-policy. Every league-scoped
+-- table is open only to Members of the League's Organization
+-- (private.can_access_league); the reference points table stays readable
+-- by any signed-in user.
+--
+-- Athletes aren't league-scoped yet: they move under their Organization
+-- (ADR 0002) in a later ticket, and until then any signed-in user can
+-- manage them.
 
 create policy "Authenticated users can manage athletes"
   on athlete for all
@@ -71,17 +166,42 @@ create policy "Authenticated users can manage athletes"
   using (true)
   with check (true);
 
-create policy "Authenticated users can manage leagues"
-  on league for all
+create policy "Members can read their organizations"
+  on organization for select
   to authenticated
-  using (true)
-  with check (true);
+  using (private.is_org_member(id));
 
-create policy "Authenticated users can manage entries"
+create policy "Members can read their organizations' memberships"
+  on organization_member for select
+  to authenticated
+  using (private.is_org_member(organization_id));
+
+create policy "Members can read their organizations' leagues"
+  on league for select
+  to authenticated
+  using (private.is_org_member(organization_id));
+
+create policy "Admins can create leagues"
+  on league for insert
+  to authenticated
+  with check (private.is_org_member(organization_id, as_admin => true));
+
+create policy "Admins can update leagues"
+  on league for update
+  to authenticated
+  using (private.is_org_member(organization_id, as_admin => true))
+  with check (private.is_org_member(organization_id, as_admin => true));
+
+create policy "Admins can delete leagues"
+  on league for delete
+  to authenticated
+  using (private.is_org_member(organization_id, as_admin => true));
+
+create policy "Members can manage their leagues' entries"
   on entry for all
   to authenticated
-  using (true)
-  with check (true);
+  using (private.can_access_league(league_id))
+  with check (private.can_access_league(league_id));
 
 create policy "Authenticated users can read points table"
   on points_table for select
@@ -188,6 +308,7 @@ create index run_result_run_heat_idx
 
 create table audit_log (
   id uuid primary key default gen_random_uuid(),
+  league_id integer not null references league (id),
   at timestamptz not null default now(),
   actor text not null,
   entity text not null,
@@ -199,35 +320,37 @@ create table audit_log (
 
 alter table audit_log enable row level security;
 
-create policy "Authenticated users can manage position captures"
+create index audit_log_league_idx on audit_log (league_id);
+
+create policy "Members can manage their leagues' position captures"
   on position_capture for all
   to authenticated
-  using (true)
-  with check (true);
+  using (private.can_access_league(league_id))
+  with check (private.can_access_league(league_id));
 
-create policy "Authenticated users can manage time captures"
+create policy "Members can manage their leagues' time captures"
   on time_capture for all
   to authenticated
-  using (true)
-  with check (true);
+  using (private.can_access_league(league_id))
+  with check (private.can_access_league(league_id));
 
-create policy "Authenticated users can manage league races"
+create policy "Members can manage their leagues' league races"
   on league_race for all
   to authenticated
-  using (true)
-  with check (true);
+  using (private.can_access_league(league_id))
+  with check (private.can_access_league(league_id));
 
-create policy "Authenticated users can manage run results"
+create policy "Members can manage their leagues' run results"
   on run_result for all
   to authenticated
-  using (true)
-  with check (true);
+  using (private.can_access_league(league_id))
+  with check (private.can_access_league(league_id));
 
-create policy "Authenticated users can manage audit log"
+create policy "Members can manage their leagues' audit log"
   on audit_log for all
   to authenticated
-  using (true)
-  with check (true);
+  using (private.can_access_league(league_id))
+  with check (private.can_access_league(league_id));
 
 -- Phase 2 swim results (§4.6/§6.5). Unlike run_result, there is no capture
 -- stream to reconcile: the Time Drops export arrives complete, is parsed
@@ -276,11 +399,11 @@ alter table swim_result enable row level security;
 
 create index swim_result_heat_lane_idx on swim_result (league_id, heat, lane);
 
-create policy "Authenticated users can manage swim results"
+create policy "Members can manage their leagues' swim results"
   on swim_result for all
   to authenticated
-  using (true)
-  with check (true);
+  using (private.can_access_league(league_id))
+  with check (private.can_access_league(league_id));
 
 -- Operator notes (#19). Free text an operator writes on a capture screen to
 -- help reconciliation correct an error they saw happen.
@@ -316,15 +439,15 @@ create index operator_note_run_heat_idx
 -- not just in the client. RLS covers update and delete; it does not cover
 -- truncate, so that privilege is revoked outright — this is the one table
 -- whose whole point is that nothing already written can change.
-create policy "Authenticated users can read operator notes"
+create policy "Members can read their leagues' operator notes"
   on operator_note for select
   to authenticated
-  using (true);
+  using (private.can_access_league(league_id));
 
-create policy "Authenticated users can add operator notes"
+create policy "Members can add operator notes to their leagues"
   on operator_note for insert
   to authenticated
-  with check (true);
+  with check (private.can_access_league(league_id));
 
 revoke update, delete, truncate on operator_note from anon, authenticated;
 

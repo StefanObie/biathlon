@@ -49,6 +49,7 @@ export async function closeHeat({
   if (!didClose) return { closed: null, error: null };
 
   await logAudit({
+    leagueId,
     actor,
     entity: "league_race",
     action: "close",
@@ -91,6 +92,7 @@ export async function reopenHeat({
   if (data.length === 0) return { error: null };
 
   await logAudit({
+    leagueId,
     actor,
     entity: "league_race",
     action: "reopen",

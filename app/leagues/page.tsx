@@ -23,54 +23,94 @@ export default function LeaguesPage() {
         </Suspense>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>New league</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <CreateLeagueForm />
-        </CardContent>
-      </Card>
+      <Suspense>
+        <NewLeague />
+      </Suspense>
     </div>
   );
 }
 
+// RLS limits both organizations and leagues to the Organizations the
+// user is a Member of, so this lists exactly what they can open.
 async function LeaguesList() {
   const supabase = await createClient();
-  const { data: leagues, error } = await supabase
-    .from("league")
-    .select("id, name, league_date, season")
-    .order("league_date", { ascending: false });
+  const { data: organizations, error } = await supabase
+    .from("organization")
+    .select("id, name, league(id, name, league_date, season)")
+    .order("name")
+    .order("league_date", { referencedTable: "league", ascending: false });
 
   if (error) {
     return <p className="text-sm text-destructive">{error.message}</p>;
   }
 
-  if (!leagues || leagues.length === 0) {
+  if (!organizations || organizations.length === 0) {
     return (
       <Empty>
         <EmptyHeader>
-          <EmptyTitle>No leagues yet</EmptyTitle>
-          <EmptyDescription>Create one below to get started.</EmptyDescription>
+          <EmptyTitle>No organizations yet</EmptyTitle>
+          <EmptyDescription>
+            Ask an organization&apos;s Admin to invite you.
+          </EmptyDescription>
         </EmptyHeader>
       </Empty>
     );
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      {leagues.map((league) => (
-        <Link key={league.id} href={`/leagues/${league.id}`}>
-          <Card className="hover:bg-accent transition-colors">
-            <CardHeader>
-              <CardTitle>{league.name}</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                {league.league_date} · Season {league.season}
-              </p>
-            </CardHeader>
-          </Card>
-        </Link>
+    <div className="flex flex-col gap-6">
+      {organizations.map((organization) => (
+        <section key={organization.id} className="flex flex-col gap-2">
+          <h2 className="text-lg font-semibold">{organization.name}</h2>
+          {organization.league.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No leagues yet.</p>
+          ) : (
+            organization.league.map((league) => (
+              <Link key={league.id} href={`/leagues/${league.id}`}>
+                <Card className="hover:bg-accent transition-colors">
+                  <CardHeader>
+                    <CardTitle>{league.name}</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      {league.league_date} · Season {league.season}
+                    </p>
+                  </CardHeader>
+                </Card>
+              </Link>
+            ))
+          )}
+        </section>
       ))}
     </div>
+  );
+}
+
+// Only Admins can create Leagues, so the form is shown only to someone who
+// administers at least one Organization, offering just those.
+async function NewLeague() {
+  const supabase = await createClient();
+  const { data: claims } = await supabase.auth.getClaims();
+  const userId = claims?.claims.sub;
+  if (!userId) return null;
+
+  const { data: memberships } = await supabase
+    .from("organization_member")
+    .select("organization(id, name)")
+    .eq("user_id", userId)
+    .eq("is_admin", true);
+
+  const organizations = (memberships ?? [])
+    .map((membership) => membership.organization)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  if (organizations.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>New league</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <CreateLeagueForm organizations={organizations} />
+      </CardContent>
+    </Card>
   );
 }

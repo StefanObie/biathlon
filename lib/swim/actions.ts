@@ -112,6 +112,7 @@ export async function saveSwimResults(
   // One row for the import event, plus one per operator-modified row —
   // not one per untouched parsed row, which would be noise.
   const auditRows: {
+    league_id: number;
     actor: string;
     entity: string;
     action: string;
@@ -119,6 +120,7 @@ export async function saveSwimResults(
     reason: string | null;
   }[] = [
     {
+      league_id: leagueId,
       actor,
       entity: `league:${leagueId}`,
       action: "swim_import",
@@ -135,6 +137,7 @@ export async function saveSwimResults(
     ...rows
       .filter((row) => row.edited)
       .map((row) => ({
+        league_id: leagueId,
         actor,
         entity: `swim_result:${leagueId}:${row.athleteNo}`,
         action: "swim_manual_edit",

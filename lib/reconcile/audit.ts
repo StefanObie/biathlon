@@ -7,6 +7,7 @@ import type { Json } from "@/lib/supabase/database.types";
  * not just the ones that change a saved result.
  */
 export async function logAudit({
+  leagueId,
   actor,
   entity,
   action,
@@ -14,6 +15,7 @@ export async function logAudit({
   after,
   reason,
 }: {
+  leagueId: number;
   actor: string;
   entity: string;
   action: string;
@@ -23,6 +25,7 @@ export async function logAudit({
 }): Promise<void> {
   const supabase = createClient();
   await supabase.from("audit_log").insert({
+    league_id: leagueId,
     actor,
     entity,
     action,

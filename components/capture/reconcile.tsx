@@ -420,6 +420,7 @@ export function Reconcile({
       }
 
       await logAudit({
+        leagueId,
         actor,
         entity: "run_result",
         action: "reconcile-save",

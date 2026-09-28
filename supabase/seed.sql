@@ -10,6 +10,12 @@
 --           re-pressed as seq 8, position 6 is a Skip, and position 11 is
 --           athlete 121 from heat 3, so the Position screen reads 11 / 10.
 --   Heat 3: start list only, not started, for trying the capture screens.
+--
+-- League 1 belongs to Gauteng North Biathlon, which the organizations
+-- migration creates. admin@example.com is seeded as its Admin, so signing in
+-- locally with that email (the code arrives in Mailpit) shows League 1; any
+-- other email signs in to an account with no Organization and sees no
+-- leagues.
 
 insert into athlete (athlete_no, full_name, gender) values
   (101, 'Liam Botha', 'M'),
@@ -41,8 +47,34 @@ insert into athlete (athlete_no, full_name, gender) values
   (127, 'Willem Brink', 'M'),
   (128, 'Sarah Adams', 'F');
 
-insert into league (id, name, league_date, season) overriding system value values
-  (1, 'League 1', '2026-08-25', 2026);
+-- The token columns are empty strings, not null: GoTrue fails to load a user
+-- whose token columns are null.
+insert into auth.users (
+  instance_id, id, aud, role, email, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, recovery_token, email_change_token_new, email_change
+) values (
+  '00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-0000000000a1',
+  'authenticated', 'authenticated', 'admin@example.com', now(),
+  '{"provider": "email", "providers": ["email"]}', '{}', now(), now(),
+  '', '', '', ''
+);
+
+insert into auth.identities (
+  provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+) values (
+  '00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000a1',
+  '{"sub": "00000000-0000-0000-0000-0000000000a1", "email": "admin@example.com", "email_verified": true}',
+  'email', now(), now(), now()
+);
+
+insert into organization_member (organization_id, user_id, is_admin)
+select id, '00000000-0000-0000-0000-0000000000a1', true
+from organization where name = 'Gauteng North Biathlon';
+
+insert into league (id, name, league_date, season, organization_id) overriding system value
+select 1, 'League 1', '2026-08-25', 2026, id
+from organization where name = 'Gauteng North Biathlon';
 
 select setval(pg_get_serial_sequence('league', 'id'), (select max(id) from league));
 

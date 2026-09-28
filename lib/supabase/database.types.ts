@@ -61,6 +61,7 @@ export type Database = {
           before: Json | null;
           entity: string;
           id: string;
+          league_id: number;
           reason: string | null;
         };
         Insert: {
@@ -71,6 +72,7 @@ export type Database = {
           before?: Json | null;
           entity: string;
           id?: string;
+          league_id: number;
           reason?: string | null;
         };
         Update: {
@@ -81,9 +83,18 @@ export type Database = {
           before?: Json | null;
           entity?: string;
           id?: string;
+          league_id?: number;
           reason?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_league_id_fkey";
+            columns: ["league_id"];
+            isOneToOne: false;
+            referencedRelation: "league";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       entry: {
         Row: {
@@ -132,21 +143,32 @@ export type Database = {
           id: number;
           league_date: string;
           name: string;
+          organization_id: number;
           season: number;
         };
         Insert: {
           id?: never;
           league_date: string;
           name: string;
+          organization_id: number;
           season: number;
         };
         Update: {
           id?: never;
           league_date?: string;
           name?: string;
+          organization_id?: number;
           season?: number;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "league_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organization";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       league_race: {
         Row: {
@@ -220,6 +242,47 @@ export type Database = {
             columns: ["league_id"];
             isOneToOne: false;
             referencedRelation: "league";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      organization: {
+        Row: {
+          id: number;
+          name: string;
+        };
+        Insert: {
+          id?: never;
+          name: string;
+        };
+        Update: {
+          id?: never;
+          name?: string;
+        };
+        Relationships: [];
+      };
+      organization_member: {
+        Row: {
+          is_admin: boolean;
+          organization_id: number;
+          user_id: string;
+        };
+        Insert: {
+          is_admin?: boolean;
+          organization_id: number;
+          user_id: string;
+        };
+        Update: {
+          is_admin?: boolean;
+          organization_id?: number;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "organization_member_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organization";
             referencedColumns: ["id"];
           },
         ];
