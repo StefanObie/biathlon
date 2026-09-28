@@ -283,19 +283,18 @@ create policy "Authenticated users can manage swim results"
 -- voided/void_reason pair here, because a note is never wrong — it is what
 -- the operator said at the time. A correction is another note.
 --
--- `ordinal` is how many finishers the screen had accounted for when the note
--- was written, and 0 when written before the first finisher. Deliberately
--- not time_capture.seq / position_capture.position: those counters are never
--- reused, so a voided capture leaves a hole in them, while reconciliation
--- zips the two streams of *active* captures by ordinal (§4.5). Counting
--- finishers is what keeps a note pointing at the row the official sees.
--- One column serves both screens; `screen` records which it came from.
+-- `anchor` is the latest active capture on the note's screen when it was
+-- written: time_capture.seq for the Timer screen, position_capture.position
+-- for the Position screen, and 0 before the first finisher. Anchoring on a
+-- capture rather than a row number keeps the note with that capture while
+-- the official inserts gaps or removes rows on reconciliation (§4.5).
+-- One column serves both screens; `screen` says which counter it is.
 
 create table operator_note (
   id text primary key,              -- ULID, client-generated (§5.8)
   league_id integer not null references league (id),
   run_heat integer not null,
-  ordinal integer not null check (ordinal >= 0),
+  anchor integer not null check (anchor >= 0),
   screen text not null check (screen in ('timer', 'position')),
   body text not null check (body <> ''),
   device_id text not null,

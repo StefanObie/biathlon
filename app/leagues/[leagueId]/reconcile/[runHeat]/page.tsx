@@ -81,7 +81,7 @@ async function ReconcileHeatSection({
     // an earlier one has to read after it (#19).
     supabase
       .from("operator_note")
-      .select("id, ordinal, screen, body, created_at")
+      .select("id, anchor, screen, body, created_at")
       .eq("league_id", leagueIdNum)
       .eq("run_heat", runHeatNum)
       .order("created_at"),

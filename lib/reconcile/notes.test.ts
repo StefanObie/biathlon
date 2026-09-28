@@ -1,88 +1,159 @@
 import { describe, expect, it } from "vitest";
 
-import { captureScreenState } from "@/lib/capture/screen-state";
-import { buildWorkingRows, type TimeEntry } from "./join";
-import { placeNotes, type OperatorNoteEntry } from "./notes";
+import { noteAnchor } from "@/lib/capture/operator-note";
+import {
+  buildWorkingRows,
+  type PositionEntry,
+  type TimeEntry,
+  type WorkingRow,
+} from "./join";
+import { placeNotes, type OperatorNote } from "./notes";
 
 function note(
   id: string,
-  ordinal: number,
-  screen: OperatorNoteEntry["screen"] = "timer",
-): OperatorNoteEntry {
+  anchor: number,
+  screen: OperatorNote["screen"] = "timer",
+  createdAt = "2026-09-23T10:00:00Z",
+): OperatorNote {
+  return { id, anchor, screen, body: `note ${id}`, createdAt };
+}
+
+function time(seq: number): TimeEntry {
   return {
-    id,
-    ordinal,
-    screen,
-    body: `note ${id}`,
-    createdAt: `2026-09-23T10:00:0${id.length}Z`,
+    id: `t${seq}`,
+    seq,
+    elapsedTime: "01:00.00",
+    isPlaceholder: false,
+  };
+}
+
+function position(pos: number, athleteNo: number | null): PositionEntry {
+  return { id: `p${pos}`, position: pos, athleteNo };
+}
+
+/** Three finishers, times seq 1–3 zipped against positions 1–3. */
+function threeRows(): WorkingRow[] {
+  return buildWorkingRows(
+    [position(1, 101), position(2, 102), position(3, 103)],
+    [time(1), time(2), time(3)],
+    new Map(),
+  );
+}
+
+function gapRow(localId: string): WorkingRow {
+  return {
+    localId,
+    position: null,
+    time: null,
+    athleteNo: null,
+    athleteName: null,
+    runTime: null,
+    status: "ok",
   };
 }
 
 describe("placeNotes", () => {
-  it("places a note on the row at its ordinal", () => {
-    const placed = placeNotes([note("a", 2)], 3);
+  it("places a Timer screen note on the row holding its seq", () => {
+    const rows = threeRows();
 
-    expect(placed.byOrdinal.get(2)).toEqual([note("a", 2)]);
+    const placed = placeNotes([note("a", 2, "timer")], rows);
+
+    expect(placed.byRow.get(rows[1].localId)).toEqual([note("a", 2, "timer")]);
     expect(placed.heatLevel).toEqual([]);
   });
 
-  it("returns a note tied to 0 at heat level", () => {
-    const placed = placeNotes([note("a", 0)], 3);
+  it("places a Position screen note on the row holding its position", () => {
+    // Positions and times out of step: the time stream is one short at the
+    // top, so position 2 sits on the same row as seq 3.
+    const rows = buildWorkingRows(
+      [position(1, 101), position(2, 102)],
+      [time(3), time(4)],
+      new Map(),
+    );
 
-    expect(placed.byOrdinal.size).toBe(0);
+    const placed = placeNotes([note("a", 2, "position")], rows);
+
+    expect(placed.byRow.get(rows[1].localId)).toEqual([
+      note("a", 2, "position"),
+    ]);
+  });
+
+  it("keeps a note with its capture when a gap is inserted above it", () => {
+    const rows = threeRows();
+    const withGap = [rows[0], gapRow("gap-1"), rows[1], rows[2]];
+
+    const placed = placeNotes([note("a", 2)], withGap);
+
+    expect(placed.byRow.get(rows[1].localId)).toHaveLength(1);
+    expect(placed.byRow.has("gap-1")).toBe(false);
+  });
+
+  it("keeps a note with its capture when a row above it is removed", () => {
+    const rows = threeRows();
+    const withoutFirst = [rows[1], rows[2]];
+
+    const placed = placeNotes([note("a", 3)], withoutFirst);
+
+    expect(placed.byRow.get(rows[2].localId)).toHaveLength(1);
+  });
+
+  it("returns a note on a removed row at heat level", () => {
+    const rows = threeRows();
+
+    const placed = placeNotes([note("a", 2)], [rows[0], rows[2]]);
+
+    expect(placed.byRow.size).toBe(0);
+    expect(placed.heatLevel).toEqual([note("a", 2)]);
+  });
+
+  it("returns a note tied to 0 at heat level", () => {
+    const placed = placeNotes([note("a", 0)], threeRows());
+
+    expect(placed.byRow.size).toBe(0);
     expect(placed.heatLevel).toEqual([note("a", 0)]);
   });
 
-  it("returns a note past the end of the table at heat level", () => {
-    const placed = placeNotes([note("a", 4)], 3);
+  it("returns a note whose capture no row holds at heat level", () => {
+    const placed = placeNotes([note("a", 9)], threeRows());
 
-    expect(placed.byOrdinal.size).toBe(0);
-    expect(placed.heatLevel).toEqual([note("a", 4)]);
+    expect(placed.byRow.size).toBe(0);
+    expect(placed.heatLevel).toEqual([note("a", 9)]);
   });
 
   it("puts every note at heat level when the table is empty", () => {
-    const placed = placeNotes([note("a", 1), note("b", 0)], 0);
+    const placed = placeNotes([note("a", 1), note("b", 0)], []);
 
     expect(placed.heatLevel).toHaveLength(2);
   });
 
   it("keeps several notes on one row in the order they were written", () => {
-    const first: OperatorNoteEntry = {
-      ...note("a", 1),
-      createdAt: "2026-09-23T10:00:00Z",
-    };
-    const second: OperatorNoteEntry = {
-      ...note("b", 1),
-      createdAt: "2026-09-23T10:05:00Z",
-    };
+    const rows = threeRows();
+    const first = note("a", 1, "timer", "2026-09-23T10:00:00Z");
+    const second = note("b", 1, "timer", "2026-09-23T10:05:00Z");
 
-    const placed = placeNotes([second, first], 2);
+    const placed = placeNotes([second, first], rows);
 
-    expect(placed.byOrdinal.get(1)).toEqual([first, second]);
+    expect(placed.byRow.get(rows[0].localId)).toEqual([first, second]);
   });
 
   it("orders heat-level notes by when they were written", () => {
-    const first: OperatorNoteEntry = {
-      ...note("a", 0),
-      createdAt: "2026-09-23T10:00:00Z",
-    };
-    const second: OperatorNoteEntry = {
-      ...note("b", 9),
-      createdAt: "2026-09-23T10:05:00Z",
-    };
+    const first = note("a", 0, "timer", "2026-09-23T10:00:00Z");
+    const second = note("b", 9, "timer", "2026-09-23T10:05:00Z");
 
-    const placed = placeNotes([second, first], 1);
+    const placed = placeNotes([second, first], threeRows());
 
     expect(placed.heatLevel).toEqual([first, second]);
   });
 
   it("keeps notes from both capture screens, each tagged with its screen", () => {
+    const rows = threeRows();
+
     const placed = placeNotes(
       [note("a", 1, "timer"), note("b", 1, "position")],
-      1,
+      rows,
     );
 
-    expect(placed.byOrdinal.get(1)?.map((n) => n.screen)).toEqual([
+    expect(placed.byRow.get(rows[0].localId)?.map((n) => n.screen)).toEqual([
       "timer",
       "position",
     ]);
@@ -90,45 +161,25 @@ describe("placeNotes", () => {
 });
 
 describe("a note written after an undo", () => {
-  it("still lands on the finisher it was written about", () => {
+  it("lands on the row holding the latest active capture", () => {
     // Three presses, the third undone, then a fourth. seq skips 3 (the
-    // counter never reuses a voided one), but reconciliation only ever sees
-    // three active rows — so a note anchored on the raw seq would point one
-    // row too far, off the end of the table.
+    // counter never reuses a voided one), so the latest capture — seq 4 —
+    // sits on the third row of the table.
     const captures = [
       { seq: 1, voided: false },
       { seq: 2, voided: false },
       { seq: 3, voided: true },
       { seq: 4, voided: false },
     ];
-    const times: TimeEntry[] = captures
-      .filter((c) => !c.voided)
-      .map((c) => ({
-        id: `t${c.seq}`,
-        seq: c.seq,
-        elapsedTime: "01:00.00",
-        isPlaceholder: false,
-      }));
-    const rows = buildWorkingRows([], times, new Map());
+    const active = captures.filter((c) => !c.voided).map((c) => c.seq);
+    const rows = buildWorkingRows([], active.map(time), new Map());
 
-    // What the capture screen anchors a note on: the finished count.
-    const { finished } = captureScreenState({ captures, rosterSize: 20 });
-    expect(finished).toBe(3);
+    const anchor = noteAnchor(active);
+    expect(anchor).toBe(4);
 
-    const placed = placeNotes(
-      [
-        {
-          id: "n",
-          ordinal: finished,
-          screen: "timer",
-          body: "runner 12 cut the corner",
-          createdAt: "2026-09-23T10:00:00Z",
-        },
-      ],
-      rows.length,
-    );
+    const placed = placeNotes([note("n", anchor)], rows);
 
-    expect(placed.byOrdinal.get(3)).toHaveLength(1);
+    expect(placed.byRow.get(rows[2].localId)).toHaveLength(1);
     expect(placed.heatLevel).toEqual([]);
   });
 });

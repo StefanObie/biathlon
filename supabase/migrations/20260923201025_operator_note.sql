@@ -2,13 +2,13 @@ CREATE TABLE "public"."operator_note" (
   "id"         text                     NOT NULL,
   "league_id"  integer                  NOT NULL,
   "run_heat"   integer                  NOT NULL,
-  "ordinal"    integer                  NOT NULL,
+  "anchor"     integer                  NOT NULL,
   "screen"     text                     NOT NULL,
   "body"       text                     NOT NULL,
   "device_id"  text                     NOT NULL,
   "created_at" timestamp with time zone NOT NULL,
   CONSTRAINT "operator_note_body_check" CHECK ((body <> ''::text)),
-  CONSTRAINT "operator_note_ordinal_check" CHECK ((ordinal >= 0)),
+  CONSTRAINT "operator_note_anchor_check" CHECK ((anchor >= 0)),
   CONSTRAINT "operator_note_pkey" PRIMARY KEY (id),
   CONSTRAINT "operator_note_screen_check" CHECK ((screen = ANY (ARRAY['timer'::text, 'position'::text])))
 );

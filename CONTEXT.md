@@ -53,10 +53,6 @@ _Avoid_: Gap (a gap is a reconciliation edit)
 **Finished count**:
 The number of finishers accounted for on a capture screen, shown against the heat roster size (e.g. 12 / 20). It includes Missed finishes and Skips, and it may exceed the roster size.
 
-**Start offset**:
-A heat-level correction for a clock started late: the number of seconds added to every time in the heat.
-_Avoid_: Missed start penalty, time adjustment
-
 **Operator note**:
-A free-text note an operator adds during capture. It is tied to the point in the heat's sequence at which it was written, and it is kept to help reconciliation correct errors.
+A free-text note an operator adds during capture. It is tied to the latest capture on its screen when it was written (or to the start of the heat, before the first finisher), and it is kept to help reconciliation correct errors.
 _Avoid_: Comment, annotation

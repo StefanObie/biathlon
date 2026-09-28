@@ -28,9 +28,10 @@ import { captureScreenState, heatRosterSize } from "@/lib/capture/screen-state";
 import { getDeviceId } from "@/lib/offline/device-id";
 import { parseBibPayload } from "@/lib/scan/payload";
 import { nextPosition } from "@/lib/scan/position";
-import { cn } from "@/lib/utils";
 import { QrScanner } from "@/components/capture/qr-scanner";
+import { FinishedCount } from "@/components/capture/finished-count";
 import { OperatorNotes } from "@/components/capture/operator-notes";
+import { noteAnchor } from "@/lib/capture/operator-note";
 import {
   getCapturesForHeat,
   putCapture,
@@ -284,16 +285,12 @@ export function PositionCapture({
       </div>
 
       <div className="w-full max-w-sm">
-        <p
-          className={cn(
-            "mb-2 text-sm font-medium tabular-nums",
-            overRoster
-              ? "text-amber-600 dark:text-amber-500"
-              : "text-muted-foreground",
-          )}
-        >
-          Finished {finished} / {rosterSize}
-        </p>
+        <FinishedCount
+          finished={finished}
+          rosterSize={rosterSize}
+          overRoster={overRoster}
+          className="mb-2"
+        />
         <ul className="flex flex-col gap-1">
           {allCaptures.map((c) => (
             <li
@@ -327,7 +324,7 @@ export function PositionCapture({
         leagueId={leagueId}
         runHeat={runHeat}
         screen="position"
-        ordinal={finished}
+        anchor={noteAnchor(activePositions)}
       />
 
       <Dialog

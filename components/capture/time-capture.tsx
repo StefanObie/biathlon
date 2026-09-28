@@ -24,11 +24,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { HeatContextBar } from "@/components/leagues/heat-context-bar";
+import { FinishedCount } from "@/components/capture/finished-count";
 import { OperatorNotes } from "@/components/capture/operator-notes";
+import { noteAnchor } from "@/lib/capture/operator-note";
 import { captureScreenState } from "@/lib/capture/screen-state";
 import { getDeviceId } from "@/lib/offline/device-id";
 import { formatElapsed, nextSeq } from "@/lib/scan/time";
-import { cn } from "@/lib/utils";
 import {
   getCapturesForHeat,
   putCapture,
@@ -260,16 +261,12 @@ export function TimeCapture({
         <p className="text-6xl font-bold tabular-nums">
           {liveElapsed ?? "00:00.00"}
         </p>
-        <p
-          className={cn(
-            "mt-2 text-sm font-medium tabular-nums",
-            overRoster
-              ? "text-amber-600 dark:text-amber-500"
-              : "text-muted-foreground",
-          )}
-        >
-          Finished {finished} / {rosterSize}
-        </p>
+        <FinishedCount
+          finished={finished}
+          rosterSize={rosterSize}
+          overRoster={overRoster}
+          className="mt-2"
+        />
       </div>
 
       {startedAtMs === null ? (
@@ -363,7 +360,7 @@ export function TimeCapture({
         leagueId={leagueId}
         runHeat={runHeat}
         screen="timer"
-        ordinal={finished}
+        anchor={noteAnchor(activeSeqs)}
       />
 
       <Dialog open={confirmingReset} onOpenChange={setConfirmingReset}>
