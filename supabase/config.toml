@@ -247,12 +247,18 @@ otp_expiry = 3600
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
 
-# signInWithOtp() emails use the "magic_link" template. The default template
-# only shows a confirmation link, not the numeric code our sign-in form asks
-# for, so it's overridden here to show {{ .Token }}.
+# signInWithOtp() sends the "magic_link" template to an existing user, and
+# the "confirmation" template to a new one when "Confirm email" is on. Both
+# defaults show only a link, not the Sign-in OTP our form asks for, so both
+# point at the one Sign-in OTP email. Hosted Supabase only picks up changes
+# here after `supabase config push`.
 [auth.email.template.magic_link]
-subject = "Your login code"
-content_path = "./supabase/templates/magic_link.html"
+subject = "Your sign-in OTP"
+content_path = "./supabase/templates/sign_in_otp.html"
+
+[auth.email.template.confirmation]
+subject = "Your sign-in OTP"
+content_path = "./supabase/templates/sign_in_otp.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]

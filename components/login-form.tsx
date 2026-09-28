@@ -90,14 +90,16 @@ export function LoginForm({
       <div className={cn("flex flex-col gap-6", className)} {...props}>
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">Enter your code</CardTitle>
-            <CardDescription>We sent a 6-digit code to {email}</CardDescription>
+            <CardTitle className="text-2xl">Enter your sign-in OTP</CardTitle>
+            <CardDescription>
+              We sent a 6-digit sign-in OTP to {email}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleVerifyCode}>
               <FieldGroup>
                 <Field>
-                  <FieldLabel htmlFor="code">Code</FieldLabel>
+                  <FieldLabel htmlFor="code">Sign-in OTP</FieldLabel>
                   <InputOTP
                     id="code"
                     maxLength={6}
@@ -154,11 +156,11 @@ export function LoginForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
+          <CardTitle className="text-2xl">Sign in</CardTitle>
           <CardDescription>
             {needsInviteCode
               ? "New account — enter your team's invite code to continue"
-              : "Enter your email below and we'll send you a login code"}
+              : "Enter your email below and we'll send you a sign-in OTP"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -202,7 +204,7 @@ export function LoginForm({
                   className="w-full"
                   disabled={loginPending || signupPending}
                 >
-                  {needsInviteCode ? "Create account" : "Send code"}
+                  {needsInviteCode ? "Create account" : "Send sign-in OTP"}
                 </Button>
               </Field>
             </FieldGroup>
