@@ -28,10 +28,13 @@ function positionCapture(fields: {
 
 describe("captureScreenState", () => {
   it("counts no finishers on a fresh heat", () => {
-    expect(captureScreenState({ captures: [], rosterSize: 20 })).toEqual({
+    expect(
+      captureScreenState({ captures: [], rosterSize: 20, closedAt: null }),
+    ).toEqual({
       finished: 0,
       rosterSize: 20,
       overRoster: false,
+      locked: false,
     });
   });
 
@@ -42,6 +45,7 @@ describe("captureScreenState", () => {
     const state = captureScreenState({
       captures: [{ voided: false }, { voided: false }, { voided: false }],
       rosterSize: 20,
+      closedAt: null,
     });
     expect(state.finished).toBe(3);
   });
@@ -56,6 +60,7 @@ describe("captureScreenState", () => {
         timeCapture({}),
       ],
       rosterSize: 20,
+      closedAt: null,
     });
     expect(state.finished).toBe(3);
   });
@@ -69,6 +74,7 @@ describe("captureScreenState", () => {
         positionCapture({}),
       ],
       rosterSize: 20,
+      closedAt: null,
     });
     expect(state.finished).toBe(3);
   });
@@ -81,6 +87,7 @@ describe("captureScreenState", () => {
         positionCapture({}),
       ],
       rosterSize: 20,
+      closedAt: null,
     });
     expect(state.finished).toBe(1);
   });
@@ -89,6 +96,7 @@ describe("captureScreenState", () => {
     const state = captureScreenState({
       captures: [{ voided: false }, { voided: true }, { voided: false }],
       rosterSize: 20,
+      closedAt: null,
     });
     expect(state.finished).toBe(2);
   });
@@ -97,8 +105,14 @@ describe("captureScreenState", () => {
     const state = captureScreenState({
       captures: Array.from({ length: 20 }, () => ({ voided: false })),
       rosterSize: 20,
+      closedAt: null,
     });
-    expect(state).toEqual({ finished: 20, rosterSize: 20, overRoster: false });
+    expect(state).toEqual({
+      finished: 20,
+      rosterSize: 20,
+      overRoster: false,
+      locked: false,
+    });
   });
 
   it("is over the roster when the count exceeds the roster size", () => {
@@ -107,8 +121,49 @@ describe("captureScreenState", () => {
     const state = captureScreenState({
       captures: Array.from({ length: 21 }, () => ({ voided: false })),
       rosterSize: 20,
+      closedAt: null,
     });
-    expect(state).toEqual({ finished: 21, rosterSize: 20, overRoster: true });
+    expect(state).toEqual({
+      finished: 21,
+      rosterSize: 20,
+      overRoster: true,
+      locked: false,
+    });
+  });
+});
+
+describe("captureScreenState locked", () => {
+  it("is locked when the heat is closed", () => {
+    const state = captureScreenState({
+      captures: [],
+      rosterSize: 20,
+      closedAt: "2026-09-28T10:15:00.000Z",
+    });
+    expect(state.locked).toBe(true);
+  });
+
+  it("is not locked when the heat is open", () => {
+    // A reopened heat has no close time, so it unlocks the same way.
+    const state = captureScreenState({
+      captures: [],
+      rosterSize: 20,
+      closedAt: null,
+    });
+    expect(state.locked).toBe(false);
+  });
+
+  it("still counts finishers on a closed heat", () => {
+    const state = captureScreenState({
+      captures: [{ voided: false }, { voided: true }],
+      rosterSize: 20,
+      closedAt: "2026-09-28T10:15:00.000Z",
+    });
+    expect(state).toEqual({
+      finished: 1,
+      rosterSize: 20,
+      overRoster: false,
+      locked: true,
+    });
   });
 });
 

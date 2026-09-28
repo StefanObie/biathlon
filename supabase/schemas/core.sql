@@ -140,14 +140,20 @@ create index time_capture_run_heat_idx
 -- measured against. One row per heat — upserted, not appended, so a second
 -- operator (or the same operator after a refresh/dropped phone) reads the
 -- same start instead of racing to create their own (§4.4 hand-off case).
--- There is no separate publish gate: a heat's run_result rows being saved
--- (§6.5) is itself the signal that reconciliation is done, so league_race
--- only ever holds timer state.
+--
+-- It also holds whether the heat is closed (ADR 0001): saving a heat's
+-- reconciliation sets closed_at/closed_by, and there is no separate publish
+-- gate. Reopening clears both, and the reason goes to audit_log. The
+-- capture screens never write these columns — their upserts of the timer
+-- start leave an existing row alone — so a close can't be undone by a phone
+-- syncing its start late.
 create table league_race (
   league_id integer not null references league (id),
   run_heat integer not null,
   started_at timestamptz,
   device_id text,
+  closed_at timestamptz,
+  closed_by text,
   primary key (league_id, run_heat)
 );
 
@@ -327,3 +333,6 @@ revoke update, delete, truncate on operator_note from anon, authenticated;
 alter publication supabase_realtime add table position_capture;
 alter publication supabase_realtime add table time_capture;
 alter publication supabase_realtime add table operator_note;
+-- Every phone subscribes to league_race so its capture screens stop or
+-- resume taking captures as soon as a heat closes or reopens.
+alter publication supabase_realtime add table league_race;

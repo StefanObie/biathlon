@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 
+import { toHeatClosed } from "@/lib/capture/heat-closed";
 import { createClient } from "@/lib/supabase/server";
 import { Reconcile } from "@/components/capture/reconcile";
 
@@ -37,6 +38,7 @@ async function ReconcileHeatSection({
     { data: runResults },
     { data: leagueRunResults },
     { data: notes },
+    { data: leagueRace, error: leagueRaceError },
     { data: league },
   ] = await Promise.all([
     // Whole league, not just this heat: reassigning an athlete or logging
@@ -85,6 +87,12 @@ async function ReconcileHeatSection({
       .eq("league_id", leagueIdNum)
       .eq("run_heat", runHeatNum)
       .order("created_at"),
+    supabase
+      .from("league_race")
+      .select("closed_at, closed_by")
+      .eq("league_id", leagueIdNum)
+      .eq("run_heat", runHeatNum)
+      .maybeSingle(),
     supabase.from("league").select("name").eq("id", leagueIdNum).maybeSingle(),
   ]);
 
@@ -126,6 +134,7 @@ async function ReconcileHeatSection({
       remoteTimeCaptures={timeCaptures ?? []}
       remoteRunResults={runResults ?? []}
       remoteNotes={notes ?? []}
+      remoteHeatClosed={leagueRaceError ? undefined : toHeatClosed(leagueRace)}
       duplicateRunResults={leagueRunResults ?? []}
     />
   );

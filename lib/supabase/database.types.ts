@@ -150,18 +150,24 @@ export type Database = {
       };
       league_race: {
         Row: {
+          closed_at: string | null;
+          closed_by: string | null;
           device_id: string | null;
           league_id: number;
           run_heat: number;
           started_at: string | null;
         };
         Insert: {
+          closed_at?: string | null;
+          closed_by?: string | null;
           device_id?: string | null;
           league_id: number;
           run_heat: number;
           started_at?: string | null;
         };
         Update: {
+          closed_at?: string | null;
+          closed_by?: string | null;
           device_id?: string | null;
           league_id?: number;
           run_heat?: number;
@@ -339,7 +345,7 @@ export type Database = {
           override_reason?: string | null;
           run_heat: number;
           run_time?: string | null;
-          run_time_cs?: number | null;
+          run_time_cs?: never;
           source: string;
           status?: string;
         };
@@ -350,7 +356,7 @@ export type Database = {
           override_reason?: string | null;
           run_heat?: number;
           run_time?: string | null;
-          run_time_cs?: number | null;
+          run_time_cs?: never;
           source?: string;
           status?: string;
         };
@@ -404,7 +410,7 @@ export type Database = {
           source_line?: string | null;
           status?: string;
           swim_time?: string | null;
-          swim_time_cs?: number | null;
+          swim_time_cs?: never;
         };
         Update: {
           athlete_no?: number;
@@ -421,7 +427,7 @@ export type Database = {
           source_line?: string | null;
           status?: string;
           swim_time?: string | null;
-          swim_time_cs?: number | null;
+          swim_time_cs?: never;
         };
         Relationships: [
           {

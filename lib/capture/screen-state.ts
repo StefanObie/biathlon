@@ -3,8 +3,7 @@
  * capture controls. One pure function so the two screens can't drift
  * apart on what "finished" means.
  *
- * Later tickets extend this state with whether the heat is closed (#23)
- * and the frozen clock value (#14).
+ * A later ticket extends this state with the frozen clock value (#14).
  */
 export interface CaptureScreenState {
   /** Finishers accounted for on this screen: the heat's active captures. */
@@ -13,6 +12,8 @@ export interface CaptureScreenState {
   rosterSize: number;
   /** More finishers than the roster holds, shown as a warning. */
   overRoster: boolean;
+  /** The heat is closed: the screen takes no new captures, only notes. */
+  locked: boolean;
 }
 
 /**
@@ -39,14 +40,24 @@ export function heatRosterSize(
  * The count can exceed the roster size — an athlete scanned from another
  * heat is a finisher here but is on that other heat's roster — so
  * `overRoster` is a warning, not an error, and equality is not over.
+ *
+ * `closedAt` is when the heat was closed, or null while it is open (never
+ * closed, or reopened). A closed heat takes no new captures.
  */
 export function captureScreenState({
   captures,
   rosterSize,
+  closedAt,
 }: {
   captures: readonly { voided: boolean }[];
   rosterSize: number;
+  closedAt: string | null;
 }): CaptureScreenState {
   const finished = captures.filter((c) => !c.voided).length;
-  return { finished, rosterSize, overRoster: finished > rosterSize };
+  return {
+    finished,
+    rosterSize,
+    overRoster: finished > rosterSize,
+    locked: closedAt !== null,
+  };
 }

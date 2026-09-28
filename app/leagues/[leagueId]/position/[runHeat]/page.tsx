@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 
+import { toHeatClosed } from "@/lib/capture/heat-closed";
 import { createClient } from "@/lib/supabase/server";
 import { PositionCapture } from "@/components/capture/position-capture";
 
@@ -33,6 +34,7 @@ async function PositionHeatSection({
   const [
     { data: leagueEntries, error: entriesError },
     { data: captures },
+    { data: leagueRace, error: leagueRaceError },
     { data: league },
   ] = await Promise.all([
     // Whole league, not just this heat: an operator can log an athlete who
@@ -50,6 +52,12 @@ async function PositionHeatSection({
       .eq("league_id", leagueIdNum)
       .eq("run_heat", runHeatNum)
       .order("position"),
+    supabase
+      .from("league_race")
+      .select("closed_at, closed_by")
+      .eq("league_id", leagueIdNum)
+      .eq("run_heat", runHeatNum)
+      .maybeSingle(),
     supabase.from("league").select("name").eq("id", leagueIdNum).maybeSingle(),
   ]);
 
@@ -83,6 +91,7 @@ async function PositionHeatSection({
       heats={heats}
       leagueRoster={leagueRoster}
       remoteCaptures={captures ?? []}
+      remoteHeatClosed={leagueRaceError ? undefined : toHeatClosed(leagueRace)}
     />
   );
 }

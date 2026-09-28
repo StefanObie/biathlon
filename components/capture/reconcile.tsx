@@ -6,6 +6,15 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -16,8 +25,12 @@ import {
 } from "@/components/ui/table";
 import { createClient } from "@/lib/supabase/client";
 import { logAudit } from "@/lib/reconcile/audit";
+import { closeHeat, reopenHeat } from "@/lib/reconcile/heat-closure";
+import { OPEN_HEAT, type HeatClosed } from "@/lib/capture/heat-closed";
+import { useHeatClosed } from "@/components/capture/use-heat-closed";
 import {
   buildWorkingRows,
+  capturedAfterCloseChecks,
   computeAutomaticChecks,
   mismatchFor,
   type Mismatch,
@@ -120,6 +133,7 @@ export function Reconcile({
   remoteTimeCaptures,
   remoteRunResults,
   remoteNotes,
+  remoteHeatClosed,
   duplicateRunResults,
 }: {
   leagueId: number;
@@ -132,6 +146,8 @@ export function Reconcile({
   remoteTimeCaptures: RemoteTimeCapture[];
   remoteRunResults: RemoteRunResult[];
   remoteNotes: RemoteOperatorNote[];
+  /** Undefined when the page couldn't read it; the phone's copy is used. */
+  remoteHeatClosed: HeatClosed | undefined;
   duplicateRunResults: { athlete_no: number; run_heat: number }[];
 }) {
   const rosterByNo = useMemo(() => {
@@ -194,6 +210,14 @@ export function Reconcile({
 
   const [rows, setRows] = useState<WorkingRow[]>(initialRows);
   const [saving, setSaving] = useState(false);
+  const { closed, setClosed } = useHeatClosed(
+    leagueId,
+    runHeat,
+    remoteHeatClosed,
+  );
+  const [reopening, setReopening] = useState(false);
+  const [reopenReason, setReopenReason] = useState("");
+  const [reopenBusy, setReopenBusy] = useState(false);
 
   // Notes sit on the row holding the capture they were written after, so
   // they move with it when a gap is inserted or a row removed.
@@ -288,14 +312,39 @@ export function Reconcile({
   );
 
   const checks = useMemo(
-    () =>
-      computeAutomaticChecks({
+    () => [
+      ...computeAutomaticChecks({
         rosterCount: roster.length,
         rows,
         rosterAthleteNos,
         duplicateAthletes,
       }),
-    [roster.length, rows, rosterAthleteNos, duplicateAthletes],
+      // A capture from a phone that was offline when the heat closed is
+      // kept, and flagged here for the official to decide on (ADR 0001).
+      ...capturedAfterCloseChecks({
+        closedAt: closed.closedAt,
+        positions: remotePositionCaptures.map((c) => ({
+          position: c.position,
+          athleteNo: c.athlete_no,
+          capturedAt: c.scanned_at,
+          voided: c.voided,
+        })),
+        times: remoteTimeCaptures.map((c) => ({
+          seq: c.seq,
+          capturedAt: c.captured_at,
+          voided: c.voided,
+        })),
+      }),
+    ],
+    [
+      roster.length,
+      rows,
+      rosterAthleteNos,
+      duplicateAthletes,
+      closed.closedAt,
+      remotePositionCaptures,
+      remoteTimeCaptures,
+    ],
   );
 
   function insertGapAt(index: number) {
@@ -325,14 +374,18 @@ export function Reconcile({
     );
   }
 
+  async function currentActor(): Promise<string> {
+    const {
+      data: { user },
+    } = await createClient().auth.getUser();
+    return user?.email ?? "unknown";
+  }
+
   async function handleSave() {
     setSaving(true);
     try {
       const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      const actor = user?.email ?? "unknown";
+      const actor = await currentActor();
 
       const toSave = rows.filter((r) => r.athleteNo !== null);
       const invalidTime = toSave.find(
@@ -374,15 +427,78 @@ export function Reconcile({
         reason: `Reconciled run heat ${runHeat}`,
       });
 
-      toast.success("Reconciliation saved.");
+      // Saving closes the heat (ADR 0001). Saving an already-closed heat
+      // again leaves its original close alone.
+      const { closed: newlyClosed, error } = await closeHeat({
+        leagueId,
+        runHeat,
+        actor,
+      });
+      if (error) {
+        toast.error(`Results saved, but the heat didn't close: ${error}`);
+        return;
+      }
+      if (newlyClosed) setClosed(newlyClosed);
+
+      toast.success(
+        newlyClosed
+          ? "Reconciliation saved. Heat closed."
+          : "Reconciliation saved.",
+      );
     } finally {
       setSaving(false);
     }
   }
 
+  async function handleReopen() {
+    const reason = reopenReason.trim();
+    if (!reason) return;
+    setReopenBusy(true);
+    try {
+      const { error } = await reopenHeat({
+        leagueId,
+        runHeat,
+        actor: await currentActor(),
+        reason,
+        before: closed,
+      });
+      if (error) {
+        toast.error(error);
+        return;
+      }
+      setClosed(OPEN_HEAT);
+      setReopening(false);
+      setReopenReason("");
+      toast.success("Heat reopened. Its capture screens take captures again.");
+    } finally {
+      setReopenBusy(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
-      <p className="text-sm text-muted-foreground">Run heat {runHeat}</p>
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-sm text-muted-foreground">
+          Run heat {runHeat} ·{" "}
+          {closed.closedAt ? (
+            <span suppressHydrationWarning>
+              Closed{closed.closedBy ? ` by ${closed.closedBy}` : ""} at{" "}
+              {new Date(closed.closedAt).toLocaleTimeString()}
+            </span>
+          ) : (
+            "Open — saving closes the heat"
+          )}
+        </p>
+        {closed.closedAt && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setReopening(true)}
+          >
+            Reopen heat
+          </Button>
+        )}
+      </div>
 
       {checks.length > 0 && (
         <div className="flex flex-col gap-1 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
@@ -494,9 +610,49 @@ export function Reconcile({
           onClick={() => void handleSave()}
           disabled={saving || rows.every((r) => r.athleteNo === null)}
         >
-          {saving ? "Saving…" : "Save"}
+          {saving
+            ? "Saving…"
+            : closed.closedAt
+              ? "Save"
+              : "Save and close heat"}
         </Button>
       </div>
+
+      <Dialog
+        open={reopening}
+        onOpenChange={(open) => {
+          setReopening(open);
+          if (!open) setReopenReason("");
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reopen heat {runHeat}?</DialogTitle>
+            <DialogDescription>
+              Its results stop being official and its capture screens take
+              captures until it is saved again. The reason is kept in the audit
+              log.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={reopenReason}
+            onChange={(e) => setReopenReason(e.target.value)}
+            placeholder="Reason for reopening"
+            aria-label="Reason for reopening"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReopening(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void handleReopen()}
+              disabled={reopenBusy || reopenReason.trim() === ""}
+            >
+              {reopenBusy ? "Reopening…" : "Reopen heat"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <HeatContextBar
         leagueId={leagueId}

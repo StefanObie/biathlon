@@ -31,6 +31,9 @@ import { nextPosition } from "@/lib/scan/position";
 import { QrScanner } from "@/components/capture/qr-scanner";
 import { FinishedCount } from "@/components/capture/finished-count";
 import { OperatorNotes } from "@/components/capture/operator-notes";
+import { HeatClosedNotice } from "@/components/capture/heat-closed-notice";
+import { useHeatClosed } from "@/components/capture/use-heat-closed";
+import type { HeatClosed } from "@/lib/capture/heat-closed";
 import { noteAnchor } from "@/lib/capture/operator-note";
 import {
   getCapturesForHeat,
@@ -64,6 +67,7 @@ export function PositionCapture({
   heats,
   leagueRoster,
   remoteCaptures,
+  remoteHeatClosed,
 }: {
   leagueId: number;
   leagueName: string;
@@ -71,6 +75,8 @@ export function PositionCapture({
   heats: number[];
   leagueRoster: LeagueRosterAthlete[];
   remoteCaptures: RemoteCapture[];
+  /** Undefined when the page couldn't read it; the phone's copy is used. */
+  remoteHeatClosed: HeatClosed | undefined;
 }) {
   const [captures, setCaptures] = useState<LocalPositionCapture[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -81,6 +87,7 @@ export function PositionCapture({
   const [pendingUndo, setPendingUndo] = useState<LocalPositionCapture | null>(
     null,
   );
+  const { closed } = useHeatClosed(leagueId, runHeat, remoteHeatClosed);
 
   const rosterByNo = useMemo(() => {
     const map = new Map<number, LeagueRosterAthlete>();
@@ -137,9 +144,14 @@ export function PositionCapture({
     leagueRoster.map((a) => a.runHeat),
     runHeat,
   );
-  const { finished, overRoster } = captureScreenState({ captures, rosterSize });
+  const { finished, overRoster, locked } = captureScreenState({
+    captures,
+    rosterSize,
+    closedAt: closed.closedAt,
+  });
 
   async function recordCapture(athleteNo: number | null) {
+    if (locked) return;
     const row: LocalPositionCapture = {
       id: ulid(),
       league_id: leagueId,
@@ -221,6 +233,7 @@ export function PositionCapture({
   // contiguous counter. Undoing the top one makes the next-highest
   // available, one at a time (deliberate friction against careless undo).
   async function handleUndoTop(capture: LocalPositionCapture) {
+    if (locked) return;
     await voidCapture(capture.id, "operator undo");
     setCaptures((prev) =>
       prev.map((c) =>
@@ -245,10 +258,15 @@ export function PositionCapture({
         </p>
       </div>
 
-      <QrScanner
-        onDetect={(text) => void handleScanDetect(text)}
-        paused={pendingOutOfHeat !== null}
-      />
+      {/* Unmounted, not paused, so the camera turns off on a closed heat. */}
+      {locked ? (
+        <HeatClosedNotice />
+      ) : (
+        <QrScanner
+          onDetect={(text) => void handleScanDetect(text)}
+          paused={pendingOutOfHeat !== null}
+        />
+      )}
 
       <div className="flex w-full max-w-sm flex-col gap-2">
         <input
@@ -260,6 +278,7 @@ export function PositionCapture({
             if (e.key === "Enter") void handleManualSubmit();
           }}
           placeholder="Athlete number"
+          disabled={locked}
           className="h-16 rounded-md border border-input px-4 text-center text-2xl tabular-nums"
         />
         {inputError && <p className="text-sm text-destructive">{inputError}</p>}
@@ -267,7 +286,7 @@ export function PositionCapture({
           size="lg"
           className="h-16 text-xl"
           onClick={() => void handleManualSubmit()}
-          disabled={!loaded}
+          disabled={!loaded || locked}
           suppressHydrationWarning
         >
           Record
@@ -277,7 +296,7 @@ export function PositionCapture({
           variant="outline"
           className="h-14 text-lg"
           onClick={() => void handleSkip()}
-          disabled={!loaded}
+          disabled={!loaded || locked}
           suppressHydrationWarning
         >
           Skip
@@ -308,6 +327,7 @@ export function PositionCapture({
                   variant="ghost"
                   size="sm"
                   onClick={() => setPendingUndo(c)}
+                  disabled={locked}
                 >
                   Undo
                 </Button>
@@ -351,7 +371,10 @@ export function PositionCapture({
             <Button variant="outline" onClick={() => setPendingOutOfHeat(null)}>
               Cancel
             </Button>
-            <Button onClick={() => void confirmOutOfHeatCapture()}>
+            <Button
+              onClick={() => void confirmOutOfHeatCapture()}
+              disabled={locked}
+            >
               Log capture
             </Button>
           </DialogFooter>
@@ -383,6 +406,7 @@ export function PositionCapture({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => pendingUndo && void handleUndoTop(pendingUndo)}
+              disabled={locked}
             >
               Undo
             </AlertDialogAction>

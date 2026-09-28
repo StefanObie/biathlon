@@ -3,7 +3,13 @@ import Dexie, { type EntityTable } from "dexie";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
 
-type LeagueRaceRow = Database["public"]["Tables"]["league_race"]["Row"];
+// Only the timer's own columns. Whether the heat is closed lives on the same
+// row but is written by reconciliation, never queued from a phone — see
+// heat-closed-store for how phones keep it.
+type LeagueRaceRow = Pick<
+  Database["public"]["Tables"]["league_race"]["Row"],
+  "league_id" | "run_heat" | "started_at" | "device_id"
+>;
 
 /** One row per heat (league_id, run_heat) — the clock anchor every
  * time_capture.elapsed_time in that heat is measured against. Not a
@@ -135,11 +141,15 @@ export async function syncPendingLeagueRaces(): Promise<void> {
     const toUpsert = pending.filter((row) => row.pendingDelete === 0);
 
     for (const row of toDelete) {
+      // A reset that syncs after the heat closed must not delete the close
+      // with it. It's dropped locally all the same: a closed heat's clock
+      // stays as it was.
       const { error } = await supabase
         .from("league_race")
         .delete()
         .eq("league_id", row.league_id)
-        .eq("run_heat", row.run_heat);
+        .eq("run_heat", row.run_heat)
+        .is("closed_at", null);
       if (!error) {
         await db.league_races.delete(row.id);
       }
@@ -156,7 +166,20 @@ export async function syncPendingLeagueRaces(): Promise<void> {
         onConflict: "league_id,run_heat",
         ignoreDuplicates: true,
       });
-      if (!error) {
+      // Closing a heat that was never started creates its row with no
+      // start, and the upsert above leaves an existing row alone — so fill
+      // in a start the row doesn't have yet. First start still wins.
+      let fillError = error;
+      for (const row of error ? [] : rows) {
+        const { error: updateError } = await supabase
+          .from("league_race")
+          .update({ started_at: row.started_at, device_id: row.device_id })
+          .eq("league_id", row.league_id)
+          .eq("run_heat", row.run_heat)
+          .is("started_at", null);
+        fillError ??= updateError;
+      }
+      if (!fillError) {
         await db.league_races.bulkUpdate(
           toUpsert.map((row) => ({
             key: row.id,

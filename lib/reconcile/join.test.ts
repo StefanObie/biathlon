@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildWorkingRows,
+  capturedAfterCloseChecks,
   computeAutomaticChecks,
   mismatchFor,
   type PositionEntry,
@@ -297,5 +298,128 @@ describe("computeAutomaticChecks", () => {
       duplicateAthletes: [],
     });
     expect(checks).toHaveLength(0);
+  });
+});
+
+describe("capturedAfterCloseChecks", () => {
+  const closedAt = "2026-09-28T10:15:00.000Z";
+
+  it("flags a position capture made after the heat closed", () => {
+    const checks = capturedAfterCloseChecks({
+      closedAt,
+      positions: [
+        {
+          position: 21,
+          athleteNo: 7409,
+          capturedAt: "2026-09-28T10:16:00.000Z",
+          voided: false,
+        },
+      ],
+      times: [],
+    });
+    expect(checks).toEqual([
+      {
+        kind: "captured-after-close",
+        message: "Position #21 (athlete 7409) was captured after heat closed.",
+      },
+    ]);
+  });
+
+  it("flags a time capture made after the heat closed", () => {
+    const checks = capturedAfterCloseChecks({
+      closedAt,
+      positions: [],
+      times: [
+        { seq: 21, capturedAt: "2026-09-28T10:16:00.000Z", voided: false },
+      ],
+    });
+    expect(checks).toEqual([
+      {
+        kind: "captured-after-close",
+        message: "Time #21 was captured after heat closed.",
+      },
+    ]);
+  });
+
+  it("names a Skip made after the heat closed", () => {
+    const checks = capturedAfterCloseChecks({
+      closedAt,
+      positions: [
+        {
+          position: 3,
+          athleteNo: null,
+          capturedAt: "2026-09-28T10:16:00.000Z",
+          voided: false,
+        },
+      ],
+      times: [],
+    });
+    expect(checks[0].message).toBe(
+      "Position #3 (skip) was captured after heat closed.",
+    );
+  });
+
+  it("does not flag captures made at or before the close", () => {
+    // A phone that was offline syncs late, but its captures were made
+    // before the close — only when a capture was made counts.
+    const checks = capturedAfterCloseChecks({
+      closedAt,
+      positions: [
+        {
+          position: 1,
+          athleteNo: 7409,
+          capturedAt: "2026-09-28T10:14:59.990Z",
+          voided: false,
+        },
+        {
+          position: 2,
+          athleteNo: 8081,
+          capturedAt: closedAt,
+          voided: false,
+        },
+      ],
+      times: [{ seq: 1, capturedAt: closedAt, voided: false }],
+    });
+    expect(checks).toEqual([]);
+  });
+
+  it("compares instants, not how the timestamp is written", () => {
+    // Supabase returns offsets; phones write Z. 12:14+02:00 is 10:14 UTC,
+    // before the close, even though the string sorts after it.
+    const checks = capturedAfterCloseChecks({
+      closedAt,
+      positions: [],
+      times: [
+        { seq: 1, capturedAt: "2026-09-28T12:14:00+02:00", voided: false },
+      ],
+    });
+    expect(checks).toEqual([]);
+  });
+
+  it("does not flag voided captures", () => {
+    const checks = capturedAfterCloseChecks({
+      closedAt,
+      positions: [],
+      times: [{ seq: 2, capturedAt: "2026-09-28T10:16:00.000Z", voided: true }],
+    });
+    expect(checks).toEqual([]);
+  });
+
+  it("flags nothing on an open heat", () => {
+    const checks = capturedAfterCloseChecks({
+      closedAt: null,
+      positions: [
+        {
+          position: 1,
+          athleteNo: 7409,
+          capturedAt: "2026-09-28T10:16:00.000Z",
+          voided: false,
+        },
+      ],
+      times: [
+        { seq: 1, capturedAt: "2026-09-28T10:16:00.000Z", voided: false },
+      ],
+    });
+    expect(checks).toEqual([]);
   });
 });

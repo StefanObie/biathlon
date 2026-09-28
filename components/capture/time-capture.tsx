@@ -26,6 +26,9 @@ import {
 import { HeatContextBar } from "@/components/leagues/heat-context-bar";
 import { FinishedCount } from "@/components/capture/finished-count";
 import { OperatorNotes } from "@/components/capture/operator-notes";
+import { HeatClosedNotice } from "@/components/capture/heat-closed-notice";
+import { useHeatClosed } from "@/components/capture/use-heat-closed";
+import type { HeatClosed } from "@/lib/capture/heat-closed";
 import { noteAnchor } from "@/lib/capture/operator-note";
 import { captureScreenState } from "@/lib/capture/screen-state";
 import { getDeviceId } from "@/lib/offline/device-id";
@@ -70,6 +73,7 @@ export function TimeCapture({
   rosterSize,
   remoteCaptures,
   remoteLeagueRace,
+  remoteHeatClosed,
 }: {
   leagueId: number;
   leagueName: string;
@@ -78,6 +82,8 @@ export function TimeCapture({
   rosterSize: number;
   remoteCaptures: RemoteTimeCapture[];
   remoteLeagueRace: RemoteLeagueRace | null;
+  /** Undefined when the page couldn't read it; the phone's copy is used. */
+  remoteHeatClosed: HeatClosed | undefined;
 }) {
   const [captures, setCaptures] = useState<LocalTimeCapture[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -90,6 +96,7 @@ export function TimeCapture({
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [pendingUndo, setPendingUndo] = useState<LocalTimeCapture | null>(null);
   const startedAtMsRef = useRef<number | null>(null);
+  const { closed } = useHeatClosed(leagueId, runHeat, remoteHeatClosed);
 
   // Load Dexie rows first (unsynced local state wins on conflict with the
   // server snapshot passed down from the page — same id, local is either
@@ -170,7 +177,11 @@ export function TimeCapture({
     .filter((c) => !c.voided)
     .sort((a, b) => b.seq - a.seq);
   const lastThree = allCaptures.slice(0, 3);
-  const { finished, overRoster } = captureScreenState({ captures, rosterSize });
+  const { finished, overRoster, locked } = captureScreenState({
+    captures,
+    rosterSize,
+    closedAt: closed.closedAt,
+  });
   const mostRecent = allCaptures[0];
 
   const liveElapsed = useMemo(() => {
@@ -179,6 +190,7 @@ export function TimeCapture({
   }, [startedAtMs, now]);
 
   async function handleStart() {
+    if (locked) return;
     const startMs = Date.now();
     startedAtMsRef.current = startMs;
     setStartedAtMs(startMs);
@@ -198,7 +210,7 @@ export function TimeCapture({
     // clock that recorded finishes are still measured against — bad data
     // otherwise (§ operator must undo captures first, this isn't a
     // reachable UI path but the invariant should hold regardless).
-    if (allCaptures.length > 0) return;
+    if (allCaptures.length > 0 || locked) return;
     startedAtMsRef.current = null;
     setStartedAtMs(null);
     setConfirmingReset(false);
@@ -206,7 +218,7 @@ export function TimeCapture({
   }
 
   async function recordCapture(isPlaceholder: boolean) {
-    if (startedAtMsRef.current === null) return;
+    if (startedAtMsRef.current === null || locked) return;
     const elapsedMs = Date.now() - startedAtMsRef.current;
     const row: LocalTimeCapture = {
       id: ulid(),
@@ -239,6 +251,7 @@ export function TimeCapture({
   // press while later ones stay active would break the contiguous counter.
   // Mirrors position-capture's single-step undo.
   async function handleUndoTop(capture: LocalTimeCapture) {
+    if (locked) return;
     await voidCapture(capture.id, "operator undo");
     setCaptures((prev) =>
       prev.map((c) =>
@@ -269,12 +282,14 @@ export function TimeCapture({
         />
       </div>
 
+      {locked && <HeatClosedNotice />}
+
       {startedAtMs === null ? (
         <Button
           size="lg"
           className="h-24 w-full max-w-sm text-2xl"
           onClick={() => void handleStart()}
-          disabled={!loaded}
+          disabled={!loaded || locked}
           suppressHydrationWarning
         >
           Start heat
@@ -285,6 +300,7 @@ export function TimeCapture({
             size="lg"
             className="h-32 text-3xl"
             onClick={() => void handleFinish()}
+            disabled={locked}
             suppressHydrationWarning
           >
             Record finish
@@ -295,6 +311,7 @@ export function TimeCapture({
               variant="outline"
               className="h-12 flex-1 text-base"
               onClick={() => void handleMissedOne()}
+              disabled={locked}
               suppressHydrationWarning
             >
               Missed finish
@@ -304,7 +321,7 @@ export function TimeCapture({
               variant="destructive"
               className="h-12 w-12 shrink-0 p-0 text-sm"
               onClick={() => setConfirmingReset(true)}
-              disabled={allCaptures.length > 0}
+              disabled={allCaptures.length > 0 || locked}
               title={
                 allCaptures.length > 0
                   ? "Undo all recorded finishes before resetting the clock"
@@ -315,7 +332,7 @@ export function TimeCapture({
               Reset
             </Button>
           </div>
-          {allCaptures.length > 0 && (
+          {allCaptures.length > 0 && !locked && (
             <p className="text-center text-xs text-muted-foreground">
               Undo all recorded finishes before resetting the clock.
             </p>
@@ -342,6 +359,7 @@ export function TimeCapture({
                   variant="ghost"
                   size="sm"
                   onClick={() => setPendingUndo(c)}
+                  disabled={locked}
                 >
                   Undo
                 </Button>
@@ -379,6 +397,7 @@ export function TimeCapture({
             <Button
               variant="destructive"
               onClick={() => void handleResetStart()}
+              disabled={locked}
             >
               Reset
             </Button>
@@ -409,6 +428,7 @@ export function TimeCapture({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => pendingUndo && void handleUndoTop(pendingUndo)}
+              disabled={locked}
             >
               Undo
             </AlertDialogAction>

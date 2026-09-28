@@ -92,7 +92,11 @@ export function mismatchFor(row: WorkingRow): Mismatch | null {
 }
 
 export interface AutomaticCheck {
-  kind: "count-mismatch" | "not-on-roster" | "duplicate-heat";
+  kind:
+    | "count-mismatch"
+    | "not-on-roster"
+    | "duplicate-heat"
+    | "captured-after-close";
   message: string;
 }
 
@@ -140,4 +144,46 @@ export function computeAutomaticChecks({
   }
 
   return checks;
+}
+
+/**
+ * Flags every active capture made after the heat closed — typically from a
+ * phone that was offline when the close reached the others (ADR 0001). The
+ * capture is kept, never rejected; the official decides what it means.
+ *
+ * "Made after" is the capture's own timestamp, not when it synced: a
+ * capture made before the close that arrives late is an ordinary capture.
+ * Timestamps are compared as instants because the server and the phones
+ * write them with different offsets. An open heat (never closed, or
+ * reopened) flags nothing.
+ */
+export function capturedAfterCloseChecks({
+  closedAt,
+  positions,
+  times,
+}: {
+  closedAt: string | null;
+  positions: {
+    position: number;
+    athleteNo: number | null;
+    capturedAt: string;
+    voided: boolean;
+  }[];
+  times: { seq: number; capturedAt: string; voided: boolean }[];
+}): AutomaticCheck[] {
+  if (closedAt === null) return [];
+  const closedMs = new Date(closedAt).getTime();
+  const isLate = (c: { capturedAt: string; voided: boolean }) =>
+    !c.voided && new Date(c.capturedAt).getTime() > closedMs;
+
+  return [
+    ...positions.filter(isLate).map((p): AutomaticCheck => ({
+      kind: "captured-after-close",
+      message: `Position #${p.position} (${p.athleteNo === null ? "skip" : `athlete ${p.athleteNo}`}) was captured after heat closed.`,
+    })),
+    ...times.filter(isLate).map((t): AutomaticCheck => ({
+      kind: "captured-after-close",
+      message: `Time #${t.seq} was captured after heat closed.`,
+    })),
+  ];
 }

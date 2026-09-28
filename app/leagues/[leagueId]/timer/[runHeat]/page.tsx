@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 
 import { heatRosterSize } from "@/lib/capture/screen-state";
+import { toHeatClosed } from "@/lib/capture/heat-closed";
 import { createClient } from "@/lib/supabase/server";
 import { TimeCapture } from "@/components/capture/time-capture";
 
@@ -34,7 +35,7 @@ async function TimerHeatSection({
   const [
     { data: entries, error: entriesError },
     { data: captures },
-    { data: leagueRace },
+    { data: leagueRace, error: leagueRaceError },
     { data: league },
   ] = await Promise.all([
     supabase.from("entry").select("run_heat").eq("league_id", leagueIdNum),
@@ -48,7 +49,7 @@ async function TimerHeatSection({
       .order("seq"),
     supabase
       .from("league_race")
-      .select("started_at, device_id")
+      .select("started_at, device_id, closed_at, closed_by")
       .eq("league_id", leagueIdNum)
       .eq("run_heat", runHeatNum)
       .maybeSingle(),
@@ -81,7 +82,15 @@ async function TimerHeatSection({
       heats={heats}
       rosterSize={rosterSize}
       remoteCaptures={captures ?? []}
-      remoteLeagueRace={leagueRace ?? null}
+      remoteLeagueRace={
+        leagueRace
+          ? {
+              started_at: leagueRace.started_at,
+              device_id: leagueRace.device_id,
+            }
+          : null
+      }
+      remoteHeatClosed={leagueRaceError ? undefined : toHeatClosed(leagueRace)}
     />
   );
 }
