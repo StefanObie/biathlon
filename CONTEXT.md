@@ -4,6 +4,55 @@ Captures run finishing order and run times live at a league, reconciles them per
 
 ## Language
 
+### Organizations and people
+
+**Organization**:
+A body or team of people that runs Leagues and manages its own athletes. Every League belongs to exactly one Organization.
+_Avoid_: Club, team, tenant, account
+
+**Member**:
+A user who belongs to an Organization. A user can be a Member of several Organizations.
+_Avoid_: User (when you mean someone inside an Organization), staff
+
+**Invitation**:
+An Admin's offer by email for someone to become a Member of an Organization, optionally also naming a Role on the Default team or on one League's team. A user who signs up without one creates their own Organization and becomes its Admin.
+_Avoid_: Invite code (the old shared signup code, which Organizations replace)
+
+**Athlete number**:
+The number that identifies an athlete within an Organization. For biathlon it is the national number, but an Organization may use any numbering.
+_Avoid_: Bib number, licence number
+
+**Role**:
+What a Member may do. Roles form a hierarchy: Admin covers Official, and Official covers Timekeeper and Placer. A Member can hold more than one Role.
+
+**Admin**:
+A Member who runs an Organization: creates its Leagues, invites Members and manages its teams. Admin is held on the Organization and covers every one of its Leagues.
+
+**Official**:
+A Member who reconciles, closes and reopens heats, imports start lists and exports results for a League. An Official can also use both capture screens.
+
+**Timekeeper**:
+A Member who uses a League's Timer screen.
+
+**Placer**:
+A Member who uses a League's Position screen, scanning each finisher's bib in finishing order.
+_Avoid_: Marshal, scanner, recorder
+
+**League team**:
+The Members assigned to a League and the Roles each one holds there. A Member has no access to a League unless they are on its team.
+_Avoid_: Crew, staff, volunteers
+
+**Default team**:
+An Organization's standard League team, copied onto a League when it is created. Later changes to the Default team do not reach existing Leagues.
+
+**Visibility**:
+Who can see a League's published results without signing in: Public (anyone), Protected (anyone holding the Results link) or Private (no one). It never grants access to operational data.
+_Avoid_: Privacy, sharing
+
+**Results link**:
+The unguessable link that shows a Protected League's results. An Admin can regenerate it, and the old link then stops working.
+_Avoid_: Share link, secret URL
+
 ### Race structure
 
 **League**:
@@ -36,7 +85,7 @@ The finish-line screen where the timekeeper starts the heat clock and presses on
 _Avoid_: Time capture page, stopwatch
 
 **Position screen**:
-The results-table screen where the marshal scans each finisher's bib in finishing order.
+The results-table screen where the Placer scans each finisher's bib in finishing order.
 _Avoid_: Scanner, scan page, table capture
 
 **Capture screens**:
