@@ -31,6 +31,7 @@ import { nextPosition } from "@/lib/scan/position";
 import { QrScanner } from "@/components/capture/qr-scanner";
 import { FinishedCount } from "@/components/capture/finished-count";
 import { OperatorNotes } from "@/components/capture/operator-notes";
+import { HeatBanner } from "@/components/capture/heat-banner";
 import { HeatClosedNotice } from "@/components/capture/heat-closed-notice";
 import { useHeatClosed } from "@/components/capture/use-heat-closed";
 import type { HeatClosed } from "@/lib/capture/heat-closed";
@@ -252,6 +253,8 @@ export function PositionCapture({
 
   return (
     <div className="flex flex-col items-center gap-8">
+      <HeatBanner runHeat={runHeat} closed={locked} />
+
       <div className="text-center">
         <p className="text-sm text-muted-foreground">Position</p>
         <p className="text-8xl font-bold tabular-nums">
