@@ -211,7 +211,7 @@ Chosen for existing familiarity (another active project already on this stack) o
 - Managed Postgres — no DB administration; genuinely relational data benefits from real FKs/constraints.
 - Realtime subscriptions — reconciliation screen updates live with no hand-rolled WebSocket layer.
 - RLS — public results read published heats directly and safely, no separate public API.
-- Auth — operator sign-in, not hand-rolled. Email + 6-digit OTP (`signInWithOtp`/`verifyOtp`), no password — the `magic_link` email template is overridden to surface the numeric code instead of a confirmation link. There's no self-serve sign-up, forgot-password, or update-password flow; operator accounts are provisioned directly.
+- Auth — operator sign-in, not hand-rolled. Email + 6-digit OTP (`signInWithOtp`/`verifyOtp`), no password — the `magic_link` and `confirmation` email templates both point at one Sign-in OTP email (`supabase/templates/sign_in_otp.html`) that shows the numeric code instead of a confirmation link, so signing up and signing in send the same email. Hosted Supabase picks up template changes only after `supabase config push`. There's no self-serve sign-up, forgot-password, or update-password flow; operator accounts are provisioned directly.
   Free tier covers this scale comfortably (hundreds of rows/league). Nearest region to Gauteng ≈ Frankfurt (~180–250ms) — irrelevant since no capture action blocks on a round trip.
 
 ### 5.4 Volume button — investigated, ruled out

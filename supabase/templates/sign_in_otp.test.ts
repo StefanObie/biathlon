@@ -1,5 +1,5 @@
-import { readFileSync } from "fs";
-import path from "path";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const supabaseDir = path.resolve(__dirname, "..");
@@ -26,8 +26,8 @@ function section(name: string): Record<string, string> {
 describe("Sign-in OTP email", () => {
   // GoTrue sends `confirmation` to a new user when "Confirm email" is on and
   // `magic_link` otherwise, so both must be the same email.
-  it.each(["magic_link", "confirmation"])("is the %s template", (template) => {
-    expect(section(`auth.email.template.${template}`)).toEqual({
+  it.each(["magic_link", "confirmation"])("is the %s template", (name) => {
+    expect(section(`auth.email.template.${name}`)).toEqual({
       subject: "Your sign-in OTP",
       content_path: "./supabase/templates/sign_in_otp.html",
     });
@@ -35,7 +35,7 @@ describe("Sign-in OTP email", () => {
 
   it("shows the OTP once, as its own unbroken text", () => {
     expect(template.match(/\{\{\s*\.Token\s*\}\}/g)).toHaveLength(1);
-    expect(template).toMatch(/>\s*\{\{ \.Token \}\}\s*</);
+    expect(template).toMatch(/>\s*\{\{\s*\.Token\s*\}\}\s*</);
   });
 
   it("has no sign-in link", () => {
