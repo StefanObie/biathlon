@@ -71,7 +71,7 @@ export async function syncPendingNotes(): Promise<void> {
       id: row.id,
       league_id: row.league_id,
       run_heat: row.run_heat,
-      ordinal: row.ordinal,
+      anchor: row.anchor,
       screen: row.screen,
       body: row.body,
       device_id: row.device_id,

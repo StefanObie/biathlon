@@ -1,61 +1,69 @@
 /**
  * Placing operator notes on the reconciliation table.
  *
- * A note carries the ordinal it was written at: how many finishers the
- * capture screen had accounted for at the time. `buildWorkingRows` zips the
- * two streams of active captures by that same ordinal, so the note's ordinal
- * is the ordinal of the row it is about — as long as both sides count active
- * captures and not the never-reused seq/position counters (see
- * lib/capture/operator-note.ts).
+ * A note carries its anchor: the seq (Timer screen) or position (Position
+ * screen) of the latest active capture when it was written — see
+ * lib/capture/operator-note.ts. It is placed on whichever working row holds
+ * that capture, so it follows the capture when the official inserts a gap
+ * or removes a row.
  */
 
 import type { CaptureScreen } from "@/lib/capture/operator-note";
+import type { WorkingRow } from "./join";
 
-export interface OperatorNoteEntry {
+export interface OperatorNote {
   id: string;
-  /** Finishers accounted for when it was written; 0 before the first. */
-  ordinal: number;
+  /** Seq or position of the latest active capture; 0 before the first. */
+  anchor: number;
   screen: CaptureScreen;
   body: string;
   createdAt: string;
 }
 
 export interface PlacedNotes {
-  /** Notes keyed by the 1-based ordinal of the row they apply to. */
-  byOrdinal: Map<number, OperatorNoteEntry[]>;
-  /** Notes tied to 0, or to an ordinal no row in the table has. */
-  heatLevel: OperatorNoteEntry[];
+  /** Notes keyed by the `localId` of the row holding their capture. */
+  byRow: Map<string, OperatorNote[]>;
+  /** Notes tied to 0, or to a capture no row in the table holds. */
+  heatLevel: OperatorNote[];
+}
+
+function holdsAnchor(row: WorkingRow, note: OperatorNote): boolean {
+  return note.screen === "timer"
+    ? row.time?.seq === note.anchor
+    : row.position?.position === note.anchor;
 }
 
 /**
- * Splits notes into per-row and heat-level buckets against a table of
- * `rowCount` rows. A note tied to 0 (written before the first finisher) or
- * to an ordinal past the end of the table has no row to sit next to, so it
- * is shown at heat level rather than dropped — the operator wrote it for a
- * reason, and reconciliation is where that reason gets acted on.
+ * Splits notes into per-row and heat-level buckets. A note tied to 0
+ * (written before the first finisher) or to a capture no row holds any more
+ * (voided after the note, or its row removed) has no row to sit next to, so
+ * it is shown at heat level rather than dropped — the operator wrote it for
+ * a reason, and reconciliation is where that reason gets acted on.
  *
  * Both buckets come back in the order the notes were written, so a later
  * note correcting an earlier one reads after it.
  */
 export function placeNotes(
-  notes: readonly OperatorNoteEntry[],
-  rowCount: number,
+  notes: readonly OperatorNote[],
+  rows: readonly WorkingRow[],
 ): PlacedNotes {
   const ordered = [...notes].sort((a, b) =>
     a.createdAt.localeCompare(b.createdAt),
   );
-  const byOrdinal = new Map<number, OperatorNoteEntry[]>();
-  const heatLevel: OperatorNoteEntry[] = [];
+  const byRow = new Map<string, OperatorNote[]>();
+  const heatLevel: OperatorNote[] = [];
 
   for (const note of ordered) {
-    if (note.ordinal < 1 || note.ordinal > rowCount) {
+    const row =
+      note.anchor === 0 ? undefined : rows.find((r) => holdsAnchor(r, note));
+    if (!row) {
       heatLevel.push(note);
       continue;
     }
-    const existing = byOrdinal.get(note.ordinal);
+    const existing = byRow.get(row.localId);
     if (existing) existing.push(note);
-    else byOrdinal.set(note.ordinal, [note]);
+    else byRow.set(row.localId, [note]);
   }
 
-  return { byOrdinal, heatLevel };
+  return { byRow, heatLevel };
 }

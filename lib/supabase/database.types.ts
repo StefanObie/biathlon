@@ -179,32 +179,32 @@ export type Database = {
       };
       operator_note: {
         Row: {
+          anchor: number;
           body: string;
           created_at: string;
           device_id: string;
           id: string;
           league_id: number;
-          ordinal: number;
           run_heat: number;
           screen: string;
         };
         Insert: {
+          anchor: number;
           body: string;
           created_at: string;
           device_id: string;
           id: string;
           league_id: number;
-          ordinal: number;
           run_heat: number;
           screen: string;
         };
         Update: {
+          anchor?: number;
           body?: string;
           created_at?: string;
           device_id?: string;
           id?: string;
           league_id?: number;
-          ordinal?: number;
           run_heat?: number;
           screen?: string;
         };

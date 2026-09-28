@@ -15,7 +15,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import type { CaptureScreen } from "@/lib/capture/operator-note";
+import {
+  describeAnchor,
+  type CaptureScreen,
+} from "@/lib/capture/operator-note";
 import { getDeviceId } from "@/lib/offline/device-id";
 import {
   putNote,
@@ -26,8 +29,8 @@ import {
 
 /**
  * The notes control both capture screens carry: a button that opens a
- * free-text note, tied to the screen's current `ordinal` — the number of
- * finishers accounted for, 0 before the first one.
+ * free-text note, tied to the screen's current `anchor` — the seq or
+ * position of its latest active capture, 0 before the first one.
  *
  * Notes are add-only. There is no edit or delete affordance here because
  * there is no edit or delete at all — an operator who got a note wrong
@@ -37,12 +40,12 @@ export function OperatorNotes({
   leagueId,
   runHeat,
   screen,
-  ordinal,
+  anchor,
 }: {
   leagueId: number;
   runHeat: number;
   screen: CaptureScreen;
-  ordinal: number;
+  anchor: number;
 }) {
   const [open, setOpen] = useState(false);
   const [body, setBody] = useState("");
@@ -59,7 +62,7 @@ export function OperatorNotes({
         id: ulid(),
         league_id: leagueId,
         run_heat: runHeat,
-        ordinal,
+        anchor,
         screen,
         body: text,
         device_id: getDeviceId(),
@@ -72,11 +75,7 @@ export function OperatorNotes({
       void syncPendingNotes();
       setBody("");
       setOpen(false);
-      toast.success(
-        ordinal === 0
-          ? "Note saved, before the first finisher"
-          : `Note saved at finisher ${ordinal}`,
-      );
+      toast.success(`Note saved at ${describeAnchor(screen, anchor)}`);
     } finally {
       setSaving(false);
     }
@@ -106,11 +105,8 @@ export function OperatorNotes({
           <DialogHeader>
             <DialogTitle>Add a note</DialogTitle>
             <DialogDescription>
-              {ordinal === 0
-                ? "This note will be tied to the start of the heat — nothing has finished yet."
-                : `This note will be tied to finisher ${ordinal}, the latest one accounted for on this screen.`}{" "}
-              Notes can&rsquo;t be edited or deleted; to correct one, add
-              another.
+              This note will be tied to {describeAnchor(screen, anchor)}. Notes
+              can&rsquo;t be edited or deleted; to correct one, add another.
             </DialogDescription>
           </DialogHeader>
           <Textarea

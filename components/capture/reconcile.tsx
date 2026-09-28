@@ -27,10 +27,11 @@ import {
   type WorkingRow,
 } from "@/lib/reconcile/join";
 import {
-  captureScreen,
   CAPTURE_SCREEN_LABEL,
+  describeAnchor,
+  parseCaptureScreen,
 } from "@/lib/capture/operator-note";
-import { placeNotes, type OperatorNoteEntry } from "@/lib/reconcile/notes";
+import { placeNotes, type OperatorNote } from "@/lib/reconcile/notes";
 import {
   AthleteCombobox,
   type AthleteOption,
@@ -71,7 +72,7 @@ export interface RemoteRunResult {
 /** An operator note as the reconcile page reads it out of Supabase. */
 export interface RemoteOperatorNote {
   id: string;
-  ordinal: number;
+  anchor: number;
   screen: string;
   body: string;
   created_at: string;
@@ -92,17 +93,14 @@ const MISMATCH_LABEL: Record<Mismatch, string> = {
 
 const TIME_PATTERN = /^\d{2}:\d{2}\.\d{2}$/;
 
-function NoteList({ notes }: { notes: OperatorNoteEntry[] }) {
+function NoteList({ notes }: { notes: OperatorNote[] }) {
   return (
     <ul className="flex flex-col gap-1">
       {notes.map((note) => (
         <li key={note.id} className="text-sm">
           <span className="text-muted-foreground">
             {CAPTURE_SCREEN_LABEL[note.screen]} ·{" "}
-            {note.ordinal === 0
-              ? "before the first finisher"
-              : `finisher ${note.ordinal}`}{" "}
-            —{" "}
+            {describeAnchor(note.screen, note.anchor)} —{" "}
           </span>
           {note.body}
         </li>
@@ -197,22 +195,21 @@ export function Reconcile({
   const [rows, setRows] = useState<WorkingRow[]>(initialRows);
   const [saving, setSaving] = useState(false);
 
-  // Notes sit against the ordinal they were written at, so inserting a gap
-  // or removing a row re-places them — the note is about the Nth finisher,
-  // not about a particular capture id.
+  // Notes sit on the row holding the capture they were written after, so
+  // they move with it when a gap is inserted or a row removed.
   const notes = useMemo(
     () =>
       placeNotes(
-        remoteNotes.map((n): OperatorNoteEntry => ({
+        remoteNotes.map((n): OperatorNote => ({
           id: n.id,
-          ordinal: n.ordinal,
-          screen: captureScreen(n.screen),
+          anchor: n.anchor,
+          screen: parseCaptureScreen(n.screen),
           body: n.body,
           createdAt: n.created_at,
         })),
-        rows.length,
+        rows,
       ),
-    [remoteNotes, rows.length],
+    [remoteNotes, rows],
   );
 
   // Live updates as captures sync in from the field phones (§5.3). Any
@@ -416,7 +413,7 @@ export function Reconcile({
           <RowInsertDivider onInsert={() => insertGapAt(0)} />
           {rows.map((row, index) => {
             const mismatch = mismatchFor(row);
-            const rowNotes = notes.byOrdinal.get(index + 1);
+            const rowNotes = notes.byRow.get(row.localId);
             return (
               <Fragment key={row.localId}>
                 <TableRow>
