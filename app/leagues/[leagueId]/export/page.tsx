@@ -29,10 +29,8 @@ async function ExportSection({
   if (!Number.isInteger(leagueIdNum)) notFound();
 
   const supabase = await createClient();
-  const { rows, excludedCount, leagueName } = await getExportData(
-    supabase,
-    leagueIdNum,
-  );
+  const { rows, excludedCount, openHeatAthleteCount, openHeats, leagueName } =
+    await getExportData(supabase, leagueIdNum);
 
   return (
     <ExportPreview
@@ -40,6 +38,8 @@ async function ExportSection({
       leagueName={leagueName}
       rows={rows}
       excludedCount={excludedCount}
+      openHeatAthleteCount={openHeatAthleteCount}
+      openHeats={openHeats}
     />
   );
 }

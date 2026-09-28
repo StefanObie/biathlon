@@ -2,7 +2,7 @@
 
 import { DownloadIcon } from "lucide-react";
 
-import type { ExportPreviewRow } from "@/lib/export/query";
+import type { ExportPreviewRow } from "@/lib/export/select-rows";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,22 +25,43 @@ export function ExportPreview({
   leagueName,
   rows,
   excludedCount,
+  openHeatAthleteCount,
+  openHeats,
 }: {
   leagueId: number;
   leagueName: string;
   rows: ExportPreviewRow[];
   excludedCount: number;
+  openHeatAthleteCount: number;
+  openHeats: number[];
 }) {
+  const openHeatsNotice = openHeatAthleteCount > 0 && (
+    <p className="text-sm text-muted-foreground">
+      {openHeatAthleteCount}{" "}
+      {openHeatAthleteCount === 1 ? "athlete is" : "athletes are"} left out
+      because {openHeats.length === 1 ? "heat" : "heats"} {openHeats.join(", ")}{" "}
+      {openHeats.length === 1 ? "isn't" : "aren't"} closed. Save a heat&apos;s
+      reconciliation to close it.
+    </p>
+  );
+
   if (rows.length === 0) {
     return (
       <Empty>
         <EmptyHeader>
           <EmptyTitle>No results to export yet</EmptyTitle>
-          <EmptyDescription>
-            {excludedCount > 0
-              ? `${excludedCount} ${excludedCount === 1 ? "athlete is" : "athletes are"} entered, but none have a swim or run time recorded.`
-              : "Import a start list and capture some results first."}
-          </EmptyDescription>
+          {excludedCount > 0 ? (
+            <EmptyDescription>
+              {`${excludedCount} ${excludedCount === 1 ? "athlete is" : "athletes are"} in closed heats, but none have a swim or run time recorded.`}
+            </EmptyDescription>
+          ) : (
+            openHeatAthleteCount === 0 && (
+              <EmptyDescription>
+                Import a start list and capture some results first.
+              </EmptyDescription>
+            )
+          )}
+          {openHeatsNotice}
         </EmptyHeader>
       </Empty>
     );
@@ -72,6 +93,12 @@ export function ExportPreview({
           {excludedCount > 0 && (
             <Badge variant="outline">{excludedCount} with no times</Badge>
           )}
+          {openHeatAthleteCount > 0 && (
+            <Badge variant="destructive">
+              {openHeatAthleteCount} in open{" "}
+              {openHeats.length === 1 ? "heat" : "heats"}
+            </Badge>
+          )}
         </div>
 
         <Button asChild>
@@ -81,6 +108,8 @@ export function ExportPreview({
           </a>
         </Button>
       </div>
+
+      {openHeatsNotice}
 
       <p className="text-sm text-muted-foreground">
         Every recorded time is exported as recorded, including dns, dnf and dq.
