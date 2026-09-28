@@ -34,6 +34,7 @@ import { OperatorNotes } from "@/components/capture/operator-notes";
 import { HeatBanner } from "@/components/capture/heat-banner";
 import { HeatClosedNotice } from "@/components/capture/heat-closed-notice";
 import { useHeatClosed } from "@/components/capture/use-heat-closed";
+import { useCameraSleep } from "@/components/capture/use-camera-sleep";
 import type { HeatClosed } from "@/lib/capture/heat-closed";
 import { noteAnchor } from "@/lib/capture/operator-note";
 import {
@@ -89,6 +90,7 @@ export function PositionCapture({
     null,
   );
   const { closed } = useHeatClosed(leagueId, runHeat, remoteHeatClosed);
+  const camera = useCameraSleep();
 
   const rosterByNo = useMemo(() => {
     const map = new Map<number, LeagueRosterAthlete>();
@@ -184,6 +186,10 @@ export function PositionCapture({
     if (captures.some((c) => !c.voided && c.athlete_no === athleteNo)) {
       return `Athlete ${athleteNo} ${athlete.fullName} is already captured in this heat.`;
     }
+    // Only an accepted athlete keeps the camera awake: a rejected bib left
+    // in frame is re-read every couple of seconds and would never let it
+    // sleep.
+    camera.markUsed();
     if (athlete.runHeat !== runHeat) {
       // Confirm before logging — the mismatch itself is resolved later in
       // reconciliation, this screen just shouldn't lose the capture.
@@ -269,6 +275,8 @@ export function PositionCapture({
         <QrScanner
           onDetect={(text) => void handleScanDetect(text)}
           paused={pendingOutOfHeat !== null}
+          awake={camera.awake}
+          onWake={camera.wake}
         />
       )}
 

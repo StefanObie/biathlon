@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ScanLineIcon } from "lucide-react";
 
 import { startBarcodeScan, type ScannerControls } from "@/lib/scan/decoder";
 
@@ -31,13 +32,44 @@ function playBeep() {
  * `onDetect`, with no tap-to-confirm step. `paused` stops dispatching new
  * detections (e.g. while a confirmation dialog is open) without tearing
  * down the camera stream, since restarting it is the dominant latency cost.
+ *
+ * While `awake` is false the camera is off and the scanner area is a large
+ * "Tap to scan" target that calls `onWake` (#17).
  */
 export function QrScanner({
   onDetect,
   paused = false,
+  awake,
+  onWake,
 }: {
   onDetect: (text: string) => void;
   paused?: boolean;
+  awake: boolean;
+  onWake: () => void;
+}) {
+  if (!awake) {
+    return (
+      <button
+        type="button"
+        onClick={onWake}
+        className="flex aspect-square w-full max-w-sm flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed border-input bg-muted text-muted-foreground active:scale-[0.98]"
+      >
+        <ScanLineIcon className="h-16 w-16" aria-hidden />
+        <span className="text-2xl font-semibold">Tap to scan</span>
+      </button>
+    );
+  }
+
+  // Mounted only while awake: unmounting is what turns the camera off.
+  return <CameraStream onDetect={onDetect} paused={paused} />;
+}
+
+function CameraStream({
+  onDetect,
+  paused,
+}: {
+  onDetect: (text: string) => void;
+  paused: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const onDetectRef = useRef(onDetect);
