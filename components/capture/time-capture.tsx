@@ -26,6 +26,7 @@ import {
 import { HeatContextBar } from "@/components/leagues/heat-context-bar";
 import { FinishedCount } from "@/components/capture/finished-count";
 import { OperatorNotes } from "@/components/capture/operator-notes";
+import { HeatBanner } from "@/components/capture/heat-banner";
 import { HeatClosedNotice } from "@/components/capture/heat-closed-notice";
 import { useHeatClosed } from "@/components/capture/use-heat-closed";
 import type { HeatClosed } from "@/lib/capture/heat-closed";
@@ -276,6 +277,8 @@ export function TimeCapture({
 
   return (
     <div className="flex flex-col items-center gap-8">
+      <HeatBanner runHeat={runHeat} closed={locked} />
+
       <div className="text-center">
         <p className="text-sm text-muted-foreground">
           {locked ? "Closed" : startedAtMs === null ? "Not started" : "Elapsed"}
