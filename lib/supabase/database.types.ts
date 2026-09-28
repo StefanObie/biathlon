@@ -39,18 +39,29 @@ export type Database = {
           athlete_no: number;
           full_name: string;
           gender: Database["public"]["Enums"]["gender"];
+          organization_id: number;
         };
         Insert: {
           athlete_no: number;
           full_name: string;
           gender: Database["public"]["Enums"]["gender"];
+          organization_id: number;
         };
         Update: {
           athlete_no?: number;
           full_name?: string;
           gender?: Database["public"]["Enums"]["gender"];
+          organization_id?: number;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "athlete_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organization";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       audit_log: {
         Row: {
@@ -101,6 +112,7 @@ export type Database = {
           age_group_code: string;
           athlete_no: number;
           league_id: number;
+          organization_id: number;
           run_heat: number;
           swim_heat: number;
           swim_lane: number;
@@ -109,6 +121,7 @@ export type Database = {
           age_group_code: string;
           athlete_no: number;
           league_id: number;
+          organization_id?: number;
           run_heat: number;
           swim_heat: number;
           swim_lane: number;
@@ -117,24 +130,25 @@ export type Database = {
           age_group_code?: string;
           athlete_no?: number;
           league_id?: number;
+          organization_id?: number;
           run_heat?: number;
           swim_heat?: number;
           swim_lane?: number;
         };
         Relationships: [
           {
-            foreignKeyName: "entry_athlete_no_fkey";
-            columns: ["athlete_no"];
-            isOneToOne: false;
-            referencedRelation: "athlete";
-            referencedColumns: ["athlete_no"];
-          },
-          {
             foreignKeyName: "entry_league_id_fkey";
             columns: ["league_id"];
             isOneToOne: false;
             referencedRelation: "league";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "entry_organization_id_athlete_no_fkey";
+            columns: ["organization_id", "athlete_no"];
+            isOneToOne: false;
+            referencedRelation: "athlete";
+            referencedColumns: ["organization_id", "athlete_no"];
           },
         ];
       };
@@ -344,6 +358,7 @@ export type Database = {
           device_id: string;
           id: string;
           league_id: number;
+          organization_id: number;
           position: number;
           run_heat: number;
           scanned_at: string;
@@ -355,6 +370,7 @@ export type Database = {
           device_id: string;
           id: string;
           league_id: number;
+          organization_id?: number;
           position: number;
           run_heat: number;
           scanned_at: string;
@@ -366,6 +382,7 @@ export type Database = {
           device_id?: string;
           id?: string;
           league_id?: number;
+          organization_id?: number;
           position?: number;
           run_heat?: number;
           scanned_at?: string;
@@ -374,18 +391,18 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "position_capture_athlete_no_fkey";
-            columns: ["athlete_no"];
-            isOneToOne: false;
-            referencedRelation: "athlete";
-            referencedColumns: ["athlete_no"];
-          },
-          {
             foreignKeyName: "position_capture_league_id_fkey";
             columns: ["league_id"];
             isOneToOne: false;
             referencedRelation: "league";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "position_capture_organization_id_athlete_no_fkey";
+            columns: ["organization_id", "athlete_no"];
+            isOneToOne: false;
+            referencedRelation: "athlete";
+            referencedColumns: ["organization_id", "athlete_no"];
           },
         ];
       };
@@ -393,6 +410,7 @@ export type Database = {
         Row: {
           athlete_no: number;
           league_id: number;
+          organization_id: number;
           overridden_by: string | null;
           override_reason: string | null;
           run_heat: number;
@@ -404,6 +422,7 @@ export type Database = {
         Insert: {
           athlete_no: number;
           league_id: number;
+          organization_id?: number;
           overridden_by?: string | null;
           override_reason?: string | null;
           run_heat: number;
@@ -415,6 +434,7 @@ export type Database = {
         Update: {
           athlete_no?: number;
           league_id?: number;
+          organization_id?: number;
           overridden_by?: string | null;
           override_reason?: string | null;
           run_heat?: number;
@@ -425,18 +445,18 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "run_result_athlete_no_fkey";
-            columns: ["athlete_no"];
-            isOneToOne: false;
-            referencedRelation: "athlete";
-            referencedColumns: ["athlete_no"];
-          },
-          {
             foreignKeyName: "run_result_league_id_fkey";
             columns: ["league_id"];
             isOneToOne: false;
             referencedRelation: "league";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "run_result_organization_id_athlete_no_fkey";
+            columns: ["organization_id", "athlete_no"];
+            isOneToOne: false;
+            referencedRelation: "athlete";
+            referencedColumns: ["organization_id", "athlete_no"];
           },
         ];
       };
@@ -449,6 +469,7 @@ export type Database = {
           lane: number;
           league_id: number;
           needs_review: boolean;
+          organization_id: number;
           overridden_by: string | null;
           override_reason: string | null;
           place: number | null;
@@ -466,6 +487,7 @@ export type Database = {
           lane: number;
           league_id: number;
           needs_review?: boolean;
+          organization_id?: number;
           overridden_by?: string | null;
           override_reason?: string | null;
           place?: number | null;
@@ -483,6 +505,7 @@ export type Database = {
           lane?: number;
           league_id?: number;
           needs_review?: boolean;
+          organization_id?: number;
           overridden_by?: string | null;
           override_reason?: string | null;
           place?: number | null;
@@ -494,18 +517,18 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "swim_result_athlete_no_fkey";
-            columns: ["athlete_no"];
-            isOneToOne: false;
-            referencedRelation: "athlete";
-            referencedColumns: ["athlete_no"];
-          },
-          {
             foreignKeyName: "swim_result_league_id_fkey";
             columns: ["league_id"];
             isOneToOne: false;
             referencedRelation: "league";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "swim_result_organization_id_athlete_no_fkey";
+            columns: ["organization_id", "athlete_no"];
+            isOneToOne: false;
+            referencedRelation: "athlete";
+            referencedColumns: ["organization_id", "athlete_no"];
           },
         ];
       };

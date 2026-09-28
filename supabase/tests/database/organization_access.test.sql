@@ -31,8 +31,9 @@ insert into league (id, name, league_date, season, organization_id) overriding s
   (901, 'League A', '2026-01-01', 2026, 901),
   (902, 'League B', '2026-01-01', 2026, 902);
 
-insert into athlete (athlete_no, full_name, gender) values
-  (9001, 'Test Athlete', 'M');
+insert into athlete (organization_id, athlete_no, full_name, gender) values
+  (901, 9001, 'Test Athlete', 'M'),
+  (902, 9001, 'Test Athlete', 'M');
 
 insert into points_table (
   effective_from, gender, age_group_code, age_group_label, sort_order, age_from, age_to,

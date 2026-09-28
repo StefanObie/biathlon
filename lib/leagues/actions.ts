@@ -48,6 +48,23 @@ export async function createLeague(
   redirect(`/leagues/${data.id}/start-list`);
 }
 
+/**
+ * Athletes belong to the league's organization (ADR 0002), so athlete
+ * writes and lookups need it. Null when the league isn't visible to the
+ * user.
+ */
+async function leagueOrganizationId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  leagueId: number,
+): Promise<number | null> {
+  const { data } = await supabase
+    .from("league")
+    .select("organization_id")
+    .eq("id", leagueId)
+    .maybeSingle();
+  return data?.organization_id ?? null;
+}
+
 export interface SaveStartListState {
   saved?: number;
   fatalError?: string;
@@ -68,8 +85,13 @@ export async function saveStartList(
   }
 
   const supabase = await createClient();
+  const organizationId = await leagueOrganizationId(supabase, leagueId);
+  if (organizationId === null) {
+    return { fatalError: "League not found." };
+  }
 
   const athletes = parsed.map((p) => ({
+    organization_id: organizationId,
     athlete_no: p.row.athleteNo,
     full_name: p.row.fullName,
     gender: p.gender,
@@ -146,10 +168,15 @@ export async function addWalkUpAthlete(
   }
 
   const supabase = await createClient();
+  const organizationId = await leagueOrganizationId(supabase, leagueId);
+  if (organizationId === null) {
+    return { error: "League not found." };
+  }
 
   const { data: existing, error: lookupError } = await supabase
     .from("athlete")
     .select("full_name, gender")
+    .eq("organization_id", organizationId)
     .eq("athlete_no", athleteNo)
     .maybeSingle();
   if (lookupError) {
@@ -166,6 +193,7 @@ export async function addWalkUpAthlete(
 
   if (!existing) {
     const { error: athleteError } = await supabase.from("athlete").insert({
+      organization_id: organizationId,
       athlete_no: athleteNo,
       full_name: fullName,
       gender: ageGroup.gender,

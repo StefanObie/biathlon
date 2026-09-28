@@ -17,7 +17,8 @@
 -- other email signs in to an account with no Organization and sees no
 -- leagues.
 
-insert into athlete (athlete_no, full_name, gender) values
+insert into athlete (organization_id, athlete_no, full_name, gender)
+select (select id from organization where name = 'Gauteng North Biathlon'), athlete_no, full_name, gender::gender from (values
   (101, 'Liam Botha', 'M'),
   (102, 'Emma van Wyk', 'F'),
   (103, 'Noah Naidoo', 'M'),
@@ -45,7 +46,8 @@ insert into athlete (athlete_no, full_name, gender) values
   (125, 'Johan Steyn', 'M'),
   (126, 'Anne le Roux', 'F'),
   (127, 'Willem Brink', 'M'),
-  (128, 'Sarah Adams', 'F');
+  (128, 'Sarah Adams', 'F')
+) as v (athlete_no, full_name, gender);
 
 -- The token columns are empty strings, not null: GoTrue fails to load a user
 -- whose token columns are null.

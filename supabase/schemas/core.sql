@@ -8,14 +8,6 @@ grant usage on schema private to authenticated;
 
 create type gender as enum ('M', 'F');
 
-create table athlete (
-  athlete_no integer primary key,
-  full_name text not null,
-  gender gender not null
-);
-
-alter table athlete enable row level security;
-
 -- Organizations (#10, #29). An Organization runs Leagues; its Members are
 -- users, and the Admin flag lives on the membership rather than being a
 -- per-League Role. Nothing here writes these tables from the app yet —
@@ -37,6 +29,18 @@ create table organization_member (
 alter table organization_member enable row level security;
 
 create index organization_member_user_idx on organization_member (user_id);
+
+-- Athletes belong to an Organization (ADR 0002): two Organizations can use
+-- the same Athlete number for different people.
+create table athlete (
+  organization_id integer not null references organization (id),
+  athlete_no integer not null,
+  full_name text not null,
+  gender gender not null,
+  primary key (organization_id, athlete_no)
+);
+
+alter table athlete enable row level security;
 
 -- A League's Organization is fixed once it's created (see
 -- league_organization_is_fixed below).
@@ -68,6 +72,28 @@ $$;
 create trigger league_organization_is_fixed
   before update on league
   for each row execute function private.league_organization_is_fixed();
+
+-- Rows that name an athlete (entry, position_capture, run_result,
+-- swim_result) carry their League's Organization so they can reference the
+-- athlete by (organization_id, athlete_no). The Organization is always taken
+-- from the League, never from the writer: a phone syncing a capture doesn't
+-- know its Organization, and a mismatched one would point at another
+-- Organization's athlete. The column's default of 0 is never stored, it only
+-- lets writers leave the column out. security definer so the League is
+-- found even when RLS hides it, leaving RLS to refuse the write itself.
+create function private.set_organization_from_league()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  select organization_id into new.organization_id
+  from public.league
+  where id = new.league_id;
+  return new;
+end;
+$$;
 
 -- Access helpers: the one place access is decided, used by every policy.
 -- security definer so they can read organization_member without tripping
@@ -116,15 +142,21 @@ $$;
 -- import time instead (see spec §6.1's trade-off note).
 create table entry (
   league_id integer not null references league (id),
-  athlete_no integer not null references athlete (athlete_no),
+  organization_id integer not null default 0,
+  athlete_no integer not null,
   run_heat integer not null,
   swim_heat integer not null,
   swim_lane integer not null,
   age_group_code text not null,
-  primary key (league_id, athlete_no)
+  primary key (league_id, athlete_no),
+  foreign key (organization_id, athlete_no) references athlete (organization_id, athlete_no)
 );
 
 alter table entry enable row level security;
+
+create trigger entry_set_organization
+  before insert or update on entry
+  for each row execute function private.set_organization_from_league();
 
 create index entry_run_heat_idx on entry (league_id, run_heat);
 create index entry_swim_heat_lane_idx on entry (league_id, swim_heat, swim_lane);
@@ -154,17 +186,14 @@ alter table points_table enable row level security;
 -- default-deny via RLS-enabled-with-no-anon-policy. Every league-scoped
 -- table is open only to Members of the League's Organization
 -- (private.can_access_league); the reference points table stays readable
--- by any signed-in user.
---
--- Athletes aren't league-scoped yet: they move under their Organization
--- (ADR 0002) in a later ticket, and until then any signed-in user can
--- manage them.
+-- by any signed-in user. Athletes are open to Members of their own
+-- Organization.
 
-create policy "Authenticated users can manage athletes"
+create policy "Members can manage their organizations' athletes"
   on athlete for all
   to authenticated
-  using (true)
-  with check (true);
+  using (private.is_org_member(organization_id))
+  with check (private.is_org_member(organization_id));
 
 create policy "Members can read their organizations"
   on organization for select
@@ -225,14 +254,20 @@ create table position_capture (
   league_id integer not null references league (id),
   run_heat integer not null,
   position integer not null,
-  athlete_no integer references athlete (athlete_no), -- null = skip, no scan attempted
+  organization_id integer not null default 0,
+  athlete_no integer, -- null = skip, no scan attempted
   device_id text not null,
   scanned_at timestamptz not null,
   voided boolean not null default false,
-  void_reason text
+  void_reason text,
+  foreign key (organization_id, athlete_no) references athlete (organization_id, athlete_no)
 );
 
 alter table position_capture enable row level security;
+
+create trigger position_capture_set_organization
+  before insert or update on position_capture
+  for each row execute function private.set_organization_from_league();
 
 create index position_capture_run_heat_idx
   on position_capture (league_id, run_heat);
@@ -284,7 +319,8 @@ alter table league_race enable row level security;
 -- and never touches position_capture/time_capture.
 create table run_result (
   league_id integer not null references league (id),
-  athlete_no integer not null references athlete (athlete_no),
+  organization_id integer not null default 0,
+  athlete_no integer not null,
   run_heat integer not null,
   run_time text check (run_time ~ '^\d{2}:\d{2}\.\d{2}$'),
   run_time_cs integer generated always as (
@@ -298,10 +334,15 @@ create table run_result (
   source text not null,              -- auto | manual
   overridden_by text,
   override_reason text,
-  primary key (league_id, athlete_no, run_heat)
+  primary key (league_id, athlete_no, run_heat),
+  foreign key (organization_id, athlete_no) references athlete (organization_id, athlete_no)
 );
 
 alter table run_result enable row level security;
+
+create trigger run_result_set_organization
+  before insert or update on run_result
+  for each row execute function private.set_organization_from_league();
 
 create index run_result_run_heat_idx
   on run_result (league_id, run_heat);
@@ -363,7 +404,8 @@ create policy "Members can manage their leagues' audit log"
 -- §2 Finding 3), not as identity.
 create table swim_result (
   league_id integer not null references league (id),
-  athlete_no integer not null references athlete (athlete_no),
+  organization_id integer not null default 0,
+  athlete_no integer not null,
   event_no integer not null,
   heat integer not null,
   lane integer not null,
@@ -392,10 +434,15 @@ create table swim_result (
   -- Set for rows the parser could not fully trust: a revised block, or
   -- backup columns disagreeing with the official TIME column (§4.6).
   needs_review boolean not null default false,
-  primary key (league_id, athlete_no)
+  primary key (league_id, athlete_no),
+  foreign key (organization_id, athlete_no) references athlete (organization_id, athlete_no)
 );
 
 alter table swim_result enable row level security;
+
+create trigger swim_result_set_organization
+  before insert or update on swim_result
+  for each row execute function private.set_organization_from_league();
 
 create index swim_result_heat_lane_idx on swim_result (league_id, heat, lane);
 

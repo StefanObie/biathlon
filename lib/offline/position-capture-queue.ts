@@ -3,8 +3,12 @@ import Dexie, { type EntityTable } from "dexie";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
 
-type PositionCaptureRow =
-  Database["public"]["Tables"]["position_capture"]["Row"];
+// organization_id is left out: the database always sets it from the league,
+// so the phone never needs to know it.
+type PositionCaptureRow = Omit<
+  Database["public"]["Tables"]["position_capture"]["Row"],
+  "organization_id"
+>;
 
 /** Local mirror of position_capture, plus a sync flag. Never mutate rows
  * other than to flip `synced` or set voided/void_reason — the same
