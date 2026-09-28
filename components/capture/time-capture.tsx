@@ -157,19 +157,27 @@ export function TimeCapture({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leagueId, runHeat]);
 
+  const { finished, overRoster, locked, frozenElapsedMs } = captureScreenState({
+    captures,
+    rosterSize,
+    closedAt: closed.closedAt,
+    startedAtMs,
+  });
+
   // Clock tick, only while a heat is running — drives the live elapsed
   // display via Date.now(), the same wall clock the anchor is stored in.
   // Not used for the captured time itself (that's computed fresh at press
-  // time, see recordCapture), just the on-screen ticker.
+  // time, see recordCapture), just the on-screen ticker. A closed heat's
+  // clock is frozen at its close, so it doesn't tick.
   useEffect(() => {
-    if (startedAtMs === null) {
+    if (startedAtMs === null || locked) {
       setNow(null);
       return;
     }
     setNow(Date.now());
     const interval = setInterval(() => setNow(Date.now()), 47);
     return () => clearInterval(interval);
-  }, [startedAtMs]);
+  }, [startedAtMs, locked]);
 
   const activeSeqs = captures.filter((c) => !c.voided).map((c) => c.seq);
   const seq = nextSeq(activeSeqs);
@@ -177,17 +185,18 @@ export function TimeCapture({
     .filter((c) => !c.voided)
     .sort((a, b) => b.seq - a.seq);
   const lastThree = allCaptures.slice(0, 3);
-  const { finished, overRoster, locked } = captureScreenState({
-    captures,
-    rosterSize,
-    closedAt: closed.closedAt,
-  });
   const mostRecent = allCaptures[0];
 
   const liveElapsed = useMemo(() => {
     if (startedAtMs === null || now === null) return null;
     return formatElapsed(now - startedAtMs);
   }, [startedAtMs, now]);
+  const clock =
+    frozenElapsedMs !== null
+      ? formatElapsed(frozenElapsedMs)
+      : locked
+        ? "—"
+        : (liveElapsed ?? "00:00.00");
 
   async function handleStart() {
     if (locked) return;
@@ -269,11 +278,9 @@ export function TimeCapture({
     <div className="flex flex-col items-center gap-8">
       <div className="text-center">
         <p className="text-sm text-muted-foreground">
-          {startedAtMs === null ? "Not started" : "Elapsed"}
+          {locked ? "Closed" : startedAtMs === null ? "Not started" : "Elapsed"}
         </p>
-        <p className="text-6xl font-bold tabular-nums">
-          {liveElapsed ?? "00:00.00"}
-        </p>
+        <p className="text-6xl font-bold tabular-nums">{clock}</p>
         <FinishedCount
           finished={finished}
           rosterSize={rosterSize}

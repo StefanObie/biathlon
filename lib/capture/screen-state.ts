@@ -2,8 +2,6 @@
  * The state both capture screens (Timer and Position) show above their
  * capture controls. One pure function so the two screens can't drift
  * apart on what "finished" means.
- *
- * A later ticket extends this state with the frozen clock value (#14).
  */
 export interface CaptureScreenState {
   /** Finishers accounted for on this screen: the heat's active captures. */
@@ -14,6 +12,10 @@ export interface CaptureScreenState {
   overRoster: boolean;
   /** The heat is closed: the screen takes no new captures, only notes. */
   locked: boolean;
+  /** The Timer screen's clock on a closed heat: the time from the start to
+   * the close. Null while the heat is open (the clock runs) or when it
+   * closed without a start. */
+  frozenElapsedMs: number | null;
 }
 
 /**
@@ -42,16 +44,20 @@ export function heatRosterSize(
  * `overRoster` is a warning, not an error, and equality is not over.
  *
  * `closedAt` is when the heat was closed, or null while it is open (never
- * closed, or reopened). A closed heat takes no new captures.
+ * closed, or reopened). A closed heat takes no new captures, and its clock
+ * stops at the close. `startedAtMs` is the heat's start (Date.now() epoch),
+ * which only the Timer screen has; the Position screen passes null.
  */
 export function captureScreenState({
   captures,
   rosterSize,
   closedAt,
+  startedAtMs,
 }: {
   captures: readonly { voided: boolean }[];
   rosterSize: number;
   closedAt: string | null;
+  startedAtMs: number | null;
 }): CaptureScreenState {
   const finished = captures.filter((c) => !c.voided).length;
   return {
@@ -59,5 +65,11 @@ export function captureScreenState({
     rosterSize,
     overRoster: finished > rosterSize,
     locked: closedAt !== null,
+    // Clamped: the close comes from the official's device clock and the
+    // start from the timer phone's, so skew can put the close first.
+    frozenElapsedMs:
+      closedAt !== null && startedAtMs !== null
+        ? Math.max(0, new Date(closedAt).getTime() - startedAtMs)
+        : null,
   };
 }

@@ -148,6 +148,7 @@ export function PositionCapture({
     captures,
     rosterSize,
     closedAt: closed.closedAt,
+    startedAtMs: null,
   });
 
   async function recordCapture(athleteNo: number | null) {

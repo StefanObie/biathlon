@@ -29,12 +29,18 @@ function positionCapture(fields: {
 describe("captureScreenState", () => {
   it("counts no finishers on a fresh heat", () => {
     expect(
-      captureScreenState({ captures: [], rosterSize: 20, closedAt: null }),
+      captureScreenState({
+        captures: [],
+        rosterSize: 20,
+        closedAt: null,
+        startedAtMs: null,
+      }),
     ).toEqual({
       finished: 0,
       rosterSize: 20,
       overRoster: false,
       locked: false,
+      frozenElapsedMs: null,
     });
   });
 
@@ -46,6 +52,7 @@ describe("captureScreenState", () => {
       captures: [{ voided: false }, { voided: false }, { voided: false }],
       rosterSize: 20,
       closedAt: null,
+      startedAtMs: null,
     });
     expect(state.finished).toBe(3);
   });
@@ -61,6 +68,7 @@ describe("captureScreenState", () => {
       ],
       rosterSize: 20,
       closedAt: null,
+      startedAtMs: null,
     });
     expect(state.finished).toBe(3);
   });
@@ -75,6 +83,7 @@ describe("captureScreenState", () => {
       ],
       rosterSize: 20,
       closedAt: null,
+      startedAtMs: null,
     });
     expect(state.finished).toBe(3);
   });
@@ -88,6 +97,7 @@ describe("captureScreenState", () => {
       ],
       rosterSize: 20,
       closedAt: null,
+      startedAtMs: null,
     });
     expect(state.finished).toBe(1);
   });
@@ -97,6 +107,7 @@ describe("captureScreenState", () => {
       captures: [{ voided: false }, { voided: true }, { voided: false }],
       rosterSize: 20,
       closedAt: null,
+      startedAtMs: null,
     });
     expect(state.finished).toBe(2);
   });
@@ -106,12 +117,14 @@ describe("captureScreenState", () => {
       captures: Array.from({ length: 20 }, () => ({ voided: false })),
       rosterSize: 20,
       closedAt: null,
+      startedAtMs: null,
     });
     expect(state).toEqual({
       finished: 20,
       rosterSize: 20,
       overRoster: false,
       locked: false,
+      frozenElapsedMs: null,
     });
   });
 
@@ -122,12 +135,14 @@ describe("captureScreenState", () => {
       captures: Array.from({ length: 21 }, () => ({ voided: false })),
       rosterSize: 20,
       closedAt: null,
+      startedAtMs: null,
     });
     expect(state).toEqual({
       finished: 21,
       rosterSize: 20,
       overRoster: true,
       locked: false,
+      frozenElapsedMs: null,
     });
   });
 });
@@ -138,6 +153,7 @@ describe("captureScreenState locked", () => {
       captures: [],
       rosterSize: 20,
       closedAt: "2026-09-28T10:15:00.000Z",
+      startedAtMs: null,
     });
     expect(state.locked).toBe(true);
   });
@@ -148,6 +164,7 @@ describe("captureScreenState locked", () => {
       captures: [],
       rosterSize: 20,
       closedAt: null,
+      startedAtMs: null,
     });
     expect(state.locked).toBe(false);
   });
@@ -157,13 +174,61 @@ describe("captureScreenState locked", () => {
       captures: [{ voided: false }, { voided: true }],
       rosterSize: 20,
       closedAt: "2026-09-28T10:15:00.000Z",
+      startedAtMs: null,
     });
     expect(state).toEqual({
       finished: 1,
       rosterSize: 20,
       overRoster: false,
       locked: true,
+      frozenElapsedMs: null,
     });
+  });
+});
+
+describe("captureScreenState frozenElapsedMs", () => {
+  const startedAtMs = Date.parse("2026-09-28T10:00:00.000Z");
+
+  it("freezes the clock at the time between the start and the close", () => {
+    const state = captureScreenState({
+      captures: [],
+      rosterSize: 20,
+      closedAt: "2026-09-28T10:15:30.250Z",
+      startedAtMs,
+    });
+    expect(state.frozenElapsedMs).toBe(15 * 60_000 + 30_250);
+  });
+
+  it("is null while the heat is open, so the clock runs", () => {
+    const state = captureScreenState({
+      captures: [],
+      rosterSize: 20,
+      closedAt: null,
+      startedAtMs,
+    });
+    expect(state.frozenElapsedMs).toBeNull();
+  });
+
+  it("is null when the heat closed without a start", () => {
+    const state = captureScreenState({
+      captures: [],
+      rosterSize: 20,
+      closedAt: "2026-09-28T10:15:00.000Z",
+      startedAtMs: null,
+    });
+    expect(state.frozenElapsedMs).toBeNull();
+  });
+
+  it("never goes below zero when the clocks disagree", () => {
+    // The close time comes from the official's device and the start from
+    // the timer phone, so a close can appear to land before the start.
+    const state = captureScreenState({
+      captures: [],
+      rosterSize: 20,
+      closedAt: "2026-09-28T09:59:59.000Z",
+      startedAtMs,
+    });
+    expect(state.frozenElapsedMs).toBe(0);
   });
 });
 
