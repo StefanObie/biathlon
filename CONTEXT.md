@@ -18,6 +18,10 @@ _Avoid_: User (when you mean someone inside an Organization), staff
 An Admin's offer by email for someone to become a Member of an Organization, optionally also naming a Role on the Default team or on one League's team. A user who signs up without one creates their own Organization and becomes its Admin.
 _Avoid_: Invite code (the old shared signup code, which Organizations replace)
 
+**Sign-in OTP**:
+The one-time 6-digit code emailed to a user so they can sign in. Signing up and signing in send the same email.
+_Avoid_: Login code, invite code, magic link
+
 **Athlete number**:
 The number that identifies an athlete within an Organization. For biathlon it is the national number, but an Organization may use any numbering.
 _Avoid_: Bib number, licence number
