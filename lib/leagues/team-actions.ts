@@ -4,10 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import type { LeagueRole } from "@/lib/access/roles";
-
-export interface TeamChangeResult {
-  error?: string;
-}
+import type { TeamChangeResult } from "@/lib/organizations/team-rows";
 
 /**
  * Gives a Member a Role on a League's team, or takes it away. RLS only lets

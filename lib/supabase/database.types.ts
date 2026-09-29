@@ -72,7 +72,8 @@ export type Database = {
           before: Json | null;
           entity: string;
           id: string;
-          league_id: number;
+          league_id: number | null;
+          organization_id: number | null;
           reason: string | null;
         };
         Insert: {
@@ -83,7 +84,8 @@ export type Database = {
           before?: Json | null;
           entity: string;
           id?: string;
-          league_id: number;
+          league_id?: number | null;
+          organization_id?: number | null;
           reason?: string | null;
         };
         Update: {
@@ -94,7 +96,8 @@ export type Database = {
           before?: Json | null;
           entity?: string;
           id?: string;
-          league_id?: number;
+          league_id?: number | null;
+          organization_id?: number | null;
           reason?: string | null;
         };
         Relationships: [
@@ -104,6 +107,39 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "league";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "audit_log_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organization";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      default_team_member: {
+        Row: {
+          organization_id: number;
+          role: Database["public"]["Enums"]["league_role"];
+          user_id: string;
+        };
+        Insert: {
+          organization_id: number;
+          role: Database["public"]["Enums"]["league_role"];
+          user_id: string;
+        };
+        Update: {
+          organization_id?: number;
+          role?: Database["public"]["Enums"]["league_role"];
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "default_team_member_organization_id_user_id_fkey";
+            columns: ["organization_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "organization_member";
+            referencedColumns: ["organization_id", "user_id"];
           },
         ];
       };

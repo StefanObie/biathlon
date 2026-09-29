@@ -5,7 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { canUse } from "@/lib/access/roles";
 import { getLeagueAccess } from "@/lib/access/league-access";
 import { NoAccess } from "@/components/leagues/no-access";
-import { LeagueTeam, type TeamRow } from "@/components/leagues/league-team";
+import { TeamRoles } from "@/components/organizations/team-roles";
+import { teamRows } from "@/lib/organizations/team-rows";
+import { removeFromTeam, setTeamRole } from "@/lib/leagues/team-actions";
 
 export default function LeagueTeamPage({
   params,
@@ -52,14 +54,20 @@ async function LeagueTeamSection({
     return <p className="text-sm text-destructive">{error.message}</p>;
   }
 
-  const rows: TeamRow[] = (members ?? []).map((member) => ({
-    userId: member.user_id,
-    email: member.email,
-    isAdmin: member.is_admin,
-    roles: (team ?? [])
-      .filter((entry) => entry.user_id === member.user_id)
-      .map((entry) => entry.role),
-  }));
-
-  return <LeagueTeam leagueId={leagueIdNum} rows={rows} />;
+  return (
+    <TeamRoles
+      title="Team"
+      description={
+        <>
+          Only the Members on this league&apos;s team, and the
+          organization&apos;s Admins, can open it. Officials can do everything
+          but manage the team; Timekeepers use the Timer screen, Placers the
+          Position screen, and Callers the Call room screen.
+        </>
+      }
+      rows={teamRows(members ?? [], team ?? [])}
+      setRole={setTeamRole.bind(null, leagueIdNum)}
+      remove={removeFromTeam.bind(null, leagueIdNum)}
+    />
+  );
 }
