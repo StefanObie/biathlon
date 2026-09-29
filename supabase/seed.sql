@@ -20,6 +20,9 @@
 --   placer@example.com      Placer on League 1's team
 --   caller@example.com      Caller on League 1's team
 --
+-- The same three make up the Organization's Default team, so a League
+-- created locally starts with them on its team.
+--
 -- Any other email signs in to an account with no Organization and sees no
 -- leagues.
 
@@ -131,6 +134,16 @@ insert into league_team_member (league_id, user_id, role) values
   (1, '00000000-0000-0000-0000-0000000000a2', 'timekeeper'),
   (1, '00000000-0000-0000-0000-0000000000a3', 'placer'),
   (1, '00000000-0000-0000-0000-0000000000a4', 'caller');
+
+-- After League 1, so it isn't copied onto League 1's team a second time.
+insert into default_team_member (organization_id, user_id, role)
+select id, user_id::uuid, role::league_role
+from organization, (values
+  ('00000000-0000-0000-0000-0000000000a2', 'timekeeper'),
+  ('00000000-0000-0000-0000-0000000000a3', 'placer'),
+  ('00000000-0000-0000-0000-0000000000a4', 'caller')
+) as v (user_id, role)
+where name = 'Gauteng North Biathlon';
 
 insert into entry (league_id, athlete_no, run_heat, swim_heat, swim_lane, age_group_code) values
   (1, 101, 1, 1, 1, 'U13'),

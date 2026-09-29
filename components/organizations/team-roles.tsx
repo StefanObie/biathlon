@@ -15,32 +15,31 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { LEAGUE_ROLES, ROLE_LABEL, type LeagueRole } from "@/lib/access/roles";
-import {
-  removeFromTeam,
-  setTeamRole,
-  type TeamChangeResult,
-} from "@/lib/leagues/team-actions";
-
-export interface TeamRow {
-  userId: string;
-  email: string;
-  isAdmin: boolean;
-  /** Roles currently held on this League. */
-  roles: LeagueRole[];
-}
+import type { TeamChangeResult, TeamRow } from "@/lib/organizations/team-rows";
 
 /**
- * The League team, managed by an Admin: every Member of the Organization,
- * with a checkbox per Role. Ticking one adds the Member to the team with
- * that Role; unticking the last one takes them off it. Admins already cover
- * every Role on every League, so they aren't given any here.
+ * A team managed by an Admin — a League team or the Default team: every
+ * Member of the Organization, with a checkbox per Role. Ticking one gives
+ * the Member that Role on the team; unticking the last one takes them off
+ * it. Admins already cover every Role on every League, so they aren't given
+ * any here.
  */
-export function LeagueTeam({
-  leagueId,
+export function TeamRoles({
+  title,
+  description,
   rows,
+  setRole,
+  remove,
 }: {
-  leagueId: number;
+  title: string;
+  description: React.ReactNode;
   rows: TeamRow[];
+  setRole: (
+    userId: string,
+    role: LeagueRole,
+    held: boolean,
+  ) => Promise<TeamChangeResult>;
+  remove: (userId: string) => Promise<TeamChangeResult>;
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -54,13 +53,8 @@ export function LeagueTeam({
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h2 className="text-lg font-semibold">Team</h2>
-        <p className="text-sm text-muted-foreground">
-          Only the Members on this league&apos;s team, and the
-          organization&apos;s Admins, can open it. Officials can do everything
-          but manage the team; Timekeepers use the Timer screen, Placers the
-          Position screen, and Callers the Call room screen.
-        </p>
+        <h2 className="text-lg font-semibold">{title}</h2>
+        <p className="text-sm text-muted-foreground">{description}</p>
       </div>
 
       <Table>
@@ -92,14 +86,7 @@ export function LeagueTeam({
                         checked={row.roles.includes(role)}
                         disabled={isPending}
                         onCheckedChange={(checked) =>
-                          run(() =>
-                            setTeamRole(
-                              leagueId,
-                              row.userId,
-                              role,
-                              checked === true,
-                            ),
-                          )
+                          run(() => setRole(row.userId, role, checked === true))
                         }
                       />
                     </TableCell>
@@ -110,9 +97,7 @@ export function LeagueTeam({
                         variant="ghost"
                         size="sm"
                         disabled={isPending}
-                        onClick={() =>
-                          run(() => removeFromTeam(leagueId, row.userId))
-                        }
+                        onClick={() => run(() => remove(row.userId))}
                       >
                         Remove
                       </Button>

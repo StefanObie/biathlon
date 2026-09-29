@@ -36,11 +36,14 @@ export default function LeaguesPage() {
 // one.
 async function LeaguesList() {
   const supabase = await createClient();
-  const { data: organizations, error } = await supabase
-    .from("organization")
-    .select("id, name, league(id, name, league_date, season)")
-    .order("name")
-    .order("league_date", { referencedTable: "league", ascending: false });
+  const [{ data: organizations, error }, adminOf] = await Promise.all([
+    supabase
+      .from("organization")
+      .select("id, name, league(id, name, league_date, season)")
+      .order("name")
+      .order("league_date", { referencedTable: "league", ascending: false }),
+    adminOrganizations(supabase),
+  ]);
 
   if (error) {
     return <p className="text-sm text-destructive">{error.message}</p>;
@@ -54,7 +57,16 @@ async function LeaguesList() {
           id={`organization-${organization.id}`}
           className="flex flex-col gap-2 scroll-mt-4"
         >
-          <h2 className="text-lg font-semibold">{organization.name}</h2>
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-lg font-semibold">{organization.name}</h2>
+            {adminOf.some((admin) => admin.id === organization.id) && (
+              <Button asChild variant="ghost" size="sm">
+                <Link href={`/organizations/${organization.id}/team`}>
+                  Default team
+                </Link>
+              </Button>
+            )}
+          </div>
           {organization.league.length === 0 ? (
             <p className="text-sm text-muted-foreground">No leagues yet.</p>
           ) : (
@@ -81,19 +93,7 @@ async function LeaguesList() {
 // administers at least one Organization, offering just those.
 async function NewLeague() {
   const supabase = await createClient();
-  const { data: claims } = await supabase.auth.getClaims();
-  const userId = claims?.claims.sub;
-  if (!userId) return null;
-
-  const { data: memberships } = await supabase
-    .from("organization_member")
-    .select("organization(id, name)")
-    .eq("user_id", userId)
-    .eq("is_admin", true);
-
-  const organizations = (memberships ?? [])
-    .map((membership) => membership.organization)
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const organizations = await adminOrganizations(supabase);
   if (organizations.length === 0) return null;
 
   return (
@@ -106,4 +106,23 @@ async function NewLeague() {
       </CardContent>
     </Card>
   );
+}
+
+/** The Organizations the signed-in user is an Admin of, by name. */
+async function adminOrganizations(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+): Promise<{ id: number; name: string }[]> {
+  const { data: claims } = await supabase.auth.getClaims();
+  const userId = claims?.claims.sub;
+  if (!userId) return [];
+
+  const { data: memberships } = await supabase
+    .from("organization_member")
+    .select("organization(id, name)")
+    .eq("user_id", userId)
+    .eq("is_admin", true);
+
+  return (memberships ?? [])
+    .map((membership) => membership.organization)
+    .sort((a, b) => a.name.localeCompare(b.name));
 }

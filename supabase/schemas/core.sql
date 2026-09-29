@@ -168,6 +168,25 @@ create trigger league_team_member_set_organization
   before insert or update on league_team_member
   for each row execute function private.set_organization_from_league();
 
+-- Default teams (#33). An Organization's standard League team, one row per
+-- Role held by one Member. A new League's team starts as a copy of it
+-- (copy_default_team, below), and after that the two aren't linked, so
+-- changing either leaves the other alone. Nothing's access depends on it,
+-- so unlike a League team it keeps no history: removing a Role deletes its
+-- row.
+create table default_team_member (
+  organization_id integer not null,
+  user_id uuid not null,
+  role league_role not null,
+  primary key (organization_id, user_id, role),
+  foreign key (organization_id, user_id)
+    references organization_member (organization_id, user_id) on delete cascade
+);
+
+alter table default_team_member enable row level security;
+
+create index default_team_member_user_idx on default_team_member (user_id);
+
 -- Access helpers: the one place access is decided, used by every policy.
 -- security definer so they can read organization_member and
 -- league_team_member without tripping their own RLS; they live in
@@ -498,6 +517,49 @@ create policy "Admins can end league team entries"
 
 revoke delete, truncate on league_team_member from anon, authenticated;
 
+-- Only Admins see or change the Default team. Changing a Role is adding or
+-- removing a row, so there's no update.
+create policy "Admins can read their organizations' default teams"
+  on default_team_member for select
+  to authenticated
+  using (private.is_org_member(organization_id, as_admin => true));
+
+create policy "Admins can add to default teams"
+  on default_team_member for insert
+  to authenticated
+  with check (private.is_org_member(organization_id, as_admin => true));
+
+create policy "Admins can remove from default teams"
+  on default_team_member for delete
+  to authenticated
+  using (private.is_org_member(organization_id, as_admin => true));
+
+revoke update, truncate on default_team_member from anon, authenticated;
+
+-- A new League's team starts as a copy of its Organization's Default team.
+-- security definer so the copy doesn't depend on the creator's own access
+-- to either team; the League insert itself is still checked by RLS. Each
+-- copied entry is written to the League's audit log like any other team
+-- change (audit_league_team_change, below).
+create function private.copy_default_team()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.league_team_member (league_id, user_id, role)
+  select new.id, d.user_id, d.role
+  from public.default_team_member d
+  where d.organization_id = new.organization_id;
+  return null;
+end;
+$$;
+
+create trigger league_copy_default_team
+  after insert on league
+  for each row execute function private.copy_default_team();
+
 create policy "Authenticated users can read points table"
   on points_table for select
   to authenticated
@@ -645,21 +707,27 @@ create trigger run_result_set_organization
 create index run_result_run_heat_idx
   on run_result (league_id, run_heat);
 
+-- Most audit rows are about one League. Changes to the Organization itself,
+-- such as its Default team, belong to no League and name the Organization
+-- instead; a row names exactly one of the two.
 create table audit_log (
   id uuid primary key default gen_random_uuid(),
-  league_id integer not null references league (id),
+  league_id integer references league (id),
+  organization_id integer references organization (id),
   at timestamptz not null default now(),
   actor text not null,
   entity text not null,
   action text not null,
   before jsonb,
   after jsonb,
-  reason text
+  reason text,
+  check ((league_id is null) <> (organization_id is null))
 );
 
 alter table audit_log enable row level security;
 
 create index audit_log_league_idx on audit_log (league_id);
+create index audit_log_organization_idx on audit_log (organization_id);
 
 -- Captures are added and voided (the phones sync by upsert, so both insert
 -- and update), never deleted. A capture is added if its author held the
@@ -819,11 +887,56 @@ create trigger league_team_member_audit
   after insert or update on league_team_member
   for each row execute function private.audit_league_team_change();
 
--- Nothing edits or removes an audit row once it's written.
+-- Default team changes go to the Organization's audit log, for the same
+-- reasons as League team changes above.
+create function private.audit_default_team_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  changed public.default_team_member;
+  team_entry jsonb;
+  actor text := coalesce((select auth.jwt() ->> 'email'), 'unknown');
+begin
+  if tg_op = 'INSERT' then
+    changed := new;
+  else
+    changed := old;
+  end if;
+  team_entry := jsonb_build_object(
+    'user_id', changed.user_id,
+    'email', (select email from auth.users where id = changed.user_id),
+    'role', changed.role
+  );
+
+  if tg_op = 'INSERT' then
+    insert into public.audit_log (organization_id, actor, entity, action, after)
+    values (changed.organization_id, actor, 'default_team', 'add-role', team_entry);
+  else
+    insert into public.audit_log (organization_id, actor, entity, action, before)
+    values (changed.organization_id, actor, 'default_team', 'remove-role', team_entry);
+  end if;
+  return null;
+end;
+$$;
+
+create trigger default_team_member_audit
+  after insert or delete on default_team_member
+  for each row execute function private.audit_default_team_change();
+
+-- Nothing edits or removes an audit row once it's written. A League's rows
+-- are read by its Officials, and an Organization's own rows by its Admins.
 create policy "Officials can read their leagues' audit log"
   on audit_log for select
   to authenticated
   using (private.has_league_role(league_id, 'official'));
+
+create policy "Admins can read their organizations' audit log"
+  on audit_log for select
+  to authenticated
+  using (private.is_org_member(organization_id, as_admin => true));
 
 create policy "Officials can write their leagues' audit log"
   on audit_log for insert
