@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  authorOffTeamChecks,
   buildWorkingRows,
   capturedAfterCloseChecks,
   computeAutomaticChecks,
@@ -419,6 +420,69 @@ describe("capturedAfterCloseChecks", () => {
       times: [
         { seq: 1, capturedAt: "2026-09-28T10:16:00.000Z", voided: false },
       ],
+    });
+    expect(checks).toEqual([]);
+  });
+});
+
+describe("authorOffTeamChecks", () => {
+  const onTeam = new Set(["still-on"]);
+
+  it("flags captures whose author is no longer on the League team", () => {
+    const checks = authorOffTeamChecks({
+      onTeam,
+      positions: [
+        { position: 4, athleteNo: 7409, authorId: "removed", voided: false },
+        { position: 5, athleteNo: null, authorId: "removed", voided: false },
+      ],
+      times: [{ seq: 4, authorId: "removed", voided: false }],
+    });
+    expect(checks).toEqual([
+      {
+        kind: "author-off-team",
+        message:
+          "Position #4 (athlete 7409) was captured by someone no longer on the League team.",
+      },
+      {
+        kind: "author-off-team",
+        message:
+          "Position #5 (skip) was captured by someone no longer on the League team.",
+      },
+      {
+        kind: "author-off-team",
+        message:
+          "Time #4 was captured by someone no longer on the League team.",
+      },
+    ]);
+  });
+
+  it("does not flag captures by someone still on the team", () => {
+    const checks = authorOffTeamChecks({
+      onTeam,
+      positions: [
+        { position: 1, athleteNo: 7409, authorId: "still-on", voided: false },
+      ],
+      times: [{ seq: 1, authorId: "still-on", voided: false }],
+    });
+    expect(checks).toEqual([]);
+  });
+
+  it("does not flag captures with no author, made before authors were recorded", () => {
+    const checks = authorOffTeamChecks({
+      onTeam,
+      positions: [
+        { position: 1, athleteNo: 7409, authorId: null, voided: false },
+      ],
+      times: [{ seq: 1, authorId: null, voided: false }],
+    });
+    expect(checks).toEqual([]);
+  });
+
+  it("does not flag voided captures", () => {
+    const checks = authorOffTeamChecks({
+      onTeam,
+      positions: [],
+      times: [{ seq: 1, authorId: "removed", voided: true }],
     });
     expect(checks).toEqual([]);
   });

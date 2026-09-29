@@ -1,9 +1,14 @@
 import Dexie, { type EntityTable } from "dexie";
 
+import { pushRows } from "@/lib/offline/push-rows";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
 
-type OperatorNoteRow = Database["public"]["Tables"]["operator_note"]["Row"];
+// author_id is left out: the database always sets it from the session.
+type OperatorNoteRow = Omit<
+  Database["public"]["Tables"]["operator_note"]["Row"],
+  "author_id"
+>;
 
 /** Local mirror of operator_note, plus a sync flag. Notes are append-only —
  * unlike the capture queues there is no void path, so `synced` is the only
@@ -80,13 +85,12 @@ export async function syncPendingNotes(): Promise<void> {
     // ignoreDuplicates, not a merge: a note already on the server is the
     // same note (same ULID) and is never edited, so there is nothing to
     // overwrite — and the table grants no UPDATE to an operator anyway.
-    const { error } = await supabase
-      .from("operator_note")
-      .upsert(rows, { ignoreDuplicates: true });
-    if (error) return;
+    const landed = await pushRows(rows, (batch) =>
+      supabase.from("operator_note").upsert(batch, { ignoreDuplicates: true }),
+    );
 
     await db.operator_notes.bulkUpdate(
-      pending.map((row) => ({ key: row.id, changes: { synced: 1 } })),
+      [...landed].map((id) => ({ key: id, changes: { synced: 1 } })),
     );
   } finally {
     syncing = false;

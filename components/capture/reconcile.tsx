@@ -30,6 +30,7 @@ import { OPEN_HEAT, type HeatClosed } from "@/lib/capture/heat-closed";
 import { useHeatClosed } from "@/components/capture/use-heat-closed";
 import {
   buildWorkingRows,
+  authorOffTeamChecks,
   capturedAfterCloseChecks,
   computeAutomaticChecks,
   mismatchFor,
@@ -66,6 +67,7 @@ export interface RemotePositionCapture {
   void_reason: string | null;
   scanned_at: string;
   device_id: string;
+  author_id: string | null;
 }
 
 export interface RemoteTimeCapture {
@@ -77,6 +79,7 @@ export interface RemoteTimeCapture {
   void_reason: string | null;
   captured_at: string;
   device_id: string;
+  author_id: string | null;
 }
 
 export interface RemoteRunResult {
@@ -142,6 +145,7 @@ export function Reconcile({
   remoteNotes,
   remoteHeatClosed,
   duplicateRunResults,
+  onTeam,
 }: {
   leagueId: number;
   leagueName: string;
@@ -158,6 +162,9 @@ export function Reconcile({
   /** Undefined when the page couldn't read it; the phone's copy is used. */
   remoteHeatClosed: HeatClosed | undefined;
   duplicateRunResults: { athlete_no: number; run_heat: number }[];
+  /** Members still on the League team, by user id, Admins included. Undefined when
+   * the page couldn't read them, and then nothing is flagged. */
+  onTeam: string[] | undefined;
 }) {
   const rosterByNo = useMemo(() => {
     const map = new Map<number, string>();
@@ -367,6 +374,24 @@ export function Reconcile({
           voided: c.voided,
         })),
       }),
+      // A capture its author made before leaving the League team is kept,
+      // and flagged here like one made after the heat closed (#36).
+      ...(onTeam
+        ? authorOffTeamChecks({
+            onTeam: new Set(onTeam),
+            positions: remotePositionCaptures.map((c) => ({
+              position: c.position,
+              athleteNo: c.athlete_no,
+              authorId: c.author_id,
+              voided: c.voided,
+            })),
+            times: remoteTimeCaptures.map((c) => ({
+              seq: c.seq,
+              authorId: c.author_id,
+              voided: c.voided,
+            })),
+          })
+        : []),
     ],
     [
       roster.length,
@@ -376,6 +401,7 @@ export function Reconcile({
       closed.closedAt,
       remotePositionCaptures,
       remoteTimeCaptures,
+      onTeam,
     ],
   );
 

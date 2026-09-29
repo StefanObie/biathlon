@@ -267,6 +267,7 @@ export type Database = {
       operator_note: {
         Row: {
           anchor: number;
+          author_id: string | null;
           body: string;
           created_at: string;
           device_id: string;
@@ -277,6 +278,7 @@ export type Database = {
         };
         Insert: {
           anchor: number;
+          author_id?: string | null;
           body: string;
           created_at: string;
           device_id: string;
@@ -287,6 +289,7 @@ export type Database = {
         };
         Update: {
           anchor?: number;
+          author_id?: string | null;
           body?: string;
           created_at?: string;
           device_id?: string;
@@ -400,6 +403,7 @@ export type Database = {
       position_capture: {
         Row: {
           athlete_no: number | null;
+          author_id: string | null;
           device_id: string;
           id: string;
           league_id: number;
@@ -412,6 +416,7 @@ export type Database = {
         };
         Insert: {
           athlete_no?: number | null;
+          author_id?: string | null;
           device_id: string;
           id: string;
           league_id: number;
@@ -424,6 +429,7 @@ export type Database = {
         };
         Update: {
           athlete_no?: number | null;
+          author_id?: string | null;
           device_id?: string;
           id?: string;
           league_id?: number;
@@ -579,6 +585,7 @@ export type Database = {
       };
       time_capture: {
         Row: {
+          author_id: string | null;
           captured_at: string;
           device_id: string;
           elapsed_time: string;
@@ -591,6 +598,7 @@ export type Database = {
           voided: boolean;
         };
         Insert: {
+          author_id?: string | null;
           captured_at: string;
           device_id: string;
           elapsed_time: string;
@@ -603,6 +611,7 @@ export type Database = {
           voided?: boolean;
         };
         Update: {
+          author_id?: string | null;
           captured_at?: string;
           device_id?: string;
           elapsed_time?: string;

@@ -46,6 +46,7 @@ async function ReconcileHeatSection({
     { data: notes },
     { data: leagueRace, error: leagueRaceError },
     { data: league },
+    { data: team },
   ] = await Promise.all([
     // Whole league, not just this heat: reassigning an athlete or logging
     // one who ran outside their assigned heat (§4.5) needs to search past
@@ -57,7 +58,7 @@ async function ReconcileHeatSection({
     supabase
       .from("position_capture")
       .select(
-        "id, position, athlete_no, voided, void_reason, scanned_at, device_id",
+        "id, position, athlete_no, voided, void_reason, scanned_at, device_id, author_id",
       )
       .eq("league_id", leagueIdNum)
       .eq("run_heat", runHeatNum)
@@ -65,7 +66,7 @@ async function ReconcileHeatSection({
     supabase
       .from("time_capture")
       .select(
-        "id, seq, elapsed_time, is_placeholder, voided, void_reason, captured_at, device_id",
+        "id, seq, elapsed_time, is_placeholder, voided, void_reason, captured_at, device_id, author_id",
       )
       .eq("league_id", leagueIdNum)
       .eq("run_heat", runHeatNum)
@@ -99,8 +100,28 @@ async function ReconcileHeatSection({
       .eq("league_id", leagueIdNum)
       .eq("run_heat", runHeatNum)
       .maybeSingle(),
-    supabase.from("league").select("name").eq("id", leagueIdNum).maybeSingle(),
+    supabase
+      .from("league")
+      .select("name, organization_id")
+      .eq("id", leagueIdNum)
+      .maybeSingle(),
+    supabase
+      .from("league_team_member")
+      .select("user_id")
+      .eq("league_id", leagueIdNum)
+      .is("ended_at", null),
   ]);
+
+  // Who can still capture on the League, to flag captures by anyone who
+  // has since left its team (#36): the team, and the Organization's Admins.
+  const { data: admins } = league
+    ? await supabase
+        .from("organization_member")
+        .select("user_id")
+        .eq("organization_id", league.organization_id)
+        .eq("is_admin", true)
+    : { data: [] };
+  const onTeam = [...(team ?? []), ...(admins ?? [])].map((m) => m.user_id);
 
   if (entriesError) {
     return <p className="text-sm text-destructive">{entriesError.message}</p>;
@@ -143,6 +164,7 @@ async function ReconcileHeatSection({
       remoteNotes={notes ?? []}
       remoteHeatClosed={leagueRaceError ? undefined : toHeatClosed(leagueRace)}
       duplicateRunResults={leagueRunResults ?? []}
+      onTeam={team && admins ? onTeam : undefined}
     />
   );
 }
