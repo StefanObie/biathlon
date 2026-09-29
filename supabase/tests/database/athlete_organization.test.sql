@@ -24,6 +24,10 @@ insert into league (id, name, league_date, season, organization_id) overriding s
   (901, 'League A', '2026-01-01', 2026, 901),
   (902, 'League B', '2026-01-01', 2026, 902);
 
+insert into league_team_member (league_id, user_id, role) values
+  (901, '00000000-0000-0000-0000-00000000000a', 'official'),
+  (902, '00000000-0000-0000-0000-00000000000b', 'official');
+
 select lives_ok(
   $$
     insert into athlete (organization_id, athlete_no, full_name, gender) values
@@ -80,7 +84,7 @@ select throws_ok(
 );
 
 ---------------------------------------------------------------------------
--- A Member of A sees only A's athletes.
+-- An Official of A sees only A's athletes.
 ---------------------------------------------------------------------------
 
 set local role authenticated;

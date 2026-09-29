@@ -37,7 +37,9 @@ async function LeagueHeader({
     .eq("id", leagueIdNum)
     .maybeSingle();
 
-  if (!league) notFound();
+  // Hidden by RLS from anyone not on the League's team; the page below
+  // shows them "no access".
+  if (!league) return null;
 
   return (
     <div>

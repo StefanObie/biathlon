@@ -12,9 +12,14 @@
 --   Heat 3: start list only, not started, for trying the capture screens.
 --
 -- League 1 belongs to Gauteng North Biathlon, which the organizations
--- migration creates. admin@example.com is seeded as its Admin, so signing in
--- locally with that email (the code arrives in Mailpit) shows League 1; any
--- other email signs in to an account with no Organization and sees no
+-- migration creates. Sign in locally with one of these emails (the code
+-- arrives in Mailpit) to see League 1 as that Role:
+--
+--   admin@example.com       Admin of the Organization
+--   timekeeper@example.com  Timekeeper on League 1's team
+--   placer@example.com      Placer on League 1's team
+--
+-- Any other email signs in to an account with no Organization and sees no
 -- leagues.
 
 insert into athlete (organization_id, athlete_no, full_name, gender)
@@ -55,30 +60,63 @@ insert into auth.users (
   instance_id, id, aud, role, email, email_confirmed_at,
   raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
   confirmation_token, recovery_token, email_change_token_new, email_change
-) values (
-  '00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-0000000000a1',
-  'authenticated', 'authenticated', 'admin@example.com', now(),
-  '{"provider": "email", "providers": ["email"]}', '{}', now(), now(),
-  '', '', '', ''
-);
+) values
+  (
+    '00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-0000000000a1',
+    'authenticated', 'authenticated', 'admin@example.com', now(),
+    '{"provider": "email", "providers": ["email"]}', '{}', now(), now(),
+    '', '', '', ''
+  ),
+  (
+    '00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-0000000000a2',
+    'authenticated', 'authenticated', 'timekeeper@example.com', now(),
+    '{"provider": "email", "providers": ["email"]}', '{}', now(), now(),
+    '', '', '', ''
+  ),
+  (
+    '00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-0000000000a3',
+    'authenticated', 'authenticated', 'placer@example.com', now(),
+    '{"provider": "email", "providers": ["email"]}', '{}', now(), now(),
+    '', '', '', ''
+  );
 
 insert into auth.identities (
   provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
-) values (
-  '00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000a1',
-  '{"sub": "00000000-0000-0000-0000-0000000000a1", "email": "admin@example.com", "email_verified": true}',
-  'email', now(), now(), now()
-);
+) values
+  (
+    '00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000a1',
+    '{"sub": "00000000-0000-0000-0000-0000000000a1", "email": "admin@example.com", "email_verified": true}',
+    'email', now(), now(), now()
+  ),
+  (
+    '00000000-0000-0000-0000-0000000000a2', '00000000-0000-0000-0000-0000000000a2',
+    '{"sub": "00000000-0000-0000-0000-0000000000a2", "email": "timekeeper@example.com", "email_verified": true}',
+    'email', now(), now(), now()
+  ),
+  (
+    '00000000-0000-0000-0000-0000000000a3', '00000000-0000-0000-0000-0000000000a3',
+    '{"sub": "00000000-0000-0000-0000-0000000000a3", "email": "placer@example.com", "email_verified": true}',
+    'email', now(), now(), now()
+  );
 
 insert into organization_member (organization_id, user_id, is_admin)
-select id, '00000000-0000-0000-0000-0000000000a1', true
-from organization where name = 'Gauteng North Biathlon';
+select id, user_id::uuid, is_admin
+from organization, (values
+  ('00000000-0000-0000-0000-0000000000a1', true),
+  ('00000000-0000-0000-0000-0000000000a2', false),
+  ('00000000-0000-0000-0000-0000000000a3', false)
+) as v (user_id, is_admin)
+where name = 'Gauteng North Biathlon';
 
 insert into league (id, name, league_date, season, organization_id) overriding system value
 select 1, 'League 1', '2026-08-25', 2026, id
 from organization where name = 'Gauteng North Biathlon';
 
 select setval(pg_get_serial_sequence('league', 'id'), (select max(id) from league));
+
+insert into league_team_member (league_id, user_id, role) values
+  (1, '00000000-0000-0000-0000-0000000000a2', 'timekeeper'),
+  (1, '00000000-0000-0000-0000-0000000000a3', 'placer');
 
 insert into entry (league_id, athlete_no, run_heat, swim_heat, swim_lane, age_group_code) values
   (1, 101, 1, 1, 1, 'U13'),

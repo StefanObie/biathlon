@@ -31,6 +31,11 @@ insert into league (id, name, league_date, season, organization_id) overriding s
   (901, 'League A', '2026-01-01', 2026, 901),
   (902, 'League B', '2026-01-01', 2026, 902);
 
+-- Since #32 a Member needs a Role on a League's team to use it.
+insert into league_team_member (league_id, user_id, role) values
+  (901, '00000000-0000-0000-0000-0000000000aa', 'official'),
+  (902, '00000000-0000-0000-0000-00000000000b', 'official');
+
 insert into athlete (organization_id, athlete_no, full_name, gender) values
   (901, 9001, 'Test Athlete', 'M'),
   (902, 9001, 'Test Athlete', 'M');
@@ -184,7 +189,7 @@ select results_eq(
       (select voided from position_capture where id = 'pc-a'),
       (select status from run_result where league_id = 901),
       (select status from swim_result where league_id = 901),
-      (select reason is null from audit_log where league_id = 901)
+      (select reason is null from audit_log where league_id = 901 and entity = 'league_race')
   $$,
   $$ values ('League A', 1, true, false, false, 'ok', 'ok', true) $$,
   'B''s updates and deletes left A''s data untouched'
@@ -211,7 +216,7 @@ select is_empty($$ select 1 from audit_log $$, 'no membership: no audit log');
 select isnt_empty($$ select 1 from points_table $$, 'no membership: the points table is still readable');
 
 ---------------------------------------------------------------------------
--- A Member of Organization A (not an Admin) works on A's League.
+-- An Official of Organization A (not an Admin) works on A's League.
 ---------------------------------------------------------------------------
 
 set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000000aa", "role": "authenticated"}';

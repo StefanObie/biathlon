@@ -4,6 +4,9 @@ import { notFound } from "next/navigation";
 import { heatRosterSize } from "@/lib/capture/screen-state";
 import { toHeatClosed } from "@/lib/capture/heat-closed";
 import { createClient } from "@/lib/supabase/server";
+import { canUse, heatModes } from "@/lib/access/roles";
+import { getLeagueAccess } from "@/lib/access/league-access";
+import { NoAccess } from "@/components/leagues/no-access";
 import { TimeCapture } from "@/components/capture/time-capture";
 
 export default function TimerHeatPage({
@@ -29,6 +32,9 @@ async function TimerHeatSection({
   if (!Number.isInteger(leagueIdNum) || !Number.isInteger(runHeatNum)) {
     notFound();
   }
+
+  const access = await getLeagueAccess(leagueIdNum);
+  if (!access || !canUse(access, "timer")) return <NoAccess />;
 
   const supabase = await createClient();
 
@@ -79,6 +85,7 @@ async function TimerHeatSection({
       leagueId={leagueIdNum}
       leagueName={league?.name ?? `League ${leagueIdNum}`}
       runHeat={runHeatNum}
+      modes={heatModes(access)}
       heats={heats}
       rosterSize={rosterSize}
       remoteCaptures={captures ?? []}

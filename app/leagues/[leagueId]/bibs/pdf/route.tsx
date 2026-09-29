@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 
 import { createClient } from "@/lib/supabase/server";
+import { canUse } from "@/lib/access/roles";
+import { getLeagueAccess } from "@/lib/access/league-access";
 import { BibsDocument } from "@/lib/pdf/bib-document";
 
 // Node.js is the only runtime under Cache Components (Edge is deprecated
@@ -18,6 +20,11 @@ export async function GET(
   const leagueIdNum = Number(leagueId);
   if (!Number.isInteger(leagueIdNum)) {
     return NextResponse.json({ error: "Invalid league id" }, { status: 400 });
+  }
+
+  const access = await getLeagueAccess(leagueIdNum);
+  if (!access || !canUse(access, "start-list")) {
+    return NextResponse.json({ error: "No access" }, { status: 403 });
   }
 
   const supabase = await createClient();

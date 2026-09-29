@@ -51,6 +51,7 @@ import {
 } from "@/components/capture/athlete-combobox";
 import { RowInsertDivider } from "@/components/capture/row-insert-divider";
 import { HeatContextBar } from "@/components/leagues/heat-context-bar";
+import type { HeatMode } from "@/lib/access/roles";
 
 export interface RemotePositionCapture {
   id: string;
@@ -126,6 +127,7 @@ export function Reconcile({
   leagueId,
   leagueName,
   runHeat,
+  modes,
   heats,
   roster,
   leagueRoster,
@@ -139,6 +141,8 @@ export function Reconcile({
   leagueId: number;
   leagueName: string;
   runHeat: number;
+  /** The heat screens this Member can switch to. */
+  modes: HeatMode[];
   heats: number[];
   roster: RosterAthlete[];
   leagueRoster: RosterAthlete[];
@@ -659,6 +663,7 @@ export function Reconcile({
         leagueId={leagueId}
         leagueName={leagueName}
         mode="reconcile"
+        modes={modes}
         runHeat={runHeat}
         heats={heats}
       />

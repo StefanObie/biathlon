@@ -24,6 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { HeatContextBar } from "@/components/leagues/heat-context-bar";
+import type { HeatMode } from "@/lib/access/roles";
 import { FinishedCount } from "@/components/capture/finished-count";
 import { OperatorNotes } from "@/components/capture/operator-notes";
 import { HeatBanner } from "@/components/capture/heat-banner";
@@ -70,6 +71,7 @@ export function TimeCapture({
   leagueId,
   leagueName,
   runHeat,
+  modes,
   heats,
   rosterSize,
   remoteCaptures,
@@ -79,6 +81,8 @@ export function TimeCapture({
   leagueId: number;
   leagueName: string;
   runHeat: number;
+  /** The heat screens this Member can switch to. */
+  modes: HeatMode[];
   heats: number[];
   rosterSize: number;
   remoteCaptures: RemoteTimeCapture[];
@@ -450,6 +454,7 @@ export function TimeCapture({
         leagueId={leagueId}
         leagueName={leagueName}
         mode="timer"
+        modes={modes}
         runHeat={runHeat}
         heats={heats}
       />

@@ -3,6 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { canUse } from "@/lib/access/roles";
+import { getLeagueAccess } from "@/lib/access/league-access";
+import { NoAccess } from "@/components/leagues/no-access";
 
 export default function TimerHeatPickerPage({
   params,
@@ -22,6 +25,9 @@ async function HeatList({ params }: { params: Promise<{ leagueId: string }> }) {
   const { leagueId } = await params;
   const leagueIdNum = Number(leagueId);
   if (!Number.isInteger(leagueIdNum)) notFound();
+
+  const access = await getLeagueAccess(leagueIdNum);
+  if (!access || !canUse(access, "timer")) return <NoAccess />;
 
   const supabase = await createClient();
   const { data: entries, error } = await supabase

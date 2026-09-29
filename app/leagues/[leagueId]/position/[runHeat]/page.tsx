@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 
 import { toHeatClosed } from "@/lib/capture/heat-closed";
 import { createClient } from "@/lib/supabase/server";
+import { canUse, heatModes } from "@/lib/access/roles";
+import { getLeagueAccess } from "@/lib/access/league-access";
+import { NoAccess } from "@/components/leagues/no-access";
 import { PositionCapture } from "@/components/capture/position-capture";
 
 export default function PositionHeatPage({
@@ -28,6 +31,9 @@ async function PositionHeatSection({
   if (!Number.isInteger(leagueIdNum) || !Number.isInteger(runHeatNum)) {
     notFound();
   }
+
+  const access = await getLeagueAccess(leagueIdNum);
+  if (!access || !canUse(access, "position")) return <NoAccess />;
 
   const supabase = await createClient();
 
@@ -88,6 +94,7 @@ async function PositionHeatSection({
       leagueId={leagueIdNum}
       leagueName={league?.name ?? `League ${leagueIdNum}`}
       runHeat={runHeatNum}
+      modes={heatModes(access)}
       heats={heats}
       leagueRoster={leagueRoster}
       remoteCaptures={captures ?? []}

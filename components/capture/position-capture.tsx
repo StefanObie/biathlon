@@ -24,6 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { HeatContextBar } from "@/components/leagues/heat-context-bar";
+import type { HeatMode } from "@/lib/access/roles";
 import { captureScreenState, heatRosterSize } from "@/lib/capture/screen-state";
 import { getDeviceId } from "@/lib/offline/device-id";
 import { parseBibPayload } from "@/lib/scan/payload";
@@ -66,6 +67,7 @@ export function PositionCapture({
   leagueId,
   leagueName,
   runHeat,
+  modes,
   heats,
   leagueRoster,
   remoteCaptures,
@@ -74,6 +76,8 @@ export function PositionCapture({
   leagueId: number;
   leagueName: string;
   runHeat: number;
+  /** The heat screens this Member can switch to. */
+  modes: HeatMode[];
   heats: number[];
   leagueRoster: LeagueRosterAthlete[];
   remoteCaptures: RemoteCapture[];
@@ -430,6 +434,7 @@ export function PositionCapture({
         leagueId={leagueId}
         leagueName={leagueName}
         mode="position"
+        modes={modes}
         runHeat={runHeat}
         heats={heats}
       />

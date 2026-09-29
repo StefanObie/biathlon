@@ -2,6 +2,9 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { canUse } from "@/lib/access/roles";
+import { getLeagueAccess } from "@/lib/access/league-access";
+import { NoAccess } from "@/components/leagues/no-access";
 import {
   StartList,
   type StartListEntry,
@@ -29,6 +32,9 @@ async function StartListSection({
   const { leagueId } = await params;
   const leagueIdNum = Number(leagueId);
   if (!Number.isInteger(leagueIdNum)) notFound();
+
+  const access = await getLeagueAccess(leagueIdNum);
+  if (!access || !canUse(access, "start-list")) return <NoAccess />;
 
   const supabase = await createClient();
   const { data: entries, error } = await supabase

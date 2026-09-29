@@ -14,8 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-
-export type HeatMode = "timer" | "position" | "reconcile";
+import type { HeatMode } from "@/lib/access/roles";
 
 const MODE_LABEL: Record<HeatMode, string> = {
   timer: "Timer",
@@ -39,12 +38,15 @@ export function HeatContextBar({
   leagueId,
   leagueName,
   mode,
+  modes,
   runHeat,
   heats,
 }: {
   leagueId: number;
   leagueName: string;
   mode: HeatMode;
+  /** The modes this Member can use; the others aren't offered. */
+  modes: HeatMode[];
   runHeat: number;
   heats: number[];
 }) {
@@ -164,26 +166,28 @@ export function HeatContextBar({
               </div>
             </div>
 
-            <div>
-              <p className="mb-2 text-sm font-medium text-muted-foreground">
-                Mode
-              </p>
-              <div className="grid grid-cols-3 gap-2">
-                {(Object.keys(MODE_LABEL) as HeatMode[]).map((m) => (
-                  <Button
-                    key={m}
-                    variant={m === mode ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => {
-                      setOpen(false);
-                      router.push(`/leagues/${leagueId}/${m}/${runHeat}`);
-                    }}
-                  >
-                    {MODE_LABEL[m]}
-                  </Button>
-                ))}
+            {modes.length > 1 && (
+              <div>
+                <p className="mb-2 text-sm font-medium text-muted-foreground">
+                  Mode
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {modes.map((m) => (
+                    <Button
+                      key={m}
+                      variant={m === mode ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setOpen(false);
+                        router.push(`/leagues/${leagueId}/${m}/${runHeat}`);
+                      }}
+                    >
+                      {MODE_LABEL[m]}
+                    </Button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

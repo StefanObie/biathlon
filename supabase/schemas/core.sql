@@ -95,10 +95,96 @@ begin
 end;
 $$;
 
+-- League teams (#32). A Member has no access to a League unless they're on
+-- its team or are an Admin of its Organization. Each row is one Role held
+-- by one Member; a Member holding several Roles has several rows. Removing
+-- a Role ends its row (ended_at) rather than deleting it, so the team's
+-- history is kept, and a row once ended stays ended: giving the Role back
+-- adds a new row. Admin isn't a team Role — it's organization_member.is_admin.
+create type league_role as enum ('official', 'timekeeper', 'placer');
+
+-- organization_id is copied from the League by set_organization_from_league
+-- (below), so the foreign key to organization_member only lets the League's
+-- own Organization's Members on its team.
+create table league_team_member (
+  id integer primary key generated always as identity,
+  league_id integer not null references league (id),
+  organization_id integer not null default 0,
+  user_id uuid not null,
+  role league_role not null,
+  started_at timestamptz not null default now(),
+  ended_at timestamptz,
+  check (ended_at is null or ended_at >= started_at),
+  foreign key (organization_id, user_id) references organization_member (organization_id, user_id)
+);
+
+alter table league_team_member enable row level security;
+
+-- One current entry per (League, Member, Role); ended ones pile up freely.
+create unique index league_team_member_current_idx
+  on league_team_member (league_id, user_id, role)
+  where ended_at is null;
+
+create index league_team_member_user_idx on league_team_member (user_id);
+
+create index league_team_member_member_idx
+  on league_team_member (organization_id, user_id);
+
+-- Times on a team entry are when the database recorded them, whatever the
+-- writer sent, so an entry can't be backdated or start already ended, and
+-- once written it can only be ended.
+create function private.league_team_member_keeps_history()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if tg_op = 'INSERT' then
+    new.started_at := now();
+    new.ended_at := null;
+    return new;
+  end if;
+
+  if old.ended_at is not null
+    or new.league_id is distinct from old.league_id
+    or new.user_id is distinct from old.user_id
+    or new.role is distinct from old.role
+    or new.started_at is distinct from old.started_at
+  then
+    raise exception 'A league team entry can only be ended';
+  end if;
+  if new.ended_at is not null then
+    new.ended_at := now();
+  end if;
+  return new;
+end;
+$$;
+
+create trigger league_team_member_keeps_history
+  before insert or update on league_team_member
+  for each row execute function private.league_team_member_keeps_history();
+
+create trigger league_team_member_set_organization
+  before insert or update on league_team_member
+  for each row execute function private.set_organization_from_league();
+
 -- Access helpers: the one place access is decided, used by every policy.
--- security definer so they can read organization_member without tripping
--- its own RLS; they live in `private`, which the API doesn't expose, so
--- they can't be called as RPCs to probe other users' memberships.
+-- security definer so they can read organization_member and
+-- league_team_member without tripping their own RLS; they live in
+-- `private`, which the API doesn't expose, so they can't be called as RPCs
+-- to probe other users' memberships.
+
+-- The Role hierarchy below Admin: Official covers Timekeeper and Placer.
+-- A null `required` means any Role at all. (Admin covering Official is
+-- resolved by the helpers below, since it isn't a team Role.)
+create function private.role_covers(held league_role, required league_role)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select required is null or held = required or held = 'official';
+$$;
 
 -- Whether the current user is a Member of the Organization, or with
 -- as_admin, an Admin of it.
@@ -117,25 +203,81 @@ as $$
   );
 $$;
 
--- Interim rule until per-League Roles arrive: any Member of the League's
--- Organization has full access to the League. False for a League that
+-- Whether the current user holds at least min_role on the League: an
+-- Admin of its Organization, or on its team with a Role that covers
+-- min_role. With no min_role, whether they hold any Role there, which is
+-- what it takes to read the League at all. False for a League that
 -- doesn't exist.
-create function private.can_access_league(target_league_id integer)
+create function private.has_league_role(
+  target_league_id integer,
+  min_role league_role default null
+)
 returns boolean
 language sql
 stable
 security definer
 set search_path = ''
 as $$
-  select coalesce(
-    (
-      select private.is_org_member(organization_id)
-      from public.league
-      where id = target_league_id
-    ),
-    false
+  select exists (
+    select 1 from public.league l
+    where l.id = target_league_id
+      and (
+        private.is_org_member(l.organization_id, as_admin => true)
+        or exists (
+          select 1 from public.league_team_member t
+          where t.league_id = l.id
+            and t.user_id = (select auth.uid())
+            and t.ended_at is null
+            and private.role_covers(t.role, min_role)
+        )
+      )
   );
 $$;
+
+-- Whether the current user holds at least min_role on any League of the
+-- Organization (or is its Admin). Athletes belong to the Organization
+-- rather than one League (ADR 0002), so this is what their rules use.
+create function private.has_org_role(
+  org_id integer,
+  min_role league_role default null
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select private.is_org_member(org_id, as_admin => true)
+    or exists (
+      select 1 from public.league_team_member t
+      where t.organization_id = org_id
+        and t.user_id = (select auth.uid())
+        and t.ended_at is null
+        and private.role_covers(t.role, min_role)
+    );
+$$;
+
+-- An Organization's Members with their emails, for its Admins to build
+-- League teams from. Emails live in auth.users, which the API can't read,
+-- so this is a security definer RPC that returns nothing to anyone but an
+-- Admin of the Organization.
+create function public.organization_members(org_id integer)
+returns table (user_id uuid, email text, is_admin boolean)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select m.user_id, u.email::text, m.is_admin
+  from public.organization_member m
+  join auth.users u on u.id = m.user_id
+  where m.organization_id = org_id
+    and private.is_org_member(org_id, as_admin => true)
+  order by u.email;
+$$;
+
+revoke execute on function public.organization_members(integer) from public, anon;
+grant execute on function public.organization_members(integer) to authenticated;
 
 -- age_group_code is intentionally not an FK to points_table: that table's key
 -- includes effective_from/gender, which entry doesn't carry. Validated at
@@ -183,17 +325,34 @@ create table points_table (
 alter table points_table enable row level security;
 
 -- No public-facing reads yet (that's Phase 4, §3/§6.1): anon stays
--- default-deny via RLS-enabled-with-no-anon-policy. Every league-scoped
--- table is open only to Members of the League's Organization
--- (private.can_access_league); the reference points table stays readable
--- by any signed-in user. Athletes are open to Members of their own
--- Organization.
+-- default-deny via RLS-enabled-with-no-anon-policy. League-scoped tables
+-- are readable by anyone holding a Role on the League, and writable by the
+-- Roles that use them (private.has_league_role): Timekeepers the Timer
+-- screen's tables, Placers the Position screen's, and Officials the rest.
+-- The reference points table stays readable by any signed-in user.
+-- Athletes belong to the Organization, so they follow Roles held on any of
+-- its Leagues (private.has_org_role).
 
-create policy "Members can manage their organizations' athletes"
-  on athlete for all
+create policy "Team members can read their organizations' athletes"
+  on athlete for select
   to authenticated
-  using (private.is_org_member(organization_id))
-  with check (private.is_org_member(organization_id));
+  using (private.has_org_role(organization_id));
+
+create policy "Officials can add athletes"
+  on athlete for insert
+  to authenticated
+  with check (private.has_org_role(organization_id, 'official'));
+
+create policy "Officials can update athletes"
+  on athlete for update
+  to authenticated
+  using (private.has_org_role(organization_id, 'official'))
+  with check (private.has_org_role(organization_id, 'official'));
+
+create policy "Officials can delete athletes"
+  on athlete for delete
+  to authenticated
+  using (private.has_org_role(organization_id, 'official'));
 
 create policy "Members can read their organizations"
   on organization for select
@@ -205,10 +364,10 @@ create policy "Members can read their organizations' memberships"
   to authenticated
   using (private.is_org_member(organization_id));
 
-create policy "Members can read their organizations' leagues"
+create policy "Team members can read their leagues"
   on league for select
   to authenticated
-  using (private.is_org_member(organization_id));
+  using (private.has_league_role(id));
 
 create policy "Admins can create leagues"
   on league for insert
@@ -226,11 +385,46 @@ create policy "Admins can delete leagues"
   to authenticated
   using (private.is_org_member(organization_id, as_admin => true));
 
-create policy "Members can manage their leagues' entries"
-  on entry for all
+create policy "Team members can read their leagues' entries"
+  on entry for select
   to authenticated
-  using (private.can_access_league(league_id))
-  with check (private.can_access_league(league_id));
+  using (private.has_league_role(league_id));
+
+create policy "Officials can add entries"
+  on entry for insert
+  to authenticated
+  with check (private.has_league_role(league_id, 'official'));
+
+create policy "Officials can update entries"
+  on entry for update
+  to authenticated
+  using (private.has_league_role(league_id, 'official'))
+  with check (private.has_league_role(league_id, 'official'));
+
+create policy "Officials can delete entries"
+  on entry for delete
+  to authenticated
+  using (private.has_league_role(league_id, 'official'));
+
+-- Admins manage every League team in their Organization. There's no
+-- delete: removing a Role ends its entry (see league_team_member above).
+create policy "Team members can read their leagues' teams"
+  on league_team_member for select
+  to authenticated
+  using (private.has_league_role(league_id));
+
+create policy "Admins can add to league teams"
+  on league_team_member for insert
+  to authenticated
+  with check (private.is_org_member(organization_id, as_admin => true));
+
+create policy "Admins can end league team entries"
+  on league_team_member for update
+  to authenticated
+  using (private.is_org_member(organization_id, as_admin => true))
+  with check (private.is_org_member(organization_id, as_admin => true));
+
+revoke delete, truncate on league_team_member from anon, authenticated;
 
 create policy "Authenticated users can read points table"
   on points_table for select
@@ -363,35 +557,132 @@ alter table audit_log enable row level security;
 
 create index audit_log_league_idx on audit_log (league_id);
 
-create policy "Members can manage their leagues' position captures"
-  on position_capture for all
+-- Captures are added and voided (the phones sync by upsert, so both insert
+-- and update), never deleted.
+create policy "Team members can read their leagues' position captures"
+  on position_capture for select
   to authenticated
-  using (private.can_access_league(league_id))
-  with check (private.can_access_league(league_id));
+  using (private.has_league_role(league_id));
 
-create policy "Members can manage their leagues' time captures"
-  on time_capture for all
+create policy "Placers can add position captures"
+  on position_capture for insert
   to authenticated
-  using (private.can_access_league(league_id))
-  with check (private.can_access_league(league_id));
+  with check (private.has_league_role(league_id, 'placer'));
 
-create policy "Members can manage their leagues' league races"
-  on league_race for all
+create policy "Placers can void position captures"
+  on position_capture for update
   to authenticated
-  using (private.can_access_league(league_id))
-  with check (private.can_access_league(league_id));
+  using (private.has_league_role(league_id, 'placer'))
+  with check (private.has_league_role(league_id, 'placer'));
 
-create policy "Members can manage their leagues' run results"
+create policy "Team members can read their leagues' time captures"
+  on time_capture for select
+  to authenticated
+  using (private.has_league_role(league_id));
+
+create policy "Timekeepers can add time captures"
+  on time_capture for insert
+  to authenticated
+  with check (private.has_league_role(league_id, 'timekeeper'));
+
+create policy "Timekeepers can void time captures"
+  on time_capture for update
+  to authenticated
+  using (private.has_league_role(league_id, 'timekeeper'))
+  with check (private.has_league_role(league_id, 'timekeeper'));
+
+-- Officials do anything to a heat. A Timekeeper starts, fills in and
+-- resets a heat's clock, but only while the heat is open, and can't set
+-- closed_at/closed_by: for a Timekeeper both the row before and the row
+-- after have to be open, so they can neither close nor reopen a heat.
+create policy "Team members can read their leagues' heats"
+  on league_race for select
+  to authenticated
+  using (private.has_league_role(league_id));
+
+create policy "Timekeepers can start heats, and Officials close them"
+  on league_race for insert
+  to authenticated
+  with check (
+    private.has_league_role(league_id, 'official')
+    or (
+      private.has_league_role(league_id, 'timekeeper')
+      and closed_at is null and closed_by is null
+    )
+  );
+
+create policy "Timekeepers can fill in open heats, and Officials close and reopen them"
+  on league_race for update
+  to authenticated
+  using (
+    private.has_league_role(league_id, 'official')
+    or (private.has_league_role(league_id, 'timekeeper') and closed_at is null)
+  )
+  with check (
+    private.has_league_role(league_id, 'official')
+    or (
+      private.has_league_role(league_id, 'timekeeper')
+      and closed_at is null and closed_by is null
+    )
+  );
+
+create policy "Timekeepers can reset open heats, and Officials any heat"
+  on league_race for delete
+  to authenticated
+  using (
+    private.has_league_role(league_id, 'official')
+    or (private.has_league_role(league_id, 'timekeeper') and closed_at is null)
+  );
+
+create policy "Officials can manage their leagues' run results"
   on run_result for all
   to authenticated
-  using (private.can_access_league(league_id))
-  with check (private.can_access_league(league_id));
+  using (private.has_league_role(league_id, 'official'))
+  with check (private.has_league_role(league_id, 'official'));
 
-create policy "Members can manage their leagues' audit log"
-  on audit_log for all
+-- League team changes are written to the audit log here, not by the app,
+-- so no change can skip it. security definer to read the Member's email
+-- from auth.users and to write audit_log whatever the writer's own Roles.
+create function private.audit_league_team_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  team_entry jsonb := jsonb_build_object(
+    'league_id', new.league_id,
+    'user_id', new.user_id,
+    'email', (select email from auth.users where id = new.user_id),
+    'role', new.role
+  );
+  actor text := coalesce((select auth.jwt() ->> 'email'), 'unknown');
+begin
+  if tg_op = 'INSERT' then
+    insert into public.audit_log (league_id, actor, entity, action, after)
+    values (new.league_id, actor, 'league_team', 'add-role', team_entry);
+  elsif old.ended_at is null and new.ended_at is not null then
+    insert into public.audit_log (league_id, actor, entity, action, before)
+    values (new.league_id, actor, 'league_team', 'remove-role', team_entry);
+  end if;
+  return null;
+end;
+$$;
+
+create trigger league_team_member_audit
+  after insert or update on league_team_member
+  for each row execute function private.audit_league_team_change();
+
+-- Nothing edits or removes an audit row once it's written.
+create policy "Officials can read their leagues' audit log"
+  on audit_log for select
   to authenticated
-  using (private.can_access_league(league_id))
-  with check (private.can_access_league(league_id));
+  using (private.has_league_role(league_id, 'official'));
+
+create policy "Officials can write their leagues' audit log"
+  on audit_log for insert
+  to authenticated
+  with check (private.has_league_role(league_id, 'official'));
 
 -- Phase 2 swim results (§4.6/§6.5). Unlike run_result, there is no capture
 -- stream to reconcile: the Time Drops export arrives complete, is parsed
@@ -446,11 +737,11 @@ create trigger swim_result_set_organization
 
 create index swim_result_heat_lane_idx on swim_result (league_id, heat, lane);
 
-create policy "Members can manage their leagues' swim results"
+create policy "Officials can manage their leagues' swim results"
   on swim_result for all
   to authenticated
-  using (private.can_access_league(league_id))
-  with check (private.can_access_league(league_id));
+  using (private.has_league_role(league_id, 'official'))
+  with check (private.has_league_role(league_id, 'official'));
 
 -- Operator notes (#19). Free text an operator writes on a capture screen to
 -- help reconciliation correct an error they saw happen.
@@ -486,15 +777,21 @@ create index operator_note_run_heat_idx
 -- not just in the client. RLS covers update and delete; it does not cover
 -- truncate, so that privilege is revoked outright — this is the one table
 -- whose whole point is that nothing already written can change.
-create policy "Members can read their leagues' operator notes"
+create policy "Team members can read their leagues' operator notes"
   on operator_note for select
   to authenticated
-  using (private.can_access_league(league_id));
+  using (private.has_league_role(league_id));
 
-create policy "Members can add operator notes to their leagues"
+-- A note is written on a capture screen, so it takes that screen's Role.
+create policy "Capture operators can add operator notes"
   on operator_note for insert
   to authenticated
-  with check (private.can_access_league(league_id));
+  with check (
+    case screen
+      when 'timer' then private.has_league_role(league_id, 'timekeeper')
+      when 'position' then private.has_league_role(league_id, 'placer')
+    end
+  );
 
 revoke update, delete, truncate on operator_note from anon, authenticated;
 

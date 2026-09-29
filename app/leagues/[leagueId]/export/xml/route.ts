@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
+import { canUse } from "@/lib/access/roles";
+import { getLeagueAccess } from "@/lib/access/league-access";
 import { buildResultsXml } from "@/lib/export/build-xml";
 import { getExportData } from "@/lib/export/query";
 
@@ -12,6 +14,11 @@ export async function GET(
   const leagueIdNum = Number(leagueId);
   if (!Number.isInteger(leagueIdNum)) {
     return NextResponse.json({ error: "Invalid league id" }, { status: 400 });
+  }
+
+  const access = await getLeagueAccess(leagueIdNum);
+  if (!access || !canUse(access, "export")) {
+    return NextResponse.json({ error: "No access" }, { status: 403 });
   }
 
   const supabase = await createClient();

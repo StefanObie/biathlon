@@ -2,6 +2,9 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { canUse } from "@/lib/access/roles";
+import { getLeagueAccess } from "@/lib/access/league-access";
+import { NoAccess } from "@/components/leagues/no-access";
 import {
   SwimImport,
   type ExistingSwimResult,
@@ -30,6 +33,9 @@ async function SwimImportSection({
   const { leagueId } = await params;
   const leagueIdNum = Number(leagueId);
   if (!Number.isInteger(leagueIdNum)) notFound();
+
+  const access = await getLeagueAccess(leagueIdNum);
+  if (!access || !canUse(access, "swim")) return <NoAccess />;
 
   const supabase = await createClient();
 

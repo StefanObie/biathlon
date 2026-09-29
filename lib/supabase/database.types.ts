@@ -219,6 +219,51 @@ export type Database = {
           },
         ];
       };
+      league_team_member: {
+        Row: {
+          ended_at: string | null;
+          id: number;
+          league_id: number;
+          organization_id: number;
+          role: Database["public"]["Enums"]["league_role"];
+          started_at: string;
+          user_id: string;
+        };
+        Insert: {
+          ended_at?: string | null;
+          id?: never;
+          league_id: number;
+          organization_id?: number;
+          role: Database["public"]["Enums"]["league_role"];
+          started_at?: string;
+          user_id: string;
+        };
+        Update: {
+          ended_at?: string | null;
+          id?: never;
+          league_id?: number;
+          organization_id?: number;
+          role?: Database["public"]["Enums"]["league_role"];
+          started_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "league_team_member_league_id_fkey";
+            columns: ["league_id"];
+            isOneToOne: false;
+            referencedRelation: "league";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "league_team_member_organization_id_user_id_fkey";
+            columns: ["organization_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "organization_member";
+            referencedColumns: ["organization_id", "user_id"];
+          },
+        ];
+      };
       operator_note: {
         Row: {
           anchor: number;
@@ -584,10 +629,18 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      organization_members: {
+        Args: { org_id: number };
+        Returns: {
+          email: string;
+          is_admin: boolean;
+          user_id: string;
+        }[];
+      };
     };
     Enums: {
       gender: "M" | "F";
+      league_role: "official" | "timekeeper" | "placer";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -719,6 +772,7 @@ export const Constants = {
   public: {
     Enums: {
       gender: ["M", "F"],
+      league_role: ["official", "timekeeper", "placer"],
     },
   },
 } as const;
