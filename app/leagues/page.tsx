@@ -3,19 +3,19 @@ import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
 import { CreateLeagueForm } from "@/components/leagues/create-league-form";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty";
 
 export default function LeaguesPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-bold mb-4">Leagues</h1>
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <h1 className="text-2xl font-bold">Leagues</h1>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/organizations/new">Create organization</Link>
+          </Button>
+        </div>
         <Suspense
           fallback={<p className="text-muted-foreground">Loading leagues…</p>}
         >
@@ -31,7 +31,9 @@ export default function LeaguesPage() {
 }
 
 // RLS limits both organizations and leagues to the Organizations the
-// user is a Member of, so this lists exactly what they can open.
+// user is a Member of, so this lists exactly what they can open. A user
+// with no Organization never gets here: the layout sends them to create
+// one.
 async function LeaguesList() {
   const supabase = await createClient();
   const { data: organizations, error } = await supabase
@@ -44,23 +46,14 @@ async function LeaguesList() {
     return <p className="text-sm text-destructive">{error.message}</p>;
   }
 
-  if (!organizations || organizations.length === 0) {
-    return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyTitle>No organizations yet</EmptyTitle>
-          <EmptyDescription>
-            Ask an organization&apos;s Admin to invite you.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    );
-  }
-
   return (
     <div className="flex flex-col gap-6">
       {organizations.map((organization) => (
-        <section key={organization.id} className="flex flex-col gap-2">
+        <section
+          key={organization.id}
+          id={`organization-${organization.id}`}
+          className="flex flex-col gap-2 scroll-mt-4"
+        >
           <h2 className="text-lg font-semibold">{organization.name}</h2>
           {organization.league.length === 0 ? (
             <p className="text-sm text-muted-foreground">No leagues yet.</p>

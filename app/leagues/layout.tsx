@@ -1,9 +1,6 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { Suspense } from "react";
 
-import { AuthButton } from "@/components/auth-button";
-import { ThemeSwitcher } from "@/components/theme-switcher";
+import { AppShell } from "@/components/app-shell";
 import { createClient } from "@/lib/supabase/server";
 
 // Auth-gates the whole /leagues subtree: the redirect decision itself needs
@@ -24,26 +21,15 @@ export default async function LeaguesLayout({
     redirect("/auth/login");
   }
 
-  return (
-    <main className="min-h-screen flex flex-col items-center">
-      <div className="flex-1 w-full flex flex-col items-center">
-        <nav className="w-full flex justify-center border-b border-b-foreground/10 h-14">
-          <div className="w-full max-w-5xl flex justify-between items-center px-5 text-sm">
-            <Link href="/leagues" className="font-semibold">
-              Crossland Biathlon
-            </Link>
-            <div className="flex items-center gap-2">
-              <ThemeSwitcher />
-              <Suspense>
-                <AuthButton />
-              </Suspense>
-            </div>
-          </div>
-        </nav>
-        <div className="flex-1 flex flex-col gap-4 w-full max-w-5xl p-5">
-          {children}
-        </div>
-      </div>
-    </main>
-  );
+  // Every League belongs to an Organization, so a user who belongs to none
+  // has nothing here yet: send them to create one (#30).
+  const { count } = await supabase
+    .from("organization_member")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", data.claims.sub);
+  if (count === 0) {
+    redirect("/organizations/new");
+  }
+
+  return <AppShell>{children}</AppShell>;
 }

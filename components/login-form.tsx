@@ -2,12 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import {
-  requestLogin,
-  requestSignup,
-  type RequestLoginState,
-  type RequestSignupState,
-} from "@/lib/auth/actions";
+import { requestOtp, type RequestOtpState } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -32,37 +27,29 @@ import {
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 
-const initialLoginState: RequestLoginState = {};
-const initialSignupState: RequestSignupState = {};
+const initialOtpState: RequestOtpState = {};
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
   const [email, setEmail] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"email" | "code">("email");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const [loginState, loginAction, loginPending] = useActionState(
-    requestLogin,
-    initialLoginState,
+  const [otpState, otpAction, otpPending] = useActionState(
+    requestOtp,
+    initialOtpState,
   );
-  const [signupState, signupAction, signupPending] = useActionState(
-    requestSignup,
-    initialSignupState,
-  );
-
-  const needsInviteCode = loginState.status === "needs_invite_code";
 
   useEffect(() => {
-    if (loginState.status === "otp_sent" || signupState.status === "otp_sent") {
+    if (otpState.status === "otp_sent") {
       setStep("code");
     }
-  }, [loginState.status, signupState.status]);
+  }, [otpState.status]);
 
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,7 +123,6 @@ export function LoginForm({
                       onClick={() => {
                         setStep("email");
                         setCode("");
-                        setInviteCode("");
                         setError(null);
                       }}
                     >
@@ -158,13 +144,11 @@ export function LoginForm({
         <CardHeader>
           <CardTitle className="text-2xl">Sign in</CardTitle>
           <CardDescription>
-            {needsInviteCode
-              ? "New account — enter your team's invite code to continue"
-              : "Enter your email below and we'll send you a sign-in OTP"}
+            Enter your email below and we&apos;ll send you a sign-in OTP
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={needsInviteCode ? signupAction : loginAction}>
+          <form action={otpAction}>
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
@@ -178,33 +162,14 @@ export function LoginForm({
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </Field>
-              {needsInviteCode && (
-                <Field>
-                  <FieldLabel htmlFor="inviteCode">Invite code</FieldLabel>
-                  <Input
-                    id="inviteCode"
-                    name="inviteCode"
-                    placeholder="Ask your league admin"
-                    required
-                    value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value)}
-                  />
-                </Field>
-              )}
-              {(loginState.error || signupState.error) && (
+              {otpState.error && (
                 <Field data-invalid>
-                  <FieldError>
-                    {loginState.error || signupState.error}
-                  </FieldError>
+                  <FieldError>{otpState.error}</FieldError>
                 </Field>
               )}
               <Field>
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={loginPending || signupPending}
-                >
-                  {needsInviteCode ? "Create account" : "Send sign-in OTP"}
+                <Button type="submit" className="w-full" disabled={otpPending}>
+                  Send sign-in OTP
                 </Button>
               </Field>
             </FieldGroup>

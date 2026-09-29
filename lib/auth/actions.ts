@@ -1,64 +1,24 @@
 "use server";
 
-import { env } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 
-export interface RequestLoginState {
-  status?: "otp_sent" | "needs_invite_code";
-  error?: string;
-}
-
-/**
- * Tries to send an OTP without creating a new account. GoTrue rejects this
- * with `otp_disabled` when the email has no existing user — that's the
- * signal to prompt for an invite code instead of silently signing anyone up.
- */
-export async function requestLogin(
-  _prevState: RequestLoginState,
-  formData: FormData,
-): Promise<RequestLoginState> {
-  const email = String(formData.get("email") ?? "").trim();
-  if (!email) {
-    return { error: "Email is required." };
-  }
-
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: { shouldCreateUser: false },
-  });
-
-  if (!error) {
-    return { status: "otp_sent" };
-  }
-  if (error.code === "otp_disabled") {
-    return { status: "needs_invite_code" };
-  }
-  return { error: error.message };
-}
-
-export interface RequestSignupState {
+export interface RequestOtpState {
   status?: "otp_sent";
   error?: string;
 }
 
 /**
- * Creates a new account, gated by a shared invite code distributed
- * out-of-band to the team (spec: operator accounts are provisioned, not
- * open self-signup).
+ * Emails a Sign-in OTP to any address, creating the account on first use.
+ * There's no invite code: a new user signs in and then creates their own
+ * Organization (#30), so an account alone grants no access to anything.
  */
-export async function requestSignup(
-  _prevState: RequestSignupState,
+export async function requestOtp(
+  _prevState: RequestOtpState,
   formData: FormData,
-): Promise<RequestSignupState> {
+): Promise<RequestOtpState> {
   const email = String(formData.get("email") ?? "").trim();
-  const inviteCode = String(formData.get("inviteCode") ?? "").trim();
-
   if (!email) {
     return { error: "Email is required." };
-  }
-  if (inviteCode !== env.INVITE_CODE) {
-    return { error: "Invalid invite code." };
   }
 
   const supabase = await createClient();
