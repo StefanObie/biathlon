@@ -19,6 +19,7 @@ export const ROLE_LABEL: Record<LeagueRole, string> = {
   official: "Official",
   timekeeper: "Timekeeper",
   placer: "Placer",
+  caller: "Caller",
 };
 
 /** What the signed-in Member holds on one League. */
@@ -48,15 +49,19 @@ const REQUIRED: Record<LeagueScreen, LeagueRole | "admin"> = {
   team: "admin",
 };
 
-/** Admin covers Official, and Official covers Timekeeper and Placer. */
-function covers(access: LeagueAccess, required: LeagueRole | "admin") {
+/** Whether the Member holds a Role covering `required`: Admin covers
+ * Official, and Official covers Timekeeper, Placer and Caller. */
+export function hasRole(
+  access: LeagueAccess,
+  required: LeagueRole | "admin",
+): boolean {
   if (access.isAdmin) return true;
   if (required === "admin") return false;
   return access.roles.some((role) => role === required || role === "official");
 }
 
 export function canUse(access: LeagueAccess, screen: LeagueScreen): boolean {
-  return covers(access, REQUIRED[screen]);
+  return hasRole(access, REQUIRED[screen]);
 }
 
 export type HeatMode = "timer" | "position" | "reconcile";

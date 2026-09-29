@@ -1,11 +1,28 @@
 import { describe, expect, it } from "vitest";
 
-import { canUse, heatModes, type LeagueAccess } from "./roles";
+import {
+  canUse,
+  hasRole,
+  heatModes,
+  ROLE_LABEL,
+  type LeagueAccess,
+} from "./roles";
 
 const timekeeper: LeagueAccess = { isAdmin: false, roles: ["timekeeper"] };
 const placer: LeagueAccess = { isAdmin: false, roles: ["placer"] };
+const caller: LeagueAccess = { isAdmin: false, roles: ["caller"] };
 const official: LeagueAccess = { isAdmin: false, roles: ["official"] };
 const admin: LeagueAccess = { isAdmin: true, roles: [] };
+
+// Every screen except the team, which only an Admin can use.
+const LEAGUE_SCREENS = [
+  "start-list",
+  "timer",
+  "position",
+  "reconcile",
+  "swim",
+  "export",
+] as const;
 
 describe("canUse", () => {
   it("lets a Timekeeper use the heat list and the Timer screen only", () => {
@@ -26,15 +43,15 @@ describe("canUse", () => {
     expect(canUse(placer, "export")).toBe(false);
   });
 
+  it("lets a Caller use none of the existing League screens", () => {
+    for (const screen of [...LEAGUE_SCREENS, "team"] as const) {
+      expect(canUse(caller, screen)).toBe(false);
+    }
+    expect(heatModes(caller)).toEqual([]);
+  });
+
   it("lets an Official use every League screen except the team", () => {
-    for (const screen of [
-      "start-list",
-      "timer",
-      "position",
-      "reconcile",
-      "swim",
-      "export",
-    ] as const) {
+    for (const screen of LEAGUE_SCREENS) {
       expect(canUse(official, screen)).toBe(true);
     }
     expect(canUse(official, "team")).toBe(false);
@@ -71,5 +88,30 @@ describe("heatModes", () => {
 
   it("offers an Official every heat screen", () => {
     expect(heatModes(official)).toEqual(["timer", "position", "reconcile"]);
+  });
+});
+
+describe("hasRole", () => {
+  it("covers Caller for a Caller, an Official and an Admin", () => {
+    expect(hasRole(caller, "caller")).toBe(true);
+    expect(hasRole(official, "caller")).toBe(true);
+    expect(hasRole(admin, "caller")).toBe(true);
+  });
+
+  it("doesn't cover Caller for a Timekeeper or a Placer", () => {
+    expect(hasRole(timekeeper, "caller")).toBe(false);
+    expect(hasRole(placer, "caller")).toBe(false);
+  });
+
+  it("doesn't let Caller cover any other Role", () => {
+    expect(hasRole(caller, "timekeeper")).toBe(false);
+    expect(hasRole(caller, "placer")).toBe(false);
+    expect(hasRole(caller, "official")).toBe(false);
+  });
+});
+
+describe("ROLE_LABEL", () => {
+  it("labels Caller", () => {
+    expect(ROLE_LABEL.caller).toBe("Caller");
   });
 });

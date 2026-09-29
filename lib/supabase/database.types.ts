@@ -641,7 +641,7 @@ export type Database = {
     };
     Enums: {
       gender: "M" | "F";
-      league_role: "official" | "timekeeper" | "placer";
+      league_role: "official" | "timekeeper" | "placer" | "caller";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -773,7 +773,7 @@ export const Constants = {
   public: {
     Enums: {
       gender: ["M", "F"],
-      league_role: ["official", "timekeeper", "placer"],
+      league_role: ["official", "timekeeper", "placer", "caller"],
     },
   },
 } as const;
