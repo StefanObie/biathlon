@@ -19,6 +19,7 @@ const LEAGUE_SCREENS = [
   "start-list",
   "timer",
   "position",
+  "call-room",
   "reconcile",
   "swim",
   "export",
@@ -43,11 +44,18 @@ describe("canUse", () => {
     expect(canUse(placer, "export")).toBe(false);
   });
 
-  it("lets a Caller use none of the existing League screens", () => {
-    for (const screen of [...LEAGUE_SCREENS, "team"] as const) {
+  it("lets a Caller use the Call room screen only", () => {
+    expect(canUse(caller, "call-room")).toBe(true);
+    for (const screen of LEAGUE_SCREENS.filter((s) => s !== "call-room")) {
       expect(canUse(caller, screen)).toBe(false);
     }
-    expect(heatModes(caller)).toEqual([]);
+    expect(canUse(caller, "team")).toBe(false);
+    expect(heatModes(caller)).toEqual(["call-room"]);
+  });
+
+  it("hides the Call room screen from a Timekeeper and a Placer", () => {
+    expect(canUse(timekeeper, "call-room")).toBe(false);
+    expect(canUse(placer, "call-room")).toBe(false);
   });
 
   it("lets an Official use every League screen except the team", () => {
@@ -87,7 +95,12 @@ describe("heatModes", () => {
   });
 
   it("offers an Official every heat screen", () => {
-    expect(heatModes(official)).toEqual(["timer", "position", "reconcile"]);
+    expect(heatModes(official)).toEqual([
+      "timer",
+      "position",
+      "call-room",
+      "reconcile",
+    ]);
   });
 });
 

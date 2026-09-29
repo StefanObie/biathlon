@@ -19,6 +19,7 @@ import type { HeatMode } from "@/lib/access/roles";
 const MODE_LABEL: Record<HeatMode, string> = {
   timer: "Timer",
   position: "Position",
+  "call-room": "Call room",
   reconcile: "Reconcile",
 };
 
@@ -171,7 +172,7 @@ export function HeatContextBar({
                 <p className="mb-2 text-sm font-medium text-muted-foreground">
                   Mode
                 </p>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {modes.map((m) => (
                     <Button
                       key={m}

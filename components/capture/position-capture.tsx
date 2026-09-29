@@ -318,7 +318,7 @@ export function PositionCapture({
 
   return (
     <div className="flex flex-col items-center gap-8">
-      <HeatBanner runHeat={runHeat} closed={locked} />
+      <HeatBanner runHeat={runHeat} closed={locked} screen="Position" />
 
       <div className="text-center">
         <p className="text-sm text-muted-foreground">

@@ -30,6 +30,13 @@ const SECTIONS: NavSection[] = [
     available: true,
   },
   {
+    screen: "call-room",
+    href: (id) => `/leagues/${id}/call-room`,
+    title: "Call room",
+    description: "Check in the athletes of each heat before it runs.",
+    available: true,
+  },
+  {
     screen: "timer",
     href: (id) => `/leagues/${id}/timer`,
     title: "Timer",
