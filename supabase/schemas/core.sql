@@ -399,10 +399,17 @@ create policy "Members can read their organizations' memberships"
   to authenticated
   using (private.is_org_member(organization_id));
 
+-- The Admin check reads the row's own organization_id rather than going
+-- through has_league_role, which looks the League up and so can't see a
+-- League inserted by the same statement: creating one and reading it back
+-- (insert ... returning) would otherwise fail.
 create policy "Team members can read their leagues"
   on league for select
   to authenticated
-  using (private.has_league_role(id));
+  using (
+    private.is_org_member(organization_id, as_admin => true)
+    or private.has_league_role(id)
+  );
 
 create policy "Admins can create leagues"
   on league for insert

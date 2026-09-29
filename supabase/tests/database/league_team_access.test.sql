@@ -9,7 +9,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(79);
+select plan(80);
 
 -- Fixtures, written as the table owner so RLS doesn't apply.
 
@@ -329,6 +329,11 @@ select results_eq(
   'an Admin closes a heat on any league'
 );
 select isnt_empty($$ select 1 from audit_log where league_id = 901 $$, 'an Admin reads the audit log');
+select results_eq(
+  $$ insert into league (name, league_date, season, organization_id) values ('League 3', '2026-03-01', 2026, 901) returning name $$,
+  $$ values ('League 3') $$,
+  'an Admin creates a league and reads it back in the same statement'
+);
 select results_eq(
   $$ select count(*)::int from organization_members(901) where email is not null $$,
   $$ values (8) $$,
