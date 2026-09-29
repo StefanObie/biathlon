@@ -1,9 +1,14 @@
 import Dexie, { type EntityTable } from "dexie";
 
+import { pushRows } from "@/lib/offline/push-rows";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
 
-type TimeCaptureRow = Database["public"]["Tables"]["time_capture"]["Row"];
+// author_id is left out: the database always sets it from the session.
+type TimeCaptureRow = Omit<
+  Database["public"]["Tables"]["time_capture"]["Row"],
+  "author_id"
+>;
 
 /** Local mirror of time_capture, plus a sync flag. Never mutate rows other
  * than to flip `synced` or set voided/void_reason — the same never-edit-a-
@@ -101,11 +106,12 @@ export async function syncPendingCaptures(): Promise<void> {
       voided: row.voided,
       void_reason: row.void_reason,
     }));
-    const { error } = await supabase.from("time_capture").upsert(rows);
-    if (error) return;
+    const landed = await pushRows(rows, (batch) =>
+      supabase.from("time_capture").upsert(batch),
+    );
 
     await db.time_captures.bulkUpdate(
-      pending.map((row) => ({ key: row.id, changes: { synced: 1 } })),
+      [...landed].map((id) => ({ key: id, changes: { synced: 1 } })),
     );
   } finally {
     syncing = false;

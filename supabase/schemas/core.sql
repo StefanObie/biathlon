@@ -234,6 +234,35 @@ as $$
   );
 $$;
 
+-- Whether the current user held at least min_role on the League at the
+-- instant `at`: holds it now (as has_league_role), or had a team entry
+-- covering min_role that had started by `at` and not yet ended. This is
+-- what a capture is judged by (#36): a phone that was offline syncs late,
+-- so a capture made while its Member held the Role is still accepted after
+-- they've been removed from the team, and one made after isn't. `at` is
+-- the capture's own time, which the phone reports.
+create function private.had_league_role(
+  target_league_id integer,
+  min_role league_role,
+  at timestamptz
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select private.has_league_role(target_league_id, min_role)
+    or exists (
+      select 1 from public.league_team_member t
+      where t.league_id = target_league_id
+        and t.user_id = (select auth.uid())
+        and t.started_at <= at
+        and t.ended_at > at
+        and private.role_covers(t.role, min_role)
+    );
+$$;
+
 -- Whether the current user holds at least min_role on any League of the
 -- Organization (or is its Admin). Athletes belong to the Organization
 -- rather than one League (ADR 0002), so this is what their rules use.
@@ -485,6 +514,28 @@ create policy "Authenticated users can read points table"
 -- (voided/void_reason) or overlay rows in run_result, never edits to the
 -- capture tables themselves.
 
+-- Every capture and operator note records its author (#36): the Member
+-- whose session wrote it, whatever the phone sent. Voiding a capture
+-- doesn't change who made it. Rows written before #36, and rows written
+-- without a session (seeding), have no author; RLS only lets a signed-in
+-- Member write, so everything written through the API has one. author_id
+-- has no foreign key to auth.users, so a capture outlives its author's
+-- account.
+create function private.set_author()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if tg_op = 'INSERT' then
+    new.author_id := (select auth.uid());
+  else
+    new.author_id := old.author_id;
+  end if;
+  return new;
+end;
+$$;
+
 create table position_capture (
   id text primary key,              -- ULID, client-generated (§5.8)
   league_id integer not null references league (id),
@@ -496,6 +547,7 @@ create table position_capture (
   scanned_at timestamptz not null,
   voided boolean not null default false,
   void_reason text,
+  author_id uuid,
   foreign key (organization_id, athlete_no) references athlete (organization_id, athlete_no)
 );
 
@@ -504,6 +556,10 @@ alter table position_capture enable row level security;
 create trigger position_capture_set_organization
   before insert or update on position_capture
   for each row execute function private.set_organization_from_league();
+
+create trigger position_capture_set_author
+  before insert or update on position_capture
+  for each row execute function private.set_author();
 
 create index position_capture_run_heat_idx
   on position_capture (league_id, run_heat);
@@ -518,10 +574,15 @@ create table time_capture (
   device_id text not null,
   captured_at timestamptz not null,
   voided boolean not null default false,
-  void_reason text
+  void_reason text,
+  author_id uuid
 );
 
 alter table time_capture enable row level security;
+
+create trigger time_capture_set_author
+  before insert or update on time_capture
+  for each row execute function private.set_author();
 
 create index time_capture_run_heat_idx
   on time_capture (league_id, run_heat);
@@ -600,38 +661,80 @@ alter table audit_log enable row level security;
 create index audit_log_league_idx on audit_log (league_id);
 
 -- Captures are added and voided (the phones sync by upsert, so both insert
--- and update), never deleted.
+-- and update), never deleted. A capture is added if its author held the
+-- Role when they made it (private.had_league_role), so one that syncs late
+-- from a phone that was offline isn't lost when its Member has since left
+-- the team. Voiding takes the Role now, or for the capture's own author
+-- the Role they held when they made it: a void made offline, or a push
+-- resent after its reply was lost, reaches the server as an update and
+-- mustn't be refused once they've left. Authors can read their own
+-- captures because the phones' upserts need the new row to be readable,
+-- and a removed Member can read nothing else of the League.
 create policy "Team members can read their leagues' position captures"
   on position_capture for select
   to authenticated
   using (private.has_league_role(league_id));
 
+create policy "Authors can read their own position captures"
+  on position_capture for select
+  to authenticated
+  using (author_id = (select auth.uid()));
+
 create policy "Placers can add position captures"
   on position_capture for insert
   to authenticated
-  with check (private.has_league_role(league_id, 'placer'));
+  with check (private.had_league_role(league_id, 'placer', scanned_at));
 
 create policy "Placers can void position captures"
   on position_capture for update
   to authenticated
-  using (private.has_league_role(league_id, 'placer'))
-  with check (private.has_league_role(league_id, 'placer'));
+  using (
+    private.has_league_role(league_id, 'placer')
+    or (
+      author_id = (select auth.uid())
+      and private.had_league_role(league_id, 'placer', scanned_at)
+    )
+  )
+  with check (
+    private.has_league_role(league_id, 'placer')
+    or (
+      author_id = (select auth.uid())
+      and private.had_league_role(league_id, 'placer', scanned_at)
+    )
+  );
 
 create policy "Team members can read their leagues' time captures"
   on time_capture for select
   to authenticated
   using (private.has_league_role(league_id));
 
+create policy "Authors can read their own time captures"
+  on time_capture for select
+  to authenticated
+  using (author_id = (select auth.uid()));
+
 create policy "Timekeepers can add time captures"
   on time_capture for insert
   to authenticated
-  with check (private.has_league_role(league_id, 'timekeeper'));
+  with check (private.had_league_role(league_id, 'timekeeper', captured_at));
 
 create policy "Timekeepers can void time captures"
   on time_capture for update
   to authenticated
-  using (private.has_league_role(league_id, 'timekeeper'))
-  with check (private.has_league_role(league_id, 'timekeeper'));
+  using (
+    private.has_league_role(league_id, 'timekeeper')
+    or (
+      author_id = (select auth.uid())
+      and private.had_league_role(league_id, 'timekeeper', captured_at)
+    )
+  )
+  with check (
+    private.has_league_role(league_id, 'timekeeper')
+    or (
+      author_id = (select auth.uid())
+      and private.had_league_role(league_id, 'timekeeper', captured_at)
+    )
+  );
 
 -- Officials do anything to a heat. A Timekeeper starts, fills in and
 -- resets a heat's clock, but only while the heat is open, and can't set
@@ -807,13 +910,18 @@ create table operator_note (
   screen text not null check (screen in ('timer', 'position')),
   body text not null check (body <> ''),
   device_id text not null,
-  created_at timestamptz not null
+  created_at timestamptz not null,
+  author_id uuid
 );
 
 alter table operator_note enable row level security;
 
 create index operator_note_run_heat_idx
   on operator_note (league_id, run_heat);
+
+create trigger operator_note_set_author
+  before insert on operator_note
+  for each row execute function private.set_author();
 
 -- Insert and select only, so the never-edit rule holds at the database and
 -- not just in the client. RLS covers update and delete; it does not cover
@@ -824,14 +932,21 @@ create policy "Team members can read their leagues' operator notes"
   to authenticated
   using (private.has_league_role(league_id));
 
--- A note is written on a capture screen, so it takes that screen's Role.
+-- For the phones' upserts, as with captures.
+create policy "Authors can read their own operator notes"
+  on operator_note for select
+  to authenticated
+  using (author_id = (select auth.uid()));
+
+-- A note is written on a capture screen, so it takes that screen's Role,
+-- held when the note was written, like a capture.
 create policy "Capture operators can add operator notes"
   on operator_note for insert
   to authenticated
   with check (
     case screen
-      when 'timer' then private.has_league_role(league_id, 'timekeeper')
-      when 'position' then private.has_league_role(league_id, 'placer')
+      when 'timer' then private.had_league_role(league_id, 'timekeeper', created_at)
+      when 'position' then private.had_league_role(league_id, 'placer', created_at)
     end
   );
 

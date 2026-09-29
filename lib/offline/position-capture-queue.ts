@@ -1,13 +1,15 @@
 import Dexie, { type EntityTable } from "dexie";
 
+import { pushRows } from "@/lib/offline/push-rows";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
 
-// organization_id is left out: the database always sets it from the league,
-// so the phone never needs to know it.
+// organization_id and author_id are left out: the database always sets
+// them, from the league and the session, so the phone never needs to know
+// them.
 type PositionCaptureRow = Omit<
   Database["public"]["Tables"]["position_capture"]["Row"],
-  "organization_id"
+  "organization_id" | "author_id"
 >;
 
 /** Local mirror of position_capture, plus a sync flag. Never mutate rows
@@ -105,13 +107,14 @@ export async function syncPendingCaptures(): Promise<void> {
       voided: row.voided,
       void_reason: row.void_reason,
     }));
-    const { error } = await supabase.from("position_capture").upsert(rows);
-    if (error) return;
+    const landed = await pushRows(rows, (batch) =>
+      supabase.from("position_capture").upsert(batch),
+    );
 
     // A row voided while the push was in flight (a Skip filled straight
     // after it was captured) must stay unsynced, or its void is never sent.
     await db.transaction("rw", db.position_captures, async () => {
-      for (const row of pending) {
+      for (const row of pending.filter((r) => landed.has(r.id))) {
         const current = await db.position_captures.get(row.id);
         if (current?.voided === row.voided) {
           await db.position_captures.update(row.id, { synced: 1 });

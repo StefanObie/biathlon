@@ -110,6 +110,10 @@ _Avoid_: Backfill, edit skip, replace
 **Finished count**:
 The number of finishers accounted for on a capture screen, shown against the heat roster size (e.g. 12 / 20). It includes Missed finishes and Skips, and it may exceed the roster size.
 
+**Author**:
+The Member whose session made a Capture or Operator note. A Capture is accepted if its Author held the Role when they made it, even if it syncs after they've left the League team; the reconcile screen flags it.
+_Avoid_: Operator (when you mean who made one particular Capture), owner
+
 **Operator note**:
 A free-text note an operator adds during capture. It is tied to the latest capture on its screen when it was written (or to the start of the heat, before the first finisher), and it is kept to help reconciliation correct errors.
 _Avoid_: Comment, annotation

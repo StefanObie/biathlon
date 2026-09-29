@@ -96,7 +96,8 @@ export interface AutomaticCheck {
     | "count-mismatch"
     | "not-on-roster"
     | "duplicate-heat"
-    | "captured-after-close";
+    | "captured-after-close"
+    | "author-off-team";
   message: string;
 }
 
@@ -184,6 +185,44 @@ export function capturedAfterCloseChecks({
     ...times.filter(isLate).map((t): AutomaticCheck => ({
       kind: "captured-after-close",
       message: `Time #${t.seq} was captured after heat closed.`,
+    })),
+  ];
+}
+
+/**
+ * Flags every active capture whose author is no longer on the League team
+ * (#36). A phone that was offline syncs late, and the database accepts a
+ * capture its author made while they held the Role, even after they've
+ * been removed; the official decides what it means. `onTeam` is everyone
+ * who can still capture on the League: its current team and its
+ * Organization's Admins. A capture with no author was made before authors
+ * were recorded, and isn't flagged.
+ */
+export function authorOffTeamChecks({
+  onTeam,
+  positions,
+  times,
+}: {
+  onTeam: Set<string>;
+  positions: {
+    position: number;
+    athleteNo: number | null;
+    authorId: string | null;
+    voided: boolean;
+  }[];
+  times: { seq: number; authorId: string | null; voided: boolean }[];
+}): AutomaticCheck[] {
+  const isOffTeam = (c: { authorId: string | null; voided: boolean }) =>
+    !c.voided && c.authorId !== null && !onTeam.has(c.authorId);
+
+  return [
+    ...positions.filter(isOffTeam).map((p): AutomaticCheck => ({
+      kind: "author-off-team",
+      message: `Position #${p.position} (${p.athleteNo === null ? "skip" : `athlete ${p.athleteNo}`}) was captured by someone no longer on the League team.`,
+    })),
+    ...times.filter(isOffTeam).map((t): AutomaticCheck => ({
+      kind: "author-off-team",
+      message: `Time #${t.seq} was captured by someone no longer on the League team.`,
     })),
   ];
 }
