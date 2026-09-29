@@ -46,6 +46,11 @@ import {
 } from "@/lib/capture/operator-note";
 import { placeNotes, type OperatorNote } from "@/lib/reconcile/notes";
 import {
+  fillToastMessage,
+  type PositionCaptureChange,
+} from "@/lib/reconcile/fill-toast";
+import { FILLED } from "@/lib/scan/position";
+import {
   AthleteCombobox,
   type AthleteOption,
 } from "@/components/capture/athlete-combobox";
@@ -163,6 +168,12 @@ export function Reconcile({
     () => new Set(roster.map((a) => a.athleteNo)),
     [roster],
   );
+  // Names across the whole league, so a Fill with an athlete from another
+  // heat is still named in its toast.
+  const leagueNames = useMemo(
+    () => new Map(leagueRoster.map((a) => [a.athleteNo, a.fullName])),
+    [leagueRoster],
+  );
   const athleteOptions: AthleteOption[] = useMemo(
     () =>
       leagueRoster.map((a) => ({
@@ -272,8 +283,25 @@ export function Reconcile({
             table: "position_capture",
             filter: `league_id=eq.${leagueId}`,
           },
-          () =>
-            toast.info("New position captures arrived — refresh to load them."),
+          (payload) => {
+            const row = payload.new as PositionCaptureChange;
+            // A Fill arrives as the Skip's void and the athlete's capture;
+            // the capture carries the toast, so the void stays quiet.
+            if (payload.eventType === "UPDATE" && row.void_reason === FILLED) {
+              return;
+            }
+            const fill =
+              payload.eventType === "INSERT"
+                ? fillToastMessage(row, {
+                    runHeat,
+                    known: remotePositionCaptures,
+                    names: leagueNames,
+                  })
+                : null;
+            toast.info(
+              fill ?? "New position captures arrived — refresh to load them.",
+            );
+          },
         )
         .on(
           "postgres_changes",
@@ -305,7 +333,7 @@ export function Reconcile({
       cancelled = true;
       if (channel) void supabase.removeChannel(channel);
     };
-  }, [leagueId, runHeat]);
+  }, [leagueId, runHeat, remotePositionCaptures, leagueNames]);
 
   const duplicateAthletes = useMemo(
     () =>

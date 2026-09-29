@@ -108,9 +108,16 @@ export async function syncPendingCaptures(): Promise<void> {
     const { error } = await supabase.from("position_capture").upsert(rows);
     if (error) return;
 
-    await db.position_captures.bulkUpdate(
-      pending.map((row) => ({ key: row.id, changes: { synced: 1 } })),
-    );
+    // A row voided while the push was in flight (a Skip filled straight
+    // after it was captured) must stay unsynced, or its void is never sent.
+    await db.transaction("rw", db.position_captures, async () => {
+      for (const row of pending) {
+        const current = await db.position_captures.get(row.id);
+        if (current?.voided === row.voided) {
+          await db.position_captures.update(row.id, { synced: 1 });
+        }
+      }
+    });
   } finally {
     syncing = false;
   }

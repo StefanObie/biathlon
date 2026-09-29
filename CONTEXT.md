@@ -103,6 +103,10 @@ _Avoid_: Missed one, placeholder press
 A position capture with no athlete, recorded when a finisher's bib can't be scanned in order. It marks a finisher whose identity is not yet known.
 _Avoid_: Gap (a gap is a reconciliation edit)
 
+**Fill**:
+Giving a Skip its athlete afterwards on the Position screen, once the Placer can identify them. The Skip is voided and the athlete is captured at the same position, so the positions after it stay as they are. Undoing a Fill turns the position back into a Skip.
+_Avoid_: Backfill, edit skip, replace
+
 **Finished count**:
 The number of finishers accounted for on a capture screen, shown against the heat roster size (e.g. 12 / 20). It includes Missed finishes and Skips, and it may exceed the roster size.
 

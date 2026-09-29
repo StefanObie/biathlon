@@ -28,7 +28,12 @@ import type { HeatMode } from "@/lib/access/roles";
 import { captureScreenState, heatRosterSize } from "@/lib/capture/screen-state";
 import { getDeviceId } from "@/lib/offline/device-id";
 import { parseBibPayload } from "@/lib/scan/payload";
-import { nextPosition } from "@/lib/scan/position";
+import {
+  FILLED,
+  nextPosition,
+  positionRowAction,
+  type PositionRowAction,
+} from "@/lib/scan/position";
 import { QrScanner } from "@/components/capture/qr-scanner";
 import { FinishedCount } from "@/components/capture/finished-count";
 import { OperatorNotes } from "@/components/capture/operator-notes";
@@ -90,9 +95,13 @@ export function PositionCapture({
   const [inputError, setInputError] = useState<string | null>(null);
   const [pendingOutOfHeat, setPendingOutOfHeat] =
     useState<LeagueRosterAthlete | null>(null);
-  const [pendingUndo, setPendingUndo] = useState<LocalPositionCapture | null>(
-    null,
-  );
+  const [pendingUndo, setPendingUndo] = useState<{
+    capture: LocalPositionCapture;
+    fill: boolean;
+  } | null>(null);
+  // The Skip being filled: the next athlete is captured at its position
+  // instead of the next one.
+  const [armedSkip, setArmedSkip] = useState<LocalPositionCapture | null>(null);
   const { closed } = useHeatClosed(leagueId, runHeat, remoteHeatClosed);
   const camera = useCameraSleep();
 
@@ -144,7 +153,7 @@ export function PositionCapture({
   const position = nextPosition(activePositions);
   const allCaptures = [...captures]
     .filter((c) => !c.voided)
-    .sort((a, b) => b.scanned_at.localeCompare(a.scanned_at));
+    .sort((a, b) => b.position - a.position);
   // The roster is this heat's slice of the league roster; athletes scanned
   // from another heat count as finishers but not towards the total.
   const rosterSize = heatRosterSize(
@@ -158,13 +167,20 @@ export function PositionCapture({
     startedAtMs: null,
   });
 
-  async function recordCapture(athleteNo: number | null) {
-    if (locked) return;
-    const row: LocalPositionCapture = {
+  // A heat closing disarms a Fill, so a later reopen can't silently send
+  // the next scan to an old position.
+  if (locked && armedSkip) setArmedSkip(null);
+  const filling = locked ? null : armedSkip;
+
+  function newCapture(
+    atPosition: number,
+    athleteNo: number | null,
+  ): LocalPositionCapture {
+    return {
       id: ulid(),
       league_id: leagueId,
       run_heat: runHeat,
-      position,
+      position: atPosition,
       athlete_no: athleteNo,
       device_id: getDeviceId(),
       scanned_at: new Date().toISOString(),
@@ -172,6 +188,38 @@ export function PositionCapture({
       void_reason: null,
       synced: false,
     };
+  }
+
+  // Voids one capture and records another at the same position, as a Fill
+  // or an Undo fill does. Captures are never edited (§1).
+  async function replaceCapture(
+    old: LocalPositionCapture,
+    voidReason: string,
+    athleteNo: number | null,
+  ) {
+    const row = newCapture(old.position, athleteNo);
+    await voidCapture(old.id, voidReason);
+    await putCapture(row);
+    setCaptures((prev) => [
+      ...prev.map((c) =>
+        c.id === old.id
+          ? { ...c, voided: true, void_reason: voidReason, synced: false }
+          : c,
+      ),
+      row,
+    ]);
+    void syncPendingCaptures();
+  }
+
+  async function recordCapture(athleteNo: number | null) {
+    if (locked) return;
+    if (filling && athleteNo !== null) {
+      setArmedSkip(null);
+      await replaceCapture(filling, FILLED, athleteNo);
+      toast.success(`Position #${filling.position} filled`);
+      return;
+    }
+    const row = newCapture(position, athleteNo);
     await putCapture(row);
     setCaptures((prev) => [...prev, row]);
     void syncPendingCaptures();
@@ -259,18 +307,40 @@ export function PositionCapture({
     toast.success("Capture undone");
   }
 
-  const mostRecentActive = allCaptures[0];
+  // Turns a Fill back into a Skip, so a wrongly filled athlete can be
+  // scanned where they belong.
+  async function handleUndoFill(capture: LocalPositionCapture) {
+    if (locked) return;
+    await replaceCapture(capture, "fill undone", null);
+    setPendingUndo(null);
+    toast.success(`Position #${capture.position} is a Skip again`);
+  }
 
   return (
     <div className="flex flex-col items-center gap-8">
       <HeatBanner runHeat={runHeat} closed={locked} />
 
       <div className="text-center">
-        <p className="text-sm text-muted-foreground">Position</p>
-        <p className="text-8xl font-bold tabular-nums">
-          {loaded ? position : "—"}
+        <p className="text-sm text-muted-foreground">
+          {filling ? "Filling position" : "Position"}
+        </p>
+        <p
+          className={`text-8xl font-bold tabular-nums ${filling ? "text-amber-600" : ""}`}
+        >
+          {!loaded ? "—" : filling ? `#${filling.position}` : position}
         </p>
       </div>
+
+      {filling && (
+        <div className="flex w-full max-w-sm items-center justify-between gap-3 rounded-md border-2 border-amber-500 bg-amber-50 px-4 py-3 text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+          <p className="font-semibold">
+            Filling #{filling.position}: the next athlete goes here
+          </p>
+          <Button variant="outline" onClick={() => setArmedSkip(null)}>
+            Cancel
+          </Button>
+        </div>
+      )}
 
       {/* Unmounted, not paused, so the camera turns off on a closed heat. */}
       {locked ? (
@@ -312,7 +382,7 @@ export function PositionCapture({
           variant="outline"
           className="h-14 text-lg"
           onClick={() => void handleSkip()}
-          disabled={!loaded || locked}
+          disabled={!loaded || locked || filling !== null}
           suppressHydrationWarning
         >
           Skip
@@ -338,16 +408,14 @@ export function PositionCapture({
                   ? `${c.athlete_no} ${rosterByNo.get(c.athlete_no)?.fullName ?? ""}`
                   : "skip"}
               </span>
-              {c.id === mostRecentActive?.id && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPendingUndo(c)}
-                  disabled={locked}
-                >
-                  Undo
-                </Button>
-              )}
+              <RowActionButton
+                action={positionRowAction(captures, c)}
+                armed={filling?.id === c.id}
+                disabled={locked}
+                onUndo={() => setPendingUndo({ capture: c, fill: false })}
+                onFill={() => setArmedSkip(c)}
+                onUndoFill={() => setPendingUndo({ capture: c, fill: true })}
+              />
             </li>
           ))}
           {allCaptures.length === 0 && (
@@ -405,15 +473,19 @@ export function PositionCapture({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Undo this capture?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {pendingUndo?.fill ? "Undo this Fill?" : "Undo this capture?"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
               {pendingUndo && (
                 <>
-                  Position #{pendingUndo.position}
-                  {pendingUndo.athlete_no
-                    ? ` — ${pendingUndo.athlete_no} ${rosterByNo.get(pendingUndo.athlete_no)?.fullName ?? ""}`
+                  Position #{pendingUndo.capture.position}
+                  {pendingUndo.capture.athlete_no
+                    ? ` — ${pendingUndo.capture.athlete_no} ${rosterByNo.get(pendingUndo.capture.athlete_no)?.fullName ?? ""}`
                     : " — skip"}{" "}
-                  will be voided.
+                  {pendingUndo.fill
+                    ? "will become a Skip again."
+                    : "will be voided."}
                 </>
               )}
             </AlertDialogDescription>
@@ -421,7 +493,11 @@ export function PositionCapture({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => pendingUndo && void handleUndoTop(pendingUndo)}
+              onClick={() => {
+                if (!pendingUndo) return;
+                if (pendingUndo.fill) void handleUndoFill(pendingUndo.capture);
+                else void handleUndoTop(pendingUndo.capture);
+              }}
               disabled={locked}
             >
               Undo
@@ -439,5 +515,38 @@ export function PositionCapture({
         heats={heats}
       />
     </div>
+  );
+}
+
+function RowActionButton({
+  action,
+  armed,
+  disabled,
+  onUndo,
+  onFill,
+  onUndoFill,
+}: {
+  action: PositionRowAction | null;
+  armed: boolean;
+  disabled: boolean;
+  onUndo: () => void;
+  onFill: () => void;
+  onUndoFill: () => void;
+}) {
+  if (action === null) return null;
+  const { label, onClick } = {
+    undo: { label: "Undo", onClick: onUndo },
+    fill: { label: armed ? "Filling…" : "Fill", onClick: onFill },
+    "undo-fill": { label: "Undo fill", onClick: onUndoFill },
+  }[action];
+  return (
+    <Button
+      variant={action === "fill" ? "outline" : "ghost"}
+      size="sm"
+      onClick={onClick}
+      disabled={disabled || armed}
+    >
+      {label}
+    </Button>
   );
 }
