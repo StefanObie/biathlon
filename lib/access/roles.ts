@@ -32,6 +32,7 @@ export type LeagueScreen =
   | "start-list"
   | "timer"
   | "position"
+  | "call-room"
   | "reconcile"
   | "swim"
   | "export"
@@ -43,6 +44,7 @@ const REQUIRED: Record<LeagueScreen, LeagueRole | "admin"> = {
   "start-list": "official",
   timer: "timekeeper",
   position: "placer",
+  "call-room": "caller",
   reconcile: "official",
   swim: "official",
   export: "official",
@@ -64,11 +66,11 @@ export function canUse(access: LeagueAccess, screen: LeagueScreen): boolean {
   return hasRole(access, REQUIRED[screen]);
 }
 
-export type HeatMode = "timer" | "position" | "reconcile";
+export type HeatMode = "timer" | "position" | "call-room" | "reconcile";
 
 /** The heat screens a Member can switch between, in display order. */
 export function heatModes(access: LeagueAccess): HeatMode[] {
-  return (["timer", "position", "reconcile"] as const).filter((mode) =>
-    canUse(access, mode),
+  return (["timer", "position", "call-room", "reconcile"] as const).filter(
+    (mode) => canUse(access, mode),
   );
 }

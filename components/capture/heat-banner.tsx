@@ -9,9 +9,13 @@ import { cn } from "@/lib/utils";
 export function HeatBanner({
   runHeat,
   closed,
+  screen,
 }: {
   runHeat: number;
   closed: boolean;
+  /** Names the screen ahead of the heat ("CALL ROOM · Heat 3"), for
+   * screens that could be mistaken for one another. */
+  screen?: string;
 }) {
   return (
     <div
@@ -24,6 +28,11 @@ export function HeatBanner({
     >
       {/* Unbroken halves, so a narrow phone wraps between them rather than
           splitting "Heat" from its number. */}
+      {screen && (
+        <>
+          <span className="whitespace-nowrap">{screen} ·</span>{" "}
+        </>
+      )}
       <span className="whitespace-nowrap">Heat {runHeat}</span>
       {closed && (
         <>

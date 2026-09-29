@@ -117,6 +117,38 @@ export type Database = {
           },
         ];
       };
+      call_room_check_in: {
+        Row: {
+          athlete_no: number;
+          checked_in_at: string;
+          checked_in_by: string | null;
+          league_id: number;
+          run_heat: number;
+        };
+        Insert: {
+          athlete_no: number;
+          checked_in_at?: string;
+          checked_in_by?: string | null;
+          league_id: number;
+          run_heat: number;
+        };
+        Update: {
+          athlete_no?: number;
+          checked_in_at?: string;
+          checked_in_by?: string | null;
+          league_id?: number;
+          run_heat?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "call_room_check_in_league_id_athlete_no_fkey";
+            columns: ["league_id", "athlete_no"];
+            isOneToOne: true;
+            referencedRelation: "entry";
+            referencedColumns: ["league_id", "athlete_no"];
+          },
+        ];
+      };
       default_team_member: {
         Row: {
           organization_id: number;
