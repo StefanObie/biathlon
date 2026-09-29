@@ -27,7 +27,7 @@ The number that identifies an athlete within an Organization. For biathlon it is
 _Avoid_: Bib number, licence number
 
 **Role**:
-What a Member may do. Roles form a hierarchy: Admin covers Official, and Official covers Timekeeper and Placer. A Member can hold more than one Role.
+What a Member may do. Roles form a hierarchy: Admin covers Official, and Official covers Timekeeper, Placer and Caller. A Member can hold more than one Role.
 
 **Admin**:
 A Member who runs an Organization: creates its Leagues, invites Members and manages its teams. Admin is held on the Organization and covers every one of its Leagues.
@@ -41,6 +41,9 @@ A Member who uses a League's Timer screen.
 **Placer**:
 A Member who uses a League's Position screen, scanning each finisher's bib in finishing order.
 _Avoid_: Marshal, scanner, recorder
+
+**Caller**:
+A Member who uses a League's Call room screen, checking in the athletes of each heat before it runs.
 
 **League team**:
 The Members assigned to a League and the Roles each one holds there. A Member has no access to a League unless they are on its team.

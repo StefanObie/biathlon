@@ -18,6 +18,7 @@
 --   admin@example.com       Admin of the Organization
 --   timekeeper@example.com  Timekeeper on League 1's team
 --   placer@example.com      Placer on League 1's team
+--   caller@example.com      Caller on League 1's team
 --
 -- Any other email signs in to an account with no Organization and sees no
 -- leagues.
@@ -78,6 +79,12 @@ insert into auth.users (
     'authenticated', 'authenticated', 'placer@example.com', now(),
     '{"provider": "email", "providers": ["email"]}', '{}', now(), now(),
     '', '', '', ''
+  ),
+  (
+    '00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-0000000000a4',
+    'authenticated', 'authenticated', 'caller@example.com', now(),
+    '{"provider": "email", "providers": ["email"]}', '{}', now(), now(),
+    '', '', '', ''
   );
 
 insert into auth.identities (
@@ -97,6 +104,11 @@ insert into auth.identities (
     '00000000-0000-0000-0000-0000000000a3', '00000000-0000-0000-0000-0000000000a3',
     '{"sub": "00000000-0000-0000-0000-0000000000a3", "email": "placer@example.com", "email_verified": true}',
     'email', now(), now(), now()
+  ),
+  (
+    '00000000-0000-0000-0000-0000000000a4', '00000000-0000-0000-0000-0000000000a4',
+    '{"sub": "00000000-0000-0000-0000-0000000000a4", "email": "caller@example.com", "email_verified": true}',
+    'email', now(), now(), now()
   );
 
 insert into organization_member (organization_id, user_id, is_admin)
@@ -104,7 +116,8 @@ select id, user_id::uuid, is_admin
 from organization, (values
   ('00000000-0000-0000-0000-0000000000a1', true),
   ('00000000-0000-0000-0000-0000000000a2', false),
-  ('00000000-0000-0000-0000-0000000000a3', false)
+  ('00000000-0000-0000-0000-0000000000a3', false),
+  ('00000000-0000-0000-0000-0000000000a4', false)
 ) as v (user_id, is_admin)
 where name = 'Gauteng North Biathlon';
 
@@ -116,7 +129,8 @@ select setval(pg_get_serial_sequence('league', 'id'), (select max(id) from leagu
 
 insert into league_team_member (league_id, user_id, role) values
   (1, '00000000-0000-0000-0000-0000000000a2', 'timekeeper'),
-  (1, '00000000-0000-0000-0000-0000000000a3', 'placer');
+  (1, '00000000-0000-0000-0000-0000000000a3', 'placer'),
+  (1, '00000000-0000-0000-0000-0000000000a4', 'caller');
 
 insert into entry (league_id, athlete_no, run_heat, swim_heat, swim_lane, age_group_code) values
   (1, 101, 1, 1, 1, 'U13'),

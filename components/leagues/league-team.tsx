@@ -58,8 +58,8 @@ export function LeagueTeam({
         <p className="text-sm text-muted-foreground">
           Only the Members on this league&apos;s team, and the
           organization&apos;s Admins, can open it. Officials can do everything
-          but manage the team; Timekeepers use the Timer screen and Placers the
-          Position screen.
+          but manage the team; Timekeepers use the Timer screen, Placers the
+          Position screen, and Callers the Call room screen.
         </p>
       </div>
 

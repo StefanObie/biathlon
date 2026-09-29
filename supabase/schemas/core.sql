@@ -101,7 +101,7 @@ $$;
 -- a Role ends its row (ended_at) rather than deleting it, so the team's
 -- history is kept, and a row once ended stays ended: giving the Role back
 -- adds a new row. Admin isn't a team Role — it's organization_member.is_admin.
-create type league_role as enum ('official', 'timekeeper', 'placer');
+create type league_role as enum ('official', 'timekeeper', 'placer', 'caller');
 
 -- organization_id is copied from the League by set_organization_from_league
 -- (below), so the foreign key to organization_member only lets the League's
@@ -174,7 +174,8 @@ create trigger league_team_member_set_organization
 -- `private`, which the API doesn't expose, so they can't be called as RPCs
 -- to probe other users' memberships.
 
--- The Role hierarchy below Admin: Official covers Timekeeper and Placer.
+-- The Role hierarchy below Admin: Official covers Timekeeper, Placer and
+-- Caller.
 -- A null `required` means any Role at all. (Admin covering Official is
 -- resolved by the helpers below, since it isn't a team Role.)
 create function private.role_covers(held league_role, required league_role)
