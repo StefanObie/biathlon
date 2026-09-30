@@ -220,6 +220,59 @@ export type Database = {
           },
         ];
       };
+      invitation: {
+        Row: {
+          accepted_at: string | null;
+          cancelled_at: string | null;
+          created_at: string;
+          email: string;
+          expires_at: string;
+          id: string;
+          invited_by: string;
+          invited_by_email: string;
+          league_id: number | null;
+          organization_id: number;
+          role: Database["public"]["Enums"]["league_role"] | null;
+          secret_hash: string;
+        };
+        Insert: {
+          accepted_at?: string | null;
+          cancelled_at?: string | null;
+          created_at?: string;
+          email: string;
+          expires_at?: string;
+          id?: string;
+          invited_by: string;
+          invited_by_email: string;
+          league_id?: number | null;
+          organization_id: number;
+          role?: Database["public"]["Enums"]["league_role"] | null;
+          secret_hash: string;
+        };
+        Update: {
+          accepted_at?: string | null;
+          cancelled_at?: string | null;
+          created_at?: string;
+          email?: string;
+          expires_at?: string;
+          id?: string;
+          invited_by?: string;
+          invited_by_email?: string;
+          league_id?: number | null;
+          organization_id?: number;
+          role?: Database["public"]["Enums"]["league_role"] | null;
+          secret_hash?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "invitation_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organization";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       league: {
         Row: {
           id: number;
@@ -706,7 +759,26 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      accept_invitation: {
+        Args: { accepting_user: string; secret_hash_in: string };
+        Returns: {
+          landing_league_id: number;
+          landing_organization_id: number;
+          landing_role: Database["public"]["Enums"]["league_role"];
+        }[];
+      };
+      cancel_invitation: {
+        Args: { invitation_id: string };
+        Returns: undefined;
+      };
       create_organization: { Args: { org_name: string }; Returns: number };
+      my_pending_invitations: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          expires_at: string;
+          organization_name: string;
+        }[];
+      };
       organization_members: {
         Args: { org_id: number };
         Returns: {
@@ -714,6 +786,16 @@ export type Database = {
           is_admin: boolean;
           user_id: string;
         }[];
+      };
+      send_invitation: {
+        Args: {
+          invitee_email: string;
+          invitee_league_id: number;
+          invitee_role: Database["public"]["Enums"]["league_role"];
+          new_secret_hash: string;
+          org_id: number;
+        };
+        Returns: string;
       };
     };
     Enums: {

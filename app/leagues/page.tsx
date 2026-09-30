@@ -60,11 +60,18 @@ async function LeaguesList() {
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-lg font-semibold">{organization.name}</h2>
             {adminOf.some((admin) => admin.id === organization.id) && (
-              <Button asChild variant="ghost" size="sm">
-                <Link href={`/organizations/${organization.id}/team`}>
-                  Default team
-                </Link>
-              </Button>
+              <div className="flex gap-1">
+                <Button asChild variant="ghost" size="sm">
+                  <Link href={`/organizations/${organization.id}/invitations`}>
+                    Invite
+                  </Link>
+                </Button>
+                <Button asChild variant="ghost" size="sm">
+                  <Link href={`/organizations/${organization.id}/team`}>
+                    Default team
+                  </Link>
+                </Button>
+              </div>
             )}
           </div>
           {organization.league.length === 0 ? (
