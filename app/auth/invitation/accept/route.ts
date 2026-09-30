@@ -61,10 +61,25 @@ export async function POST(request: NextRequest) {
   if (acceptError || !landing) return redirectTo("/auth/login");
 
   if (decision === "sign-invitee-in") {
-    const { error: verifyError } = await supabase.auth.verifyOtp({
-      token_hash: link.properties.hashed_token,
+    // A concurrent opener's generateLink can replace this token, so if it
+    // no longer verifies, the Invitation is ours but the sign-in isn't:
+    // make a fresh token once more rather than leave the winner signed out.
+    let token = link.properties.hashed_token;
+    let { error: verifyError } = await supabase.auth.verifyOtp({
+      token_hash: token,
       type: "email",
     });
+    if (verifyError) {
+      const retry = await admin.auth.admin.generateLink({
+        type: "magiclink",
+        email: open!.email,
+      });
+      token = retry.data.properties?.hashed_token ?? "";
+      ({ error: verifyError } = await supabase.auth.verifyOtp({
+        token_hash: token,
+        type: "email",
+      }));
+    }
     if (verifyError) return redirectTo("/auth/login");
   }
 
