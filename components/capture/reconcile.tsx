@@ -45,6 +45,11 @@ import {
   describeAnchor,
   parseCaptureScreen,
 } from "@/lib/capture/operator-note";
+import {
+  callRoomHints,
+  type CallRoomHint,
+} from "@/lib/reconcile/call-room-hints";
+import type { CheckInFacts } from "@/lib/call-room/call-room";
 import { placeNotes, type OperatorNote } from "@/lib/reconcile/notes";
 import {
   fillToastMessage,
@@ -103,6 +108,8 @@ export interface RemoteOperatorNote {
 export interface RosterAthlete {
   athleteNo: number;
   fullName: string;
+  /** The heat they're rostered in. */
+  runHeat?: number;
 }
 
 const MISMATCH_LABEL: Record<Mismatch, string> = {
@@ -139,6 +146,7 @@ export function Reconcile({
   heats,
   roster,
   leagueRoster,
+  checkIns,
   remotePositionCaptures,
   remoteTimeCaptures,
   remoteRunResults,
@@ -155,6 +163,8 @@ export function Reconcile({
   heats: number[];
   roster: RosterAthlete[];
   leagueRoster: RosterAthlete[];
+  /** Who is Checked in, and at which heat, across the League. */
+  checkIns: CheckInFacts[];
   remotePositionCaptures: RemotePositionCapture[];
   remoteTimeCaptures: RemoteTimeCapture[];
   remoteRunResults: RemoteRunResult[];
@@ -405,6 +415,32 @@ export function Reconcile({
     ],
   );
 
+  // Advice from the Call room; it never sets a status (#44).
+  const hints = useMemo(
+    () =>
+      callRoomHints(
+        runHeat,
+        leagueRoster.flatMap((a) =>
+          a.runHeat === undefined
+            ? []
+            : [{ athleteNo: a.athleteNo, runHeat: a.runHeat }],
+        ),
+        checkIns,
+        rows,
+      ),
+    [runHeat, leagueRoster, checkIns, rows],
+  );
+  const hintsByAthlete = useMemo(() => {
+    const map = new Map<number, CallRoomHint[]>();
+    for (const h of hints)
+      map.set(h.athleteNo, [...(map.get(h.athleteNo) ?? []), h]);
+    return map;
+  }, [hints]);
+  const tabledAthletes = new Set(
+    rows.flatMap((r) => (r.athleteNo === null ? [] : [r.athleteNo])),
+  );
+  const untabledHints = hints.filter((h) => !tabledAthletes.has(h.athleteNo));
+
   function insertGapAt(index: number) {
     setRows((prev) => {
       const gap: WorkingRow = {
@@ -574,6 +610,20 @@ export function Reconcile({
         </div>
       )}
 
+      {untabledHints.length > 0 && (
+        <div className="flex flex-col gap-1 rounded-md border border-input p-3 text-sm">
+          <p className="font-medium">Call room hints</p>
+          {untabledHints.map((h, i) => (
+            <p key={i}>
+              <span className="text-muted-foreground">
+                #{h.athleteNo} {leagueNames.get(h.athleteNo)} —{" "}
+              </span>
+              {h.message}
+            </p>
+          ))}
+        </div>
+      )}
+
       <Table>
         <TableHeader>
           <TableRow>
@@ -589,6 +639,10 @@ export function Reconcile({
           {rows.map((row, index) => {
             const mismatch = mismatchFor(row);
             const rowNotes = notes.byRow.get(row.localId);
+            const rowHints =
+              row.athleteNo === null
+                ? undefined
+                : hintsByAthlete.get(row.athleteNo);
             return (
               <Fragment key={row.localId}>
                 <TableRow>
@@ -641,6 +695,16 @@ export function Reconcile({
                     </Button>
                   </TableCell>
                 </TableRow>
+                {rowHints && (
+                  <TableRow className="border-0 hover:bg-transparent">
+                    <TableCell />
+                    <TableCell colSpan={4} className="pt-0 text-sm">
+                      {rowHints.map((h, i) => (
+                        <p key={i}>Call room: {h.message}</p>
+                      ))}
+                    </TableCell>
+                  </TableRow>
+                )}
                 {rowNotes && (
                   <TableRow className="border-0 hover:bg-transparent">
                     <TableCell />
