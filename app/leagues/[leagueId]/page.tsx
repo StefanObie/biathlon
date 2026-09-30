@@ -71,6 +71,13 @@ const SECTIONS: NavSection[] = [
     description: "Choose who works on this league, and in which Roles.",
     available: true,
   },
+  {
+    screen: "settings",
+    href: (id) => `/leagues/${id}/settings`,
+    title: "Results",
+    description: "Choose who can see this league's published results.",
+    available: true,
+  },
 ];
 
 export default function LeagueIndexPage({

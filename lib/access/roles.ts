@@ -36,7 +36,8 @@ export type LeagueScreen =
   | "reconcile"
   | "swim"
   | "export"
-  | "team";
+  | "team"
+  | "settings";
 
 // The least a Member needs to use each screen. "admin" is only met by an
 // Admin of the League's Organization.
@@ -49,6 +50,7 @@ const REQUIRED: Record<LeagueScreen, LeagueRole | "admin"> = {
   swim: "official",
   export: "official",
   team: "admin",
+  settings: "admin",
 };
 
 /** Whether the Member holds a Role covering `required`: Admin covers

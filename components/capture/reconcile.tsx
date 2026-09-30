@@ -26,6 +26,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { logAudit } from "@/lib/reconcile/audit";
 import { closeHeat, reopenHeat } from "@/lib/reconcile/heat-closure";
+import { publishLeagueResults } from "@/lib/results/actions";
 import { OPEN_HEAT, type HeatClosed } from "@/lib/capture/heat-closed";
 import { useHeatClosed } from "@/components/capture/use-heat-closed";
 import {
@@ -533,7 +534,10 @@ export function Reconcile({
         toast.error(`Results saved, but the heat didn't close: ${error}`);
         return;
       }
-      if (newlyClosed) setClosed(newlyClosed);
+      if (newlyClosed) {
+        setClosed(newlyClosed);
+        await publishLeagueResults(leagueId).catch(() => {});
+      }
 
       toast.success(
         newlyClosed
@@ -562,6 +566,7 @@ export function Reconcile({
         return;
       }
       setClosed(OPEN_HEAT);
+      await publishLeagueResults(leagueId).catch(() => {});
       setReopening(false);
       setReopenReason("");
       toast.success("Heat reopened. Its capture screens take captures again.");

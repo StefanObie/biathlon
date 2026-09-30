@@ -1,11 +1,13 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import type { ParsedEntryRow } from "@/lib/import/entry-row";
 import { parseAgeGroup } from "@/lib/import/age-group";
+import { resultsTag } from "@/lib/results/query";
+import { defaultSlug } from "@/lib/results/slug";
 
 export interface CreateLeagueState {
   error?: string;
@@ -28,22 +30,48 @@ export async function createLeague(
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("league")
-    // RLS only lets an Admin of the organization insert this.
-    .insert({
-      name,
-      league_date: leagueDate,
-      season,
-      organization_id: organizationId,
-    })
-    .select("id")
-    .single();
+  const { data: organization } = await supabase
+    .from("organization")
+    .select("name")
+    .eq("id", organizationId)
+    .maybeSingle();
+  if (!organization) return { error: "Choose an organization." };
 
-  if (error || !data) {
-    return { error: error?.message ?? "Failed to create league." };
+  // New Leagues are Public, with the Organization and League names as their
+  // slug. If another League has it, the unique constraint refuses the
+  // insert and the next attempt adds a counter.
+  let data: { id: number } | null = null;
+  let slug = "";
+  let lastError: string | undefined;
+  for (let attempt = 1; attempt <= 25 && !data; attempt++) {
+    slug = defaultSlug(organization.name, name, attempt);
+    const result = await supabase
+      .from("league")
+      // RLS only lets an Admin of the organization insert this.
+      .insert({
+        name,
+        league_date: leagueDate,
+        season,
+        organization_id: organizationId,
+        visibility: "public",
+        results_slug: slug,
+      })
+      .select("id")
+      .single();
+    if (result.error?.code === "23505") continue;
+    if (result.error) {
+      lastError = result.error.message;
+      break;
+    }
+    data = result.data;
   }
 
+  if (!data) {
+    return { error: lastError ?? "Failed to create league." };
+  }
+
+  // A guess at this slug may have been cached as not-found.
+  updateTag(resultsTag(slug));
   revalidatePath("/leagues");
   redirect(`/leagues/${data.id}/start-list`);
 }

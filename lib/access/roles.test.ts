@@ -63,6 +63,7 @@ describe("canUse", () => {
       expect(canUse(official, screen)).toBe(true);
     }
     expect(canUse(official, "team")).toBe(false);
+    expect(canUse(official, "settings")).toBe(false);
   });
 
   it("lets an Admin use every screen without being on the League team", () => {
@@ -70,6 +71,7 @@ describe("canUse", () => {
     expect(canUse(admin, "timer")).toBe(true);
     expect(canUse(admin, "export")).toBe(true);
     expect(canUse(admin, "team")).toBe(true);
+    expect(canUse(admin, "settings")).toBe(true);
   });
 
   it("combines the Roles of a Member who holds several", () => {

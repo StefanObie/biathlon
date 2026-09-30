@@ -61,6 +61,10 @@ An Organization's standard League team, copied onto a League when it is created.
 Who can see a League's published results without signing in: Public (anyone), Protected (anyone holding the Results link) or Private (no one). It never grants access to operational data.
 _Avoid_: Privacy, sharing
 
+**Results slug**:
+The part of a League's results address that identifies it. Public Leagues have a readable slug an Admin can change, which starts as the Organization and League names hyphenated. Protected Leagues have a random slug, which is the Results link. Private Leagues have none. No two Leagues ever share a slug.
+_Avoid_: Permalink, handle
+
 **Results link**:
 The unguessable link that shows a Protected League's results. An Admin can regenerate it, and the old link then stops working.
 _Avoid_: Share link, secret URL

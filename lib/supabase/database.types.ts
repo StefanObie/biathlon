@@ -279,21 +279,27 @@ export type Database = {
           league_date: string;
           name: string;
           organization_id: number;
+          results_slug: string | null;
           season: number;
+          visibility: Database["public"]["Enums"]["league_visibility"];
         };
         Insert: {
           id?: never;
           league_date: string;
           name: string;
           organization_id: number;
+          results_slug?: string | null;
           season: number;
+          visibility?: Database["public"]["Enums"]["league_visibility"];
         };
         Update: {
           id?: never;
           league_date?: string;
           name?: string;
           organization_id?: number;
+          results_slug?: string | null;
           season?: number;
+          visibility?: Database["public"]["Enums"]["league_visibility"];
         };
         Relationships: [
           {
@@ -375,13 +381,6 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "league";
             referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "league_team_member_organization_id_user_id_fkey";
-            columns: ["organization_id", "user_id"];
-            isOneToOne: false;
-            referencedRelation: "organization_member";
-            referencedColumns: ["organization_id", "user_id"];
           },
         ];
       };
@@ -772,6 +771,7 @@ export type Database = {
         Returns: undefined;
       };
       create_organization: { Args: { org_name: string }; Returns: number };
+      league_results: { Args: { slug: string }; Returns: Json };
       my_pending_invitations: {
         Args: Record<PropertyKey, never>;
         Returns: {
@@ -791,10 +791,6 @@ export type Database = {
         Args: { member_user_id: string; org_id: number };
         Returns: undefined;
       };
-      set_member_admin: {
-        Args: { make_admin: boolean; member_user_id: string; org_id: number };
-        Returns: undefined;
-      };
       send_invitation: {
         Args: {
           invitee_email: string;
@@ -805,10 +801,15 @@ export type Database = {
         };
         Returns: string;
       };
+      set_member_admin: {
+        Args: { make_admin: boolean; member_user_id: string; org_id: number };
+        Returns: undefined;
+      };
     };
     Enums: {
       gender: "M" | "F";
       league_role: "official" | "timekeeper" | "placer" | "caller";
+      league_visibility: "public" | "protected" | "private";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -941,6 +942,7 @@ export const Constants = {
     Enums: {
       gender: ["M", "F"],
       league_role: ["official", "timekeeper", "placer", "caller"],
+      league_visibility: ["public", "protected", "private"],
     },
   },
 } as const;
