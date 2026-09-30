@@ -24,10 +24,21 @@ export type CheckInOutcome =
   | { kind: "already-here"; athlete: CallRoomEntry }
   /** Not entered in the League. */
   | { kind: "unknown"; athleteNo: number }
-  /** Rostered in another heat. Rejected until the warn-and-confirm flow. */
-  | { kind: "other-heat"; athlete: CallRoomEntry }
-  /** Checked in at another heat. Rejected until the warn-and-confirm flow. */
+  /**
+   * Rostered in another heat. Warn, and on confirm check them in here
+   * without touching the roster. `movedFrom` is set when they are also
+   * checked in at another heat, which the confirm moves.
+   */
+  | { kind: "other-heat"; athlete: CallRoomEntry; movedFrom?: number }
+  /** Rostered here but checked in at another heat. Warn; confirm moves it. */
   | { kind: "checked-in-elsewhere"; athlete: CallRoomEntry; runHeat: number };
+
+/** Whether the Caller has to confirm the outcome before it is applied. */
+export function needsConfirm(outcome: CheckInOutcome) {
+  return (
+    outcome.kind === "other-heat" || outcome.kind === "checked-in-elsewhere"
+  );
+}
 
 /** What checking in `athleteNo` at `runHeat` should do. */
 export function checkIn(
@@ -38,10 +49,12 @@ export function checkIn(
 ): CheckInOutcome {
   const athlete = entries.find((e) => e.athleteNo === athleteNo);
   if (!athlete) return { kind: "unknown", athleteNo };
-  if (athlete.runHeat !== runHeat) return { kind: "other-heat", athlete };
   const existing = checkIns.find((c) => c.athleteNo === athleteNo);
+  if (existing?.runHeat === runHeat) return { kind: "already-here", athlete };
+  if (athlete.runHeat !== runHeat) {
+    return { kind: "other-heat", athlete, movedFrom: existing?.runHeat };
+  }
   if (!existing) return { kind: "checked-in", athlete };
-  if (existing.runHeat === runHeat) return { kind: "already-here", athlete };
   return {
     kind: "checked-in-elsewhere",
     athlete,
@@ -59,7 +72,11 @@ export function checkInMessage(outcome: CheckInOutcome, runHeat: number) {
     case "unknown":
       return `Athlete ${outcome.athleteNo} is not entered in this league.`;
     case "other-heat":
-      return `#${outcome.athlete.athleteNo} ${outcome.athlete.fullName} belongs to heat ${outcome.athlete.runHeat}, not heat ${runHeat}.`;
+      return `#${outcome.athlete.athleteNo} ${outcome.athlete.fullName} belongs to heat ${outcome.athlete.runHeat}, not heat ${runHeat}.${
+        outcome.movedFrom === undefined
+          ? ""
+          : ` They were checked in at heat ${outcome.movedFrom}.`
+      }`;
     case "checked-in-elsewhere":
       return `#${outcome.athlete.athleteNo} ${outcome.athlete.fullName} was checked in at heat ${outcome.runHeat}.`;
   }
@@ -75,10 +92,13 @@ export interface CallRoomState {
   /** Rostered athletes Checked in at this heat. */
   checkedIn: number;
   rosterSize: number;
+  /** Athletes Checked in here but rostered in another heat. */
+  fromOtherHeats: number;
 }
 
 /** The heat roster with who is Checked in, and the "14 / 20" headline.
- * Only rostered athletes are counted. */
+ * The "14" counts rostered athletes only; athletes checked in here from
+ * other heats are counted apart, for "+2 from other heats". */
 export function callRoomState(
   runHeat: number,
   entries: readonly CallRoomEntry[],
@@ -86,6 +106,9 @@ export function callRoomState(
 ): CallRoomState {
   const here = new Set(
     checkIns.filter((c) => c.runHeat === runHeat).map((c) => c.athleteNo),
+  );
+  const rostered = new Set(
+    entries.filter((e) => e.runHeat === runHeat).map((e) => e.athleteNo),
   );
   const roster = entries
     .filter((e) => e.runHeat === runHeat)
@@ -95,5 +118,6 @@ export function callRoomState(
     roster,
     checkedIn: roster.filter((r) => r.checkedIn).length,
     rosterSize: roster.length,
+    fromOtherHeats: [...here].filter((no) => !rostered.has(no)).length,
   };
 }

@@ -4,6 +4,7 @@ import {
   callRoomState,
   checkIn,
   checkInMessage,
+  needsConfirm,
   type CallRoomEntry,
 } from "./call-room";
 
@@ -36,20 +37,39 @@ describe("checkIn", () => {
     );
   });
 
-  it("rejects an athlete rostered in another heat", () => {
+  it("warns about an athlete rostered in another heat", () => {
     const outcome = checkIn(200, 1, entries, []);
     expect(outcome.kind).toBe("other-heat");
+    expect(needsConfirm(outcome)).toBe(true);
     expect(checkInMessage(outcome, 1)).toBe(
       "#200 Ann Poe belongs to heat 2, not heat 1.",
     );
   });
 
-  it("rejects an athlete already checked in at another heat", () => {
+  it("warns about an athlete already checked in at another heat", () => {
     const outcome = checkIn(123, 1, entries, [{ athleteNo: 123, runHeat: 2 }]);
     expect(outcome.kind).toBe("checked-in-elsewhere");
+    expect(needsConfirm(outcome)).toBe(true);
     expect(checkInMessage(outcome, 1)).toBe(
       "#123 Jane Doe was checked in at heat 2.",
     );
+  });
+
+  it("warns of both when a wrong-heat athlete is checked in elsewhere", () => {
+    const outcome = checkIn(200, 1, entries, [{ athleteNo: 200, runHeat: 3 }]);
+    expect(outcome).toMatchObject({ kind: "other-heat", movedFrom: 3 });
+    expect(checkInMessage(outcome, 1)).toBe(
+      "#200 Ann Poe belongs to heat 2, not heat 1. They were checked in at heat 3.",
+    );
+  });
+
+  it("says already checked in for a wrong-heat athlete checked in here", () => {
+    const outcome = checkIn(200, 1, entries, [{ athleteNo: 200, runHeat: 1 }]);
+    expect(outcome.kind).toBe("already-here");
+  });
+
+  it("needs no confirm for a plain check-in", () => {
+    expect(needsConfirm(checkIn(123, 1, entries, []))).toBe(false);
   });
 });
 
@@ -71,5 +91,16 @@ describe("callRoomState", () => {
     ]);
     expect(state.checkedIn).toBe(0);
     expect(state.rosterSize).toBe(2);
+    expect(state.fromOtherHeats).toBe(1);
+  });
+
+  it("counts athletes checked in here from other heats apart", () => {
+    const state = callRoomState(1, entries, [
+      { athleteNo: 123, runHeat: 1 },
+      { athleteNo: 200, runHeat: 1 },
+    ]);
+    expect(state.checkedIn).toBe(1);
+    expect(state.rosterSize).toBe(2);
+    expect(state.fromOtherHeats).toBe(1);
   });
 });
