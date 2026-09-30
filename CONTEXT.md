@@ -15,8 +15,12 @@ A user who belongs to an Organization. A user can be a Member of several Organiz
 _Avoid_: User (when you mean someone inside an Organization), staff
 
 **Invitation**:
-An Admin's offer by email for someone to become a Member of an Organization, optionally also naming a Role on the Default team or on one League's team. A user who signs up without one creates their own Organization and becomes its Admin.
+An Admin's offer by email for someone to become a Member of an Organization, optionally also naming a Role on the Default team or on one League's team. A user who signs up without one creates their own Organization and becomes its Admin. An Invitation names at most one Role, lasts 7 days, and an Admin can cancel it. An email has at most one open Invitation per Organization: sending again replaces it, and an email that is already a Member can't be invited.
 _Avoid_: Invite code (the old shared signup code, which Organizations replace)
+
+**Invitation link**:
+The link in an Invitation email. Following it confirms the invitee's email, signs them in and accepts the Invitation in one step, with no Sign-in OTP. It works once, and only for someone who isn't already signed in as a different user.
+_Avoid_: Magic link, invite code
 
 **Sign-in OTP**:
 The one-time 6-digit code emailed to a user so they can sign in. Signing up and signing in send the same email.
@@ -44,6 +48,7 @@ _Avoid_: Marshal, scanner, recorder
 
 **Caller**:
 A Member who uses a League's Call room screen, checking in the athletes of each heat before it runs.
+_Avoid_: Marshal, steward, call room judge
 
 **League team**:
 The Members assigned to a League and the Roles each one holds there. A Member has no access to a League unless they are on its team.
@@ -81,6 +86,14 @@ _Avoid_: Published, finalised, reconciled, locked
 **Finisher**:
 An athlete who crossed the finish line in a heat, whether or not they have been identified yet.
 
+**Call room**:
+The holding area where a heat's athletes gather before they run. It is used only for run heats.
+_Avoid_: Marshalling area, holding pen
+
+**Check in**:
+To record that an athlete has reported to the Call room for a heat. An athlete is Checked in or Not checked in, and a Caller can undo a check-in. An athlete is checked in to at most one heat per League, so checking them in at another heat moves the check-in. Checking in is advice for reconciliation: it never sets a result, and checking in at another heat never changes the heat roster.
+_Avoid_: Present, absent, called, missing (as a state)
+
 ### Capture
 
 **Capture**:
@@ -95,8 +108,12 @@ _Avoid_: Time capture page, stopwatch
 The results-table screen where the Placer scans each finisher's bib in finishing order.
 _Avoid_: Scanner, scan page, table capture
 
+**Call room screen**:
+The screen where the Caller checks in a heat's athletes by scanning their bibs or entering athlete numbers. Check-ins are not Captures, and it is not a Capture screen.
+_Avoid_: Check-in page, roll call
+
 **Capture screens**:
-The Timer screen and the Position screen together. They do not include reconciliation.
+The Timer screen and the Position screen together. They do not include reconciliation or the Call room screen.
 
 **Missed finish**:
 A placeholder time capture recorded when the timekeeper knows they failed to press for a finisher. It marks a finisher with no usable time.
