@@ -47,6 +47,7 @@ async function ReconcileHeatSection({
     { data: leagueRace, error: leagueRaceError },
     { data: league },
     { data: team },
+    { data: checkIns },
   ] = await Promise.all([
     // Whole league, not just this heat: reassigning an athlete or logging
     // one who ran outside their assigned heat (§4.5) needs to search past
@@ -110,6 +111,11 @@ async function ReconcileHeatSection({
       .select("user_id")
       .eq("league_id", leagueIdNum)
       .is("ended_at", null),
+    // Whole league: a check-in at another heat is a hint for this one.
+    supabase
+      .from("call_room_check_in")
+      .select("athlete_no, run_heat")
+      .eq("league_id", leagueIdNum),
   ]);
 
   // Who can still capture on the League, to flag captures by anyone who
@@ -141,6 +147,7 @@ async function ReconcileHeatSection({
   const leagueRoster = (leagueEntries ?? []).map((e) => ({
     athleteNo: e.athlete_no,
     fullName: e.athlete?.full_name ?? `Athlete ${e.athlete_no}`,
+    runHeat: e.run_heat,
   }));
   const roster = (leagueEntries ?? [])
     .filter((e) => e.run_heat === runHeatNum)
@@ -158,6 +165,10 @@ async function ReconcileHeatSection({
       heats={sortedHeats}
       roster={roster}
       leagueRoster={leagueRoster}
+      checkIns={(checkIns ?? []).map((c) => ({
+        athleteNo: c.athlete_no,
+        runHeat: c.run_heat,
+      }))}
       remotePositionCaptures={positionCaptures ?? []}
       remoteTimeCaptures={timeCaptures ?? []}
       remoteRunResults={runResults ?? []}
