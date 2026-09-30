@@ -84,7 +84,7 @@ The athletes entered to run in a given heat.
 _Avoid_: Start list (that's the import file, not the per-heat set)
 
 **Closed**:
-The state a heat enters when an official saves its reconciliation. A closed heat accepts no new captures, and its results are official and published. An official can reopen it, giving a reason.
+The state a heat enters when an official saves its reconciliation. A closed heat accepts no new captures, and its results are official and published. A swim time has no Closed state and is published as soon as it is recorded and ok. An official can reopen it, giving a reason.
 _Avoid_: Published, finalised, reconciled, locked
 
 **Finisher**:
@@ -118,6 +118,13 @@ _Avoid_: Check-in page, roll call
 
 **Capture screens**:
 The Timer screen and the Position screen together. They do not include reconciliation or the Call room screen.
+
+**Points**:
+An athlete's score from a run and a swim: 1000 at the age group's base time, plus or minus a rate for every second faster or slower, per gender and age group. The run and swim components are shown separately and the total adds whichever exist. Age bonus points are not included, so Points are not official SA Biathlon points.
+_Avoid_: Score (when you mean one component)
+
+**Unclassified**:
+The group on a League's results for athletes whose age group and gender have no row in the points table. They show their times but no Points and no rank.
 
 **Missed finish**:
 A placeholder time capture recorded when the timekeeper knows they failed to press for a finisher. It marks a finisher with no usable time.

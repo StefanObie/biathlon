@@ -1716,11 +1716,11 @@ alter table league
     )
   );
 
--- A League's published results, for anyone, signed in or not: only its
--- Closed heats (ADR 0001), with the minimum athlete and entry fields to
--- list them. A Private League has no slug, so an unknown slug and a Private
--- League's former address are both just null. security definer so anon
--- needs no access to the tables; nothing operational is returned.
+-- Published results for anyone: the heat counts and, per athlete, the times
+-- that are published (a run time once its heat is Closed, ADR 0001; a swim time
+-- whenever it exists), with the points table that applies on the League's
+-- date. Athlete numbers are not returned, and an athlete with no time at all
+-- is left out: they did not show up.
 create function public.league_results(slug text)
 returns jsonb
 language sql
@@ -1734,30 +1734,74 @@ as $$
     'league_date', l.league_date,
     'season', l.season,
     'visibility', l.visibility,
-    'heats', coalesce((
+    'heats_total', (
+      select count(distinct e.run_heat) from public.entry e where e.league_id = l.id
+    ),
+    'heats_closed', (
+      select count(distinct r.run_heat) from public.league_race r
+      where r.league_id = l.id and r.closed_at is not null
+        and exists (
+          select 1 from public.entry e
+          where e.league_id = l.id and e.run_heat = r.run_heat
+        )
+    ),
+    'athletes', coalesce((
       select jsonb_agg(
         jsonb_build_object(
-          'run_heat', r.run_heat,
-          'closed_at', r.closed_at,
-          'athletes', coalesce((
-            select jsonb_agg(
-              jsonb_build_object(
-                'athlete_no', e.athlete_no,
-                'full_name', a.full_name,
-                'age_group_code', e.age_group_code
-              )
-              order by e.athlete_no
-            )
-            from public.entry e
-            join public.athlete a
-              on a.organization_id = e.organization_id and a.athlete_no = e.athlete_no
-            where e.league_id = l.id and e.run_heat = r.run_heat
-          ), '[]'::jsonb)
+          'full_name', a.full_name,
+          'gender', a.gender,
+          'age_group_code', e.age_group_code,
+          'run_time', run.run_time,
+          'swim_time', swim.swim_time
         )
-        order by r.run_heat
+        order by a.full_name, e.athlete_no
       )
-      from public.league_race r
-      where r.league_id = l.id and r.closed_at is not null
+      from public.entry e
+      join public.athlete a
+        on a.organization_id = e.organization_id and a.athlete_no = e.athlete_no
+      left join lateral (
+        select rr.run_time
+        from public.run_result rr
+        join public.league_race r
+          on r.league_id = rr.league_id and r.run_heat = rr.run_heat
+        where rr.league_id = l.id
+          and rr.athlete_no = e.athlete_no
+          and rr.status = 'ok'
+          and rr.run_time is not null
+          and r.closed_at is not null
+        order by rr.run_heat
+        limit 1
+      ) run on true
+      left join lateral (
+        select sr.swim_time
+        from public.swim_result sr
+        where sr.league_id = l.id
+          and sr.athlete_no = e.athlete_no
+          and sr.status = 'ok'
+          and sr.swim_time is not null
+      ) swim on true
+      where e.league_id = l.id
+        and (run.run_time is not null or swim.swim_time is not null)
+    ), '[]'::jsonb),
+    'points_table', coalesce((
+      select jsonb_agg(
+        jsonb_build_object(
+          'gender', p.gender,
+          'age_group_code', p.age_group_code,
+          'age_group_label', p.age_group_label,
+          'sort_order', p.sort_order,
+          'run_base_time', p.run_base_time,
+          'run_points_per_second', p.run_points_per_second,
+          'swim_base_time', p.swim_base_time,
+          'swim_points_per_second', p.swim_points_per_second
+        )
+        order by p.gender, p.sort_order
+      )
+      from public.points_table p
+      where p.effective_from = (
+        select max(p2.effective_from) from public.points_table p2
+        where p2.effective_from <= l.league_date
+      )
     ), '[]'::jsonb)
   )
   from public.league l

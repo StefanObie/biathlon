@@ -4,17 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
 import type { Database } from "@/lib/supabase/database.types";
 
-export interface ResultsAthlete {
-  athlete_no: number;
-  full_name: string;
-  age_group_code: string;
-}
-
-export interface ResultsHeat {
-  run_heat: number;
-  closed_at: string;
-  athletes: ResultsAthlete[];
-}
+import type { ResultsAthleteRow, ResultsPointsRow } from "./shape";
 
 /** What league_results (supabase/schemas/core.sql) returns. */
 export interface LeagueResults {
@@ -23,7 +13,11 @@ export interface LeagueResults {
   league_date: string;
   season: number;
   visibility: "public" | "protected";
-  heats: ResultsHeat[];
+  /** Run heats in the League, and how many of them are Closed. */
+  heats_total: number;
+  heats_closed: number;
+  athletes: ResultsAthleteRow[];
+  points_table: ResultsPointsRow[];
 }
 
 /** The cache tag of one League's results page, by its current slug. */

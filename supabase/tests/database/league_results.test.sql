@@ -6,7 +6,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(34);
+select plan(37);
 
 -- Fixtures, written as the table owner so RLS doesn't apply.
 
@@ -49,7 +49,9 @@ overriding system value values
 
 insert into athlete (organization_id, athlete_no, full_name, gender) values
   (951, 1, 'Closed Athlete', 'M'),
-  (951, 2, 'Open Athlete', 'F');
+  (951, 2, 'Open Athlete', 'F'),
+  (951, 3, 'No Show', 'M'),
+  (951, 4, 'Disqualified Swimmer', 'F');
 
 insert into points_table (
   effective_from, gender, age_group_code, age_group_label, sort_order, age_from, age_to,
@@ -58,16 +60,33 @@ insert into points_table (
 ) values ('1900-01-01', 'M', 'TST', 'Test', 1, 0, 99, 1000, '05:00.00', 1, 100, '01:00.00', 1, 0)
 on conflict do nothing;
 
+-- A later season's table must not rescore a League that came before it.
+insert into points_table (
+  effective_from, gender, age_group_code, age_group_label, sort_order, age_from, age_to,
+  run_distance_m, run_base_time, run_points_per_second,
+  swim_distance_m, swim_base_time, swim_points_per_second, bonus_points_per_year
+) values ('2028-01-01', 'M', 'TST', 'Test 2028', 1, 0, 99, 1000, '05:00.00', 1, 100, '01:00.00', 1, 0);
+
 insert into entry (league_id, athlete_no, run_heat, swim_heat, swim_lane, age_group_code) values
   (951, 1, 1, 1, 1, 'U13'),
   (951, 2, 2, 1, 2, 'U13'),
-  (953, 1, 1, 1, 1, 'U13');
+  (953, 1, 1, 1, 1, 'U13'),
+  (951, 3, 1, 2, 1, 'U13'),
+  (951, 4, 2, 2, 2, 'U13');
 
 insert into league_race (league_id, run_heat, started_at, device_id, closed_at, closed_by) values
   (951, 1, now(), 'dev', now(), 'official'),
   (951, 2, now(), 'dev', null, null),
   (953, 1, now(), 'dev', now(), 'official'),
   (954, 1, now(), 'dev', now(), 'official');
+
+insert into run_result (league_id, athlete_no, run_heat, run_time, source) values
+  (951, 1, 1, '03:00.00', 'reconcile'),
+  (951, 2, 2, '03:12.34', 'reconcile');
+insert into swim_result (league_id, athlete_no, event_no, heat, lane, swim_time, status, source) values
+  (951, 2, 1, 1, 2, '00:40.00', 'ok', 'import'),
+  (951, 3, 1, 2, 1, null, 'dns', 'import'),
+  (951, 4, 1, 2, 2, '00:39.00', 'dq', 'import');
 
 insert into time_capture (id, league_id, run_heat, seq, elapsed_time, device_id, captured_at) values
   ('tc-open', 951, 2, 1, '05:00.00', 'dev', now());
@@ -139,20 +158,41 @@ set local role anon;
 set local request.jwt.claims = '{"role": "anon"}';
 
 select results_eq(
-  $$ select l ->> 'name', l -> 'heats' -> 0 ->> 'run_heat', jsonb_array_length(l -> 'heats')::text
+  $$ select l ->> 'name', l ->> 'heats_total', l ->> 'heats_closed'
      from (select public.league_results('crossland-gnb-league-1') as l) s $$,
-  $$ values ('League 1', '1', '1') $$,
-  'Public: readable by slug, Closed heats only'
+  $$ values ('League 1', '2', '1') $$,
+  'Public: readable by slug, with how many run heats are Closed'
+);
+select results_eq(
+  $$ select a ->> 'full_name', a ->> 'run_time', a ->> 'swim_time'
+     from jsonb_array_elements(public.league_results('crossland-gnb-league-1') -> 'athletes') a
+     order by a ->> 'full_name' $$,
+  $$ values ('Closed Athlete', '03:00.00', null),
+            ('Open Athlete', null, '00:40.00') $$,
+  'Public: a run time shows once its heat is Closed, a swim time whenever it is ok; no-shows and non-ok swims are left out'
 );
 select is(
-  (select public.league_results('crossland-gnb-league-1') -> 'heats' -> 0 -> 'athletes' -> 0 ->> 'full_name'),
-  'Closed Athlete',
-  'Public: lists the athletes of a Closed heat'
-);
-select is(
-  (select public.league_results('crossland-gnb-league-1')::text like '%Open Athlete%'),
+  (select public.league_results('crossland-gnb-league-1')::text like '%03:12.34%'),
   false,
-  'Public: an athlete of a heat that is not Closed is not shown'
+  'Public: a run time from a heat that is not Closed is not shown'
+);
+select is(
+  (select public.league_results('crossland-gnb-league-1')::text like '%athlete_no%'),
+  false,
+  'Public: athlete numbers are never returned'
+);
+select results_eq(
+  $$ select count(*)::int, min(p ->> 'run_base_time'), max((p ->> 'swim_points_per_second')::numeric)::text
+     from jsonb_array_elements(public.league_results('crossland-gnb-league-1') -> 'points_table') p $$,
+  $$ values (30, '01:30.00', '10') $$,
+  'Public: the 2027 points table applies to a League in 2027, not the older test row'
+);
+select is(
+  (select p ->> 'swim_points_per_second'
+   from jsonb_array_elements(public.league_results('crossland-gnb-league-1') -> 'points_table') p
+   where p ->> 'gender' = 'F' and p ->> 'age_group_code' = 'U13'),
+  '10',
+  'Public: U/13 swims score 10 points a second'
 );
 select is(
   (select public.league_results('Abcdefghijklmnopqrstuv_-XYZ') ->> 'visibility'),
