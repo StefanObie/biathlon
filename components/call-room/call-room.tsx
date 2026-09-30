@@ -5,6 +5,16 @@ import { CheckIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { HeatContextBar } from "@/components/leagues/heat-context-bar";
 import { QrScanner } from "@/components/capture/qr-scanner";
 import { HeatBanner } from "@/components/capture/heat-banner";
@@ -17,6 +27,7 @@ import {
   callRoomState,
   checkIn,
   checkInMessage,
+  needsConfirm,
   type CallRoomEntry,
   type CheckInFacts,
 } from "@/lib/call-room/call-room";
@@ -50,16 +61,56 @@ export function CallRoom({
 }) {
   const [athleteNoInput, setAthleteNoInput] = useState("");
   const [inputError, setInputError] = useState<string | null>(null);
+  const [pending, setPending] = useState<{
+    athlete: CallRoomEntry;
+    message: string;
+  } | null>(null);
   const { closed } = useHeatClosed(leagueId, runHeat, remoteHeatClosed);
   const { checkIns, apply, remove } = useCheckIns(leagueId, remoteCheckIns);
   const camera = useCameraSleep();
   const locked = closed.closedAt !== null;
 
-  const { roster, checkedIn, rosterSize } = callRoomState(
+  const { roster, checkedIn, rosterSize, fromOtherHeats } = callRoomState(
     runHeat,
     entries,
     checkIns,
   );
+
+  // Writes the check-in here: a new row, or a move when the athlete is
+  // checked in at another heat. Never touches the heat roster.
+  async function record(athlete: CallRoomEntry): Promise<string | null> {
+    const athleteNo = athlete.athleteNo;
+    const supabase = createClient();
+    const moving = checkIns.some((c) => c.athleteNo === athleteNo);
+    if (moving) {
+      const { data, error } = await supabase
+        .from("call_room_check_in")
+        .update({ run_heat: runHeat })
+        .eq("league_id", leagueId)
+        .eq("athlete_no", athleteNo)
+        .select("athlete_no");
+      if (error) return error.message;
+      // A Closed heat's rows are hidden from update rather than refused.
+      if (data.length === 0) {
+        return `#${athleteNo} ${athlete.fullName} can't be moved: the heat they were checked in at is closed.`;
+      }
+    } else {
+      const { error } = await supabase.from("call_room_check_in").insert({
+        league_id: leagueId,
+        athlete_no: athleteNo,
+        run_heat: runHeat,
+      });
+      if (error) {
+        // Another Caller may have checked them in a moment ago.
+        return error.code === "23505"
+          ? `#${athleteNo} ${athlete.fullName} is already checked in.`
+          : error.message;
+      }
+    }
+    apply({ athleteNo, runHeat });
+    toast.success(`Checked in: #${athleteNo} ${athlete.fullName}`);
+    return null;
+  }
 
   // Shared by manual entry and QR scan. Returns an error message on
   // failure so each caller can surface it its own way (inline field error
@@ -73,23 +124,32 @@ export function CallRoom({
       toast(message);
       return null;
     }
-    if (outcome.kind !== "checked-in") return message;
+    if (outcome.kind === "unknown") return message;
 
     camera.markUsed();
-    const { error } = await createClient().from("call_room_check_in").insert({
-      league_id: leagueId,
-      athlete_no: athleteNo,
-      run_heat: runHeat,
-    });
-    if (error) {
-      // Another Caller may have checked them in a moment ago.
-      return error.code === "23505"
-        ? `#${athleteNo} ${outcome.athlete.fullName} is already checked in.`
-        : error.message;
+    if (needsConfirm(outcome)) {
+      // Cancelling the dialog changes nothing.
+      if (
+        outcome.kind === "other-heat" ||
+        outcome.kind === "checked-in-elsewhere"
+      ) {
+        setPending({ athlete: outcome.athlete, message });
+      }
+      return null;
     }
-    apply({ athleteNo, runHeat });
-    toast.success(message);
-    return null;
+    return record(outcome.athlete);
+  }
+
+  async function handleConfirm() {
+    if (!pending) return;
+    const { athlete } = pending;
+    setPending(null);
+    if (locked) {
+      toast.error(CLOSED_MESSAGE);
+      return;
+    }
+    const error = await record(athlete);
+    if (error) toast.error(error);
   }
 
   async function handleManualSubmit() {
@@ -147,6 +207,11 @@ export function CallRoom({
         <span className="text-lg font-medium text-muted-foreground">
           checked in
         </span>
+        {fromOtherHeats > 0 && (
+          <span className="ml-2 text-lg font-medium text-muted-foreground">
+            +{fromOtherHeats} from other heats
+          </span>
+        )}
       </p>
 
       {/* Unmounted, not paused, so the camera turns off on a closed heat. */}
@@ -221,6 +286,26 @@ export function CallRoom({
           </li>
         ))}
       </ul>
+
+      <AlertDialog
+        open={pending !== null}
+        onOpenChange={(open) => {
+          if (!open) setPending(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Check in at heat {runHeat}?</AlertDialogTitle>
+            <AlertDialogDescription>{pending?.message}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void handleConfirm()}>
+              Check in here
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <HeatContextBar
         leagueId={leagueId}
