@@ -787,6 +787,14 @@ export type Database = {
           user_id: string;
         }[];
       };
+      remove_member: {
+        Args: { member_user_id: string; org_id: number };
+        Returns: undefined;
+      };
+      set_member_admin: {
+        Args: { make_admin: boolean; member_user_id: string; org_id: number };
+        Returns: undefined;
+      };
       send_invitation: {
         Args: {
           invitee_email: string;

@@ -67,6 +67,11 @@ async function LeaguesList() {
                   </Link>
                 </Button>
                 <Button asChild variant="ghost" size="sm">
+                  <Link href={`/organizations/${organization.id}/members`}>
+                    Members
+                  </Link>
+                </Button>
+                <Button asChild variant="ghost" size="sm">
                   <Link href={`/organizations/${organization.id}/team`}>
                     Default team
                   </Link>
