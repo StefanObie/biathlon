@@ -1,16 +1,16 @@
 import type { LeagueRole } from "@/lib/access/roles";
+import { leagueAddress, type LeagueScreenAddress } from "@/lib/leagues/address";
 
-const SCREEN: Partial<Record<LeagueRole, string>> = {
-  caller: "/call-room",
-  timekeeper: "/timer",
-  placer: "/position",
-  official: "",
+const SCREEN: Partial<Record<LeagueRole, LeagueScreenAddress>> = {
+  caller: "call-room",
+  timekeeper: "timer",
+  placer: "position",
 };
 
 /**
  * Where an invitee lands once their Invitation is accepted: the League
  * screen for their Role (Caller, Timekeeper, Placer), the League page
- * (Official), or the Organization home (Default team, no Role, or a League
+ * (Official), or the Organization address (Default team, no Role, or a League
  * that has since gone, which comes back with no league).
  */
 export function landingPath(landing: {
@@ -19,9 +19,14 @@ export function landingPath(landing: {
   leagueId: number | null;
 }): string {
   if (landing.role !== null && landing.leagueId !== null) {
-    return `/leagues/${landing.leagueId}${SCREEN[landing.role] ?? ""}`;
+    const league = {
+      organizationId: landing.organizationId,
+      leagueId: landing.leagueId,
+    };
+    const screen = SCREEN[landing.role];
+    return screen ? leagueAddress(league, screen) : leagueAddress(league);
   }
-  return `/leagues#organization-${landing.organizationId}`;
+  return `/organizations/${landing.organizationId}`;
 }
 
 export type AcceptDecision =

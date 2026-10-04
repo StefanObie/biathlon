@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import type { LeagueAccess } from "@/lib/access/roles";
@@ -7,10 +8,15 @@ import type { LeagueAccess } from "@/lib/access/roles";
  * What the signed-in Member holds on a League: whether they're an Admin of
  * its Organization, and their current Roles on its team. Null when they
  * can't see the League at all — not on its team and not an Admin, or no
- * such League. Cached per request, so the layout and page share one lookup.
+ * such League. A League that sits under a different Organization than the one
+ * named is not found (ADR 0004); RLS remains the access boundary. Cached per
+ * request, so the layout and page share one lookup.
  */
 export const getLeagueAccess = cache(
-  async (leagueId: number): Promise<LeagueAccess | null> => {
+  async (
+    organizationId: number,
+    leagueId: number,
+  ): Promise<LeagueAccess | null> => {
     const supabase = await createClient();
     const { data: claims } = await supabase.auth.getClaims();
     const userId = claims?.claims.sub;
@@ -23,6 +29,7 @@ export const getLeagueAccess = cache(
       .eq("id", leagueId)
       .maybeSingle();
     if (!league) return null;
+    if (league.organization_id !== organizationId) notFound();
 
     const [{ data: membership }, { data: team }] = await Promise.all([
       supabase

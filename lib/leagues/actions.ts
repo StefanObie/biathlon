@@ -4,6 +4,7 @@ import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { leagueAddress, type LeagueRef } from "@/lib/leagues/address";
 import type { ParsedEntryRow } from "@/lib/import/entry-row";
 import { parseAgeGroup } from "@/lib/import/age-group";
 import { resultsTag } from "@/lib/results/query";
@@ -73,7 +74,7 @@ export async function createLeague(
   // A guess at this slug may have been cached as not-found.
   updateTag(resultsTag(slug));
   revalidatePath("/leagues");
-  redirect(`/leagues/${data.id}/start-list`);
+  redirect(leagueAddress({ organizationId, leagueId: data.id }, "start-list"));
 }
 
 /**
@@ -105,9 +106,10 @@ export interface SaveStartListState {
  * upsert-by-athlete-number.
  */
 export async function saveStartList(
-  leagueId: number,
+  league: LeagueRef,
   parsed: ParsedEntryRow[],
 ): Promise<SaveStartListState> {
+  const { leagueId } = league;
   if (parsed.length === 0) {
     return { fatalError: "No rows to save." };
   }
@@ -146,7 +148,7 @@ export async function saveStartList(
     return { fatalError: `Failed to save entries: ${entryError.message}` };
   }
 
-  revalidatePath(`/leagues/${leagueId}/start-list`);
+  revalidatePath(leagueAddress(league, "start-list"));
   return { saved: parsed.length };
 }
 
@@ -164,10 +166,11 @@ export interface AddWalkUpAthleteState {
  * hand-entered single row, which does need real validation here.
  */
 export async function addWalkUpAthlete(
-  leagueId: number,
+  league: LeagueRef,
   _prevState: AddWalkUpAthleteState,
   formData: FormData,
 ): Promise<AddWalkUpAthleteState> {
+  const { leagueId } = league;
   const athleteNo = Number(formData.get("athleteNo"));
   const fullName = String(formData.get("fullName") ?? "").trim();
   const ageGroupLabel = String(formData.get("ageGroupLabel") ?? "").trim();
@@ -246,6 +249,6 @@ export async function addWalkUpAthlete(
     return { error: `Failed to save entry: ${entryError.message}` };
   }
 
-  revalidatePath(`/leagues/${leagueId}/start-list`);
+  revalidatePath(leagueAddress(league, "start-list"));
   return { saved: true };
 }

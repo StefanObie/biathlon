@@ -1,0 +1,73 @@
+import { Suspense } from "react";
+import { notFound } from "next/navigation";
+
+import { createClient } from "@/lib/supabase/server";
+import { canUse } from "@/lib/access/roles";
+import { getLeagueAccess } from "@/lib/access/league-access";
+import { NoAccess } from "@/components/leagues/no-access";
+import {
+  StartList,
+  type StartListEntry,
+} from "@/components/leagues/start-list";
+
+export default function StartListPage({
+  params,
+}: {
+  params: Promise<{ organizationId: string; leagueId: string }>;
+}) {
+  return (
+    <Suspense
+      fallback={<p className="text-muted-foreground">Loading start list…</p>}
+    >
+      <StartListSection params={params} />
+    </Suspense>
+  );
+}
+
+async function StartListSection({
+  params,
+}: {
+  params: Promise<{ organizationId: string; leagueId: string }>;
+}) {
+  const { organizationId, leagueId } = await params;
+  const organizationIdNum = Number(organizationId);
+  const leagueIdNum = Number(leagueId);
+  if (!Number.isInteger(organizationIdNum) || !Number.isInteger(leagueIdNum)) {
+    notFound();
+  }
+
+  const access = await getLeagueAccess(organizationIdNum, leagueIdNum);
+  if (!access || !canUse(access, "start-list")) return <NoAccess />;
+
+  const supabase = await createClient();
+  const { data: entries, error } = await supabase
+    .from("entry")
+    .select(
+      "athlete_no, run_heat, swim_heat, swim_lane, age_group_code, athlete(full_name, gender)",
+    )
+    .eq("league_id", leagueIdNum)
+    .order("run_heat")
+    .order("athlete_no");
+
+  if (error) {
+    return <p className="text-sm text-destructive">{error.message}</p>;
+  }
+
+  const committed: StartListEntry[] = (entries ?? []).map((entry) => ({
+    athleteNo: entry.athlete_no,
+    fullName: entry.athlete?.full_name ?? "",
+    gender: entry.athlete?.gender ?? "",
+    ageGroupCode: entry.age_group_code,
+    runHeat: entry.run_heat,
+    swimHeat: entry.swim_heat,
+    swimLane: entry.swim_lane,
+  }));
+
+  return (
+    <StartList
+      organizationId={organizationIdNum}
+      leagueId={leagueIdNum}
+      committed={committed}
+    />
+  );
+}

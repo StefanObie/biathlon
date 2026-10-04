@@ -38,6 +38,7 @@ import { parseBibPayload } from "@/lib/scan/payload";
 const CLOSED_MESSAGE = "This heat is closed. Check-ins can't be changed.";
 
 export function CallRoom({
+  organizationId,
   leagueId,
   leagueName,
   runHeat,
@@ -47,6 +48,7 @@ export function CallRoom({
   remoteCheckIns,
   remoteHeatClosed,
 }: {
+  organizationId: number;
   leagueId: number;
   leagueName: string;
   runHeat: number;
@@ -308,6 +310,7 @@ export function CallRoom({
       </AlertDialog>
 
       <HeatContextBar
+        organizationId={organizationId}
         leagueId={leagueId}
         leagueName={leagueName}
         mode="call-room"

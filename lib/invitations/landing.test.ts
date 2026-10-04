@@ -6,28 +6,28 @@ describe("landingPath", () => {
   it("sends Callers, Timekeepers and Placers to their League screen", () => {
     expect(
       landingPath({ organizationId: 1, role: "caller", leagueId: 7 }),
-    ).toBe("/leagues/7/call-room");
+    ).toBe("/organizations/1/leagues/7/call-room");
     expect(
       landingPath({ organizationId: 1, role: "timekeeper", leagueId: 7 }),
-    ).toBe("/leagues/7/timer");
+    ).toBe("/organizations/1/leagues/7/timer");
     expect(
       landingPath({ organizationId: 1, role: "placer", leagueId: 7 }),
-    ).toBe("/leagues/7/position");
+    ).toBe("/organizations/1/leagues/7/position");
   });
 
   it("sends an Official to the League page", () => {
     expect(
       landingPath({ organizationId: 1, role: "official", leagueId: 7 }),
-    ).toBe("/leagues/7");
+    ).toBe("/organizations/1/leagues/7");
   });
 
-  it("sends everyone else to the Organization home", () => {
+  it("sends everyone else to the Organization address", () => {
     expect(landingPath({ organizationId: 3, role: null, leagueId: null })).toBe(
-      "/leagues#organization-3",
+      "/organizations/3",
     );
     expect(
       landingPath({ organizationId: 3, role: "caller", leagueId: null }),
-    ).toBe("/leagues#organization-3");
+    ).toBe("/organizations/3");
   });
 });
 

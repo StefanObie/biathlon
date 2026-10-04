@@ -40,9 +40,15 @@ const initialState: AddWalkUpAthleteState = {};
  * table: this is a rare, deliberate action, not part of the normal
  * import/preview flow above it.
  */
-export function AddWalkUpAthleteForm({ leagueId }: { leagueId: number }) {
+export function AddWalkUpAthleteForm({
+  organizationId,
+  leagueId,
+}: {
+  organizationId: number;
+  leagueId: number;
+}) {
   const [open, setOpen] = useState(false);
-  const action = addWalkUpAthlete.bind(null, leagueId);
+  const action = addWalkUpAthlete.bind(null, { organizationId, leagueId });
   const [state, formAction, pending] = useActionState(action, initialState);
 
   useEffect(() => {

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
+import { leagueAddress, type LeagueRef } from "@/lib/leagues/address";
 import type { LeagueRole } from "@/lib/access/roles";
 import type { TeamChangeResult } from "@/lib/organizations/team-rows";
 
@@ -13,11 +14,12 @@ import type { TeamChangeResult } from "@/lib/organizations/team-rows";
  * than deleting it.
  */
 export async function setTeamRole(
-  leagueId: number,
+  league: LeagueRef,
   userId: string,
   role: LeagueRole,
   held: boolean,
 ): Promise<TeamChangeResult> {
+  const { leagueId } = league;
   const supabase = await createClient();
 
   if (held) {
@@ -35,20 +37,20 @@ export async function setTeamRole(
     if (error) return { error: error.message };
   }
 
-  revalidatePath(`/leagues/${leagueId}/team`);
+  revalidatePath(leagueAddress(league, "team"));
   return {};
 }
 
 /** Takes every Role a Member holds on a League's team away. */
 export async function removeFromTeam(
-  leagueId: number,
+  league: LeagueRef,
   userId: string,
 ): Promise<TeamChangeResult> {
   const supabase = await createClient();
-  const { error } = await endEntries(supabase, leagueId, userId);
+  const { error } = await endEntries(supabase, league.leagueId, userId);
   if (error) return { error: error.message };
 
-  revalidatePath(`/leagues/${leagueId}/team`);
+  revalidatePath(leagueAddress(league, "team"));
   return {};
 }
 

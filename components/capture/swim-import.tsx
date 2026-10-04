@@ -74,11 +74,13 @@ type Stage =
 type Change = "new" | "updated" | "unchanged" | "overrides-manual";
 
 export function SwimImport({
+  organizationId,
   leagueId,
   leagueName,
   roster,
   existing,
 }: {
+  organizationId: number;
   leagueId: number;
   leagueName: string;
   roster: RosterEntry[];
@@ -201,7 +203,7 @@ export function SwimImport({
     setSaveError(null);
     startSaving(async () => {
       const result = await saveSwimResults(
-        leagueId,
+        { organizationId, leagueId },
         stage.name === "review" ? stage.fileName : "",
         savableRows.map((row) => ({
           athleteNo: row.athleteNo as number,

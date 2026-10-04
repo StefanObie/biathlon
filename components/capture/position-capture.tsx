@@ -69,6 +69,7 @@ export interface RemoteCapture {
 }
 
 export function PositionCapture({
+  organizationId,
   leagueId,
   leagueName,
   runHeat,
@@ -78,6 +79,7 @@ export function PositionCapture({
   remoteCaptures,
   remoteHeatClosed,
 }: {
+  organizationId: number;
   leagueId: number;
   leagueName: string;
   runHeat: number;
@@ -507,6 +509,7 @@ export function PositionCapture({
       </AlertDialog>
 
       <HeatContextBar
+        organizationId={organizationId}
         leagueId={leagueId}
         leagueName={leagueName}
         mode="position"

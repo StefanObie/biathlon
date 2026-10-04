@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { HeatMode } from "@/lib/access/roles";
+import { leagueAddress } from "@/lib/leagues/address";
 
 const MODE_LABEL: Record<HeatMode, string> = {
   timer: "Timer",
@@ -26,6 +27,7 @@ const MODE_LABEL: Record<HeatMode, string> = {
 interface LeagueOption {
   id: number;
   name: string;
+  organization_id: number;
 }
 
 /**
@@ -36,6 +38,7 @@ interface LeagueOption {
  * own persistent control. Corner arrows jump directly to the adjacent heat.
  */
 export function HeatContextBar({
+  organizationId,
   leagueId,
   leagueName,
   mode,
@@ -43,6 +46,7 @@ export function HeatContextBar({
   runHeat,
   heats,
 }: {
+  organizationId: number;
   leagueId: number;
   leagueName: string;
   mode: HeatMode;
@@ -65,7 +69,7 @@ export function HeatContextBar({
       : null;
 
   function heatHref(heat: number) {
-    return `/leagues/${leagueId}/${mode}/${heat}`;
+    return leagueAddress({ organizationId, leagueId }, mode, heat);
   }
 
   async function handleOpen(nextOpen: boolean) {
@@ -75,7 +79,7 @@ export function HeatContextBar({
       const supabase = createClient();
       const { data } = await supabase
         .from("league")
-        .select("id, name")
+        .select("id, name, organization_id")
         .order("league_date", { ascending: false });
       setLeagues(data ?? []);
       setLoadingLeagues(false);
@@ -133,7 +137,13 @@ export function HeatContextBar({
                 {leagues?.map((league) => (
                   <Link
                     key={league.id}
-                    href={`/leagues/${league.id}/${mode}`}
+                    href={leagueAddress(
+                      {
+                        organizationId: league.organization_id,
+                        leagueId: league.id,
+                      },
+                      mode,
+                    )}
                     onClick={() => setOpen(false)}
                     className={cn(
                       "rounded-md px-3 py-2 text-sm hover:bg-accent",
@@ -180,7 +190,13 @@ export function HeatContextBar({
                       size="sm"
                       onClick={() => {
                         setOpen(false);
-                        router.push(`/leagues/${leagueId}/${m}/${runHeat}`);
+                        router.push(
+                          leagueAddress(
+                            { organizationId, leagueId },
+                            m,
+                            runHeat,
+                          ),
+                        );
                       }}
                     >
                       {MODE_LABEL[m]}
