@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  filterGroups,
   shapeResults,
   type ResultsAthleteRow,
   type ResultsPointsRow,
@@ -157,6 +158,11 @@ describe("shapeResults — Unclassified", () => {
       "Unclassified",
     ]);
     const unclassified = groups[1];
+    expect(unclassified).toMatchObject({
+      gender: "M",
+      age_group_code: null,
+      age_group_label: null,
+    });
     expect(unclassified.ranked).toEqual([]);
     expect(unclassified.unranked).toEqual([
       {
@@ -177,5 +183,77 @@ describe("shapeResults — Unclassified", () => {
       table,
     );
     expect(groups).toEqual([]);
+  });
+});
+
+describe("shapeResults — gender and age group on groups", () => {
+  it("carries the gender and age group code and label", () => {
+    const [group] = shapeResults([athlete("A", "02:45.00", "01:13.00")], table);
+    expect(group).toMatchObject({
+      gender: "M",
+      age_group_code: "U15",
+      age_group_label: "Under 15",
+    });
+  });
+
+  it("splits Unclassified by the athlete's gender, each ending its side", () => {
+    const groups = shapeResults(
+      [
+        athlete("BoyStray", "02:45.00", "01:13.00", { age_group_code: "M80" }),
+        athlete("GirlStray", "02:45.00", "01:13.00", {
+          age_group_code: "M80",
+          gender: "F",
+        }),
+        athlete("Boy", "02:45.00", "01:13.00"),
+        athlete("Girl", "02:45.00", "01:13.00", { gender: "F" }),
+      ],
+      table,
+    );
+    expect(groups.map((g) => [g.gender, g.title])).toEqual([
+      ["F", "Girls/Ladies · Under 15"],
+      ["F", "Unclassified"],
+      ["M", "Boys/Men · Under 15"],
+      ["M", "Unclassified"],
+    ]);
+  });
+});
+
+describe("filterGroups", () => {
+  const groups = shapeResults(
+    [
+      athlete("B15", "02:45.00", "01:13.00"),
+      athlete("B11", "02:45.00", "01:13.00", { age_group_code: "U11" }),
+      athlete("BStray", "02:45.00", "01:13.00", { age_group_code: "M80" }),
+      athlete("G15", "02:45.00", "01:13.00", { gender: "F" }),
+    ],
+    table,
+  );
+
+  it("keeps a gender's groups, including its Unclassified", () => {
+    expect(filterGroups(groups, { gender: "M" }).map((g) => g.title)).toEqual([
+      "Boys/Men · Under 11",
+      "Boys/Men · Under 15",
+      "Unclassified",
+    ]);
+    expect(filterGroups(groups, { gender: "F" }).map((g) => g.title)).toEqual([
+      "Girls/Ladies · Under 15",
+    ]);
+  });
+
+  it("keeps one age group", () => {
+    const only = filterGroups(groups, { gender: "M", ageGroup: "U11" });
+    expect(only.map((g) => g.age_group_code)).toEqual(["U11"]);
+  });
+
+  it("leaves ranks unchanged", () => {
+    const all = shapeResults(
+      [
+        athlete("Slow", "02:48.00", "01:14.00"),
+        athlete("Fast", "02:40.00", "01:10.00"),
+      ],
+      table,
+    );
+    const [filtered] = filterGroups(all, { gender: "M", ageGroup: "U15" });
+    expect(filtered.ranked).toEqual(all[0].ranked);
   });
 });
