@@ -3,6 +3,7 @@
 import { revalidatePath, updateTag } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
+import { leagueAddress, type LeagueRef } from "@/lib/leagues/address";
 import {
   defaultSlug,
   isCustomSlug,
@@ -78,9 +79,10 @@ async function currentSettings(supabase: Supabase, leagueId: number) {
  * none. The old address stops working, so the UI warns first.
  */
 export async function setVisibility(
-  leagueId: number,
+  ref: LeagueRef,
   visibility: Visibility,
 ): Promise<ResultsSettingsResult> {
+  const { leagueId } = ref;
   const supabase = await createClient();
   const league = await currentSettings(supabase, leagueId);
   if (!league) return { error: NOT_ADMIN };
@@ -100,7 +102,7 @@ export async function setVisibility(
   if (result.error) return { error: result.error };
 
   expireResults(league.results_slug, result.slug);
-  revalidatePath(`/leagues/${leagueId}/settings`);
+  revalidatePath(leagueAddress(ref, "settings"));
   return {};
 }
 
@@ -110,9 +112,10 @@ export async function setVisibility(
  * nothing is saved; it's never altered to fit.
  */
 export async function setResultsSlug(
-  leagueId: number,
+  ref: LeagueRef,
   input: string,
 ): Promise<ResultsSettingsResult & { slug?: string }> {
+  const { leagueId } = ref;
   const slug = normaliseSlug(input);
   if (!isCustomSlug(slug)) {
     return {
@@ -139,14 +142,15 @@ export async function setResultsSlug(
   if (result.error) return { error: result.error };
 
   expireResults(league.results_slug, slug);
-  revalidatePath(`/leagues/${leagueId}/settings`);
+  revalidatePath(leagueAddress(ref, "settings"));
   return { slug };
 }
 
 /** Replaces a Protected League's Results link; the old one stops working. */
 export async function regenerateResultsLink(
-  leagueId: number,
+  ref: LeagueRef,
 ): Promise<ResultsSettingsResult> {
+  const { leagueId } = ref;
   const supabase = await createClient();
   const league = await currentSettings(supabase, leagueId);
   if (!league) return { error: NOT_ADMIN };
@@ -164,7 +168,7 @@ export async function regenerateResultsLink(
   if (result.error) return { error: result.error };
 
   expireResults(league.results_slug, result.slug);
-  revalidatePath(`/leagues/${leagueId}/settings`);
+  revalidatePath(leagueAddress(ref, "settings"));
   return {};
 }
 

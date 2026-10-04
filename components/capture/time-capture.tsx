@@ -68,6 +68,7 @@ export interface RemoteLeagueRace {
 }
 
 export function TimeCapture({
+  organizationId,
   leagueId,
   leagueName,
   runHeat,
@@ -78,6 +79,7 @@ export function TimeCapture({
   remoteLeagueRace,
   remoteHeatClosed,
 }: {
+  organizationId: number;
   leagueId: number;
   leagueName: string;
   runHeat: number;
@@ -451,6 +453,7 @@ export function TimeCapture({
       </AlertDialog>
 
       <HeatContextBar
+        organizationId={organizationId}
         leagueId={leagueId}
         leagueName={leagueName}
         mode="timer"

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
+import { leagueAddress, type LeagueRef } from "@/lib/leagues/address";
 import type { Json } from "@/lib/supabase/database.types";
 
 export interface SwimResultInput {
@@ -41,7 +42,7 @@ const VALID_STATUS = new Set(["ok", "dns", "dnf", "dq"]);
  * database error.
  */
 export async function saveSwimResults(
-  leagueId: number,
+  league: LeagueRef,
   fileName: string,
   rows: SwimResultInput[],
   counts: {
@@ -51,6 +52,7 @@ export async function saveSwimResults(
     needsReview: number;
   },
 ): Promise<SaveSwimResultsState> {
+  const { leagueId } = league;
   if (rows.length === 0) {
     return { fatalError: "No rows to save." };
   }
@@ -161,6 +163,6 @@ export async function saveSwimResults(
     console.error("swim import: audit log write failed", auditError);
   }
 
-  revalidatePath(`/leagues/${leagueId}/swim`);
+  revalidatePath(leagueAddress(league, "swim"));
   return { saved: rows.length };
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { leagueAddress } from "@/lib/leagues/address";
 import { DownloadIcon } from "lucide-react";
 
 import type { ExportPreviewRow } from "@/lib/export/select-rows";
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/empty";
 
 export function ExportPreview({
+  organizationId,
   leagueId,
   leagueName,
   rows,
@@ -28,6 +30,7 @@ export function ExportPreview({
   openHeatAthleteCount,
   openHeats,
 }: {
+  organizationId: number;
   leagueId: number;
   leagueName: string;
   rows: ExportPreviewRow[];
@@ -102,7 +105,7 @@ export function ExportPreview({
         </div>
 
         <Button asChild>
-          <a href={`/leagues/${leagueId}/export/xml`}>
+          <a href={leagueAddress({ organizationId, leagueId }, "export-xml")}>
             <DownloadIcon />
             Download XML
           </a>

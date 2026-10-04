@@ -1,0 +1,117 @@
+import { Suspense } from "react";
+import { notFound } from "next/navigation";
+
+import { heatRosterSize } from "@/lib/capture/screen-state";
+import { toHeatClosed } from "@/lib/capture/heat-closed";
+import { createClient } from "@/lib/supabase/server";
+import { canUse, heatModes } from "@/lib/access/roles";
+import { getLeagueAccess } from "@/lib/access/league-access";
+import { NoAccess } from "@/components/leagues/no-access";
+import { TimeCapture } from "@/components/capture/time-capture";
+
+export default function TimerHeatPage({
+  params,
+}: {
+  params: Promise<{
+    organizationId: string;
+    leagueId: string;
+    runHeat: string;
+  }>;
+}) {
+  return (
+    <Suspense fallback={<p className="text-muted-foreground">Loading heat…</p>}>
+      <TimerHeatSection params={params} />
+    </Suspense>
+  );
+}
+
+async function TimerHeatSection({
+  params,
+}: {
+  params: Promise<{
+    organizationId: string;
+    leagueId: string;
+    runHeat: string;
+  }>;
+}) {
+  const { organizationId, leagueId, runHeat } = await params;
+  const organizationIdNum = Number(organizationId);
+  const leagueIdNum = Number(leagueId);
+  const runHeatNum = Number(runHeat);
+  if (
+    !Number.isInteger(organizationIdNum) ||
+    !Number.isInteger(leagueIdNum) ||
+    !Number.isInteger(runHeatNum)
+  ) {
+    notFound();
+  }
+
+  const access = await getLeagueAccess(organizationIdNum, leagueIdNum);
+  if (!access || !canUse(access, "timer")) return <NoAccess />;
+
+  const supabase = await createClient();
+
+  const [
+    { data: entries, error: entriesError },
+    { data: captures },
+    { data: leagueRace, error: leagueRaceError },
+    { data: league },
+  ] = await Promise.all([
+    supabase.from("entry").select("run_heat").eq("league_id", leagueIdNum),
+    supabase
+      .from("time_capture")
+      .select(
+        "id, seq, elapsed_time, is_placeholder, voided, void_reason, captured_at, device_id",
+      )
+      .eq("league_id", leagueIdNum)
+      .eq("run_heat", runHeatNum)
+      .order("seq"),
+    supabase
+      .from("league_race")
+      .select("started_at, device_id, closed_at, closed_by")
+      .eq("league_id", leagueIdNum)
+      .eq("run_heat", runHeatNum)
+      .maybeSingle(),
+    supabase.from("league").select("name").eq("id", leagueIdNum).maybeSingle(),
+  ]);
+
+  if (entriesError) {
+    return <p className="text-sm text-destructive">{entriesError.message}</p>;
+  }
+
+  const heats = [...new Set((entries ?? []).map((e) => e.run_heat))];
+  const rosterSize = heatRosterSize(
+    (entries ?? []).map((e) => e.run_heat),
+    runHeatNum,
+  );
+
+  if (!heats.includes(runHeatNum)) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No athletes assigned to run heat {runHeatNum}.
+      </p>
+    );
+  }
+
+  return (
+    <TimeCapture
+      organizationId={organizationIdNum}
+      leagueId={leagueIdNum}
+      leagueName={league?.name ?? `League ${leagueIdNum}`}
+      runHeat={runHeatNum}
+      modes={heatModes(access)}
+      heats={heats}
+      rosterSize={rosterSize}
+      remoteCaptures={captures ?? []}
+      remoteLeagueRace={
+        leagueRace
+          ? {
+              started_at: leagueRace.started_at,
+              device_id: leagueRace.device_id,
+            }
+          : null
+      }
+      remoteHeatClosed={leagueRaceError ? undefined : toHeatClosed(leagueRace)}
+    />
+  );
+}

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
+import { leagueAddress } from "@/lib/leagues/address";
 import { CreateLeagueForm } from "@/components/leagues/create-league-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -83,7 +84,13 @@ async function LeaguesList() {
             <p className="text-sm text-muted-foreground">No leagues yet.</p>
           ) : (
             organization.league.map((league) => (
-              <Link key={league.id} href={`/leagues/${league.id}`}>
+              <Link
+                key={league.id}
+                href={leagueAddress({
+                  organizationId: organization.id,
+                  leagueId: league.id,
+                })}
+              >
                 <Card className="hover:bg-accent transition-colors">
                   <CardHeader>
                     <CardTitle>{league.name}</CardTitle>

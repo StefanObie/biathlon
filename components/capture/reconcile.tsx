@@ -140,6 +140,7 @@ function NoteList({ notes }: { notes: OperatorNote[] }) {
 }
 
 export function Reconcile({
+  organizationId,
   leagueId,
   leagueName,
   runHeat,
@@ -156,6 +157,7 @@ export function Reconcile({
   duplicateRunResults,
   onTeam,
 }: {
+  organizationId: number;
   leagueId: number;
   leagueName: string;
   runHeat: number;
@@ -783,6 +785,7 @@ export function Reconcile({
       </Dialog>
 
       <HeatContextBar
+        organizationId={organizationId}
         leagueId={leagueId}
         leagueName={leagueName}
         mode="reconcile"

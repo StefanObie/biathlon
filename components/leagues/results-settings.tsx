@@ -52,10 +52,12 @@ const BREAKS_LINKS =
  * Admin whatever this shows.
  */
 export function ResultsSettings({
+  organizationId,
   leagueId,
   visibility,
   slug,
 }: {
+  organizationId: number;
   leagueId: number;
   visibility: Visibility;
   slug: string | null;
@@ -106,7 +108,10 @@ export function ResultsSettings({
           // is one to lose, ask first.
           const loses = slug !== null;
           const choose = () =>
-            run(() => setVisibility(leagueId, option.value), "Saved.");
+            run(
+              () => setVisibility({ organizationId, leagueId }, option.value),
+              "Saved.",
+            );
           return (
             <li
               key={option.value}
@@ -206,7 +211,10 @@ export function ResultsSettings({
                   <AlertDialogAction
                     onClick={() =>
                       run(async () => {
-                        const result = await setResultsSlug(leagueId, draft);
+                        const result = await setResultsSlug(
+                          { organizationId, leagueId },
+                          draft,
+                        );
                         if (result.slug) setDraft(result.slug);
                         return result;
                       }, "Address saved.")
@@ -260,7 +268,8 @@ export function ResultsSettings({
                   <AlertDialogAction
                     onClick={() =>
                       run(
-                        () => regenerateResultsLink(leagueId),
+                        () =>
+                          regenerateResultsLink({ organizationId, leagueId }),
                         "New link created.",
                       )
                     }

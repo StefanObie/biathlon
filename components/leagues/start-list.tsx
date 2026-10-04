@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { UploadIcon } from "lucide-react";
 
+import { leagueAddress } from "@/lib/leagues/address";
 import { saveStartList } from "@/lib/leagues/actions";
 import { AddWalkUpAthleteForm } from "@/components/leagues/add-walk-up-athlete-form";
 import { parseUploadedEntryFile } from "@/lib/import/parse-file";
@@ -49,9 +50,11 @@ type Stage =
   | { name: "parsing" };
 
 export function StartList({
+  organizationId,
   leagueId,
   committed,
 }: {
+  organizationId: number;
   leagueId: number;
   committed: StartListEntry[];
 }) {
@@ -99,7 +102,7 @@ export function StartList({
     const { parsed } = stage;
     setSaveError(null);
     startSaving(async () => {
-      const result = await saveStartList(leagueId, parsed);
+      const result = await saveStartList({ organizationId, leagueId }, parsed);
       if (result.fatalError) {
         setSaveError(result.fatalError);
         return;
@@ -135,6 +138,7 @@ export function StartList({
         <Dropzone onFile={handleFile} error={parseError} />
       ) : (
         <CommittedTable
+          organizationId={organizationId}
           leagueId={leagueId}
           entries={committed}
           onFile={handleFile}
@@ -209,11 +213,13 @@ function Dropzone({
 }
 
 function CommittedTable({
+  organizationId,
   leagueId,
   entries,
   onFile,
   error,
 }: {
+  organizationId: number;
   leagueId: number;
   entries: StartListEntry[];
   onFile: (file: File) => void;
@@ -230,14 +236,17 @@ function CommittedTable({
         <div className="flex items-center gap-2">
           <Button asChild variant="outline">
             <a
-              href={`/leagues/${leagueId}/bibs/pdf`}
+              href={leagueAddress({ organizationId, leagueId }, "bibs-pdf")}
               target="_blank"
               rel="noreferrer"
             >
               Download QR codes
             </a>
           </Button>
-          <AddWalkUpAthleteForm leagueId={leagueId} />
+          <AddWalkUpAthleteForm
+            organizationId={organizationId}
+            leagueId={leagueId}
+          />
           <Button variant="outline" onClick={() => inputRef.current?.click()}>
             Import new data
           </Button>
