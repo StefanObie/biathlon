@@ -69,6 +69,10 @@ _Avoid_: Permalink, handle
 The unguessable link that shows a Protected League's results. An Admin can regenerate it, and the old link then stops working.
 _Avoid_: Share link, secret URL
 
+**Featured league**:
+The Public League with the latest date on or before today, across all Organizations, shown on the home page with a link to its results. When no League qualifies, nothing is featured.
+_Avoid_: Current league, latest league
+
 ### Race structure
 
 **League**:
@@ -97,6 +101,14 @@ _Avoid_: Marshalling area, holding pen
 **Check in**:
 To record that an athlete has reported to the Call room for a heat. An athlete is Checked in or Not checked in, and a Caller can undo a check-in. An athlete is checked in to at most one heat per League, so checking them in at another heat moves the check-in. Checking in is advice for reconciliation: it never sets a result, and checking in at another heat never changes the heat roster.
 _Avoid_: Present, absent, called, missing (as a state)
+
+**Race day screens**:
+The screens used while a League is running: Position, Call room, Timer and Reconcile. They are the League's home.
+_Avoid_: Capture screens (which exclude Call room and Reconcile)
+
+**League setup**:
+The screens that prepare a League or finish it off, kept apart from the Race day screens: Start list, League team and Visibility before the race, and Swim import and Export after it.
+_Avoid_: Settings, admin
 
 ### Capture
 

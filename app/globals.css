@@ -20,6 +20,8 @@
     --accent-foreground: 0 0% 9%;
     --success: 141 71% 33%;
     --success-foreground: 0 0% 100%;
+    --heat: 262 70% 48%;
+    --heat-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 89.8%;
@@ -49,6 +51,8 @@
     --accent-foreground: 0 0% 98%;
     --success: 141 65% 45%;
     --success-foreground: 0 0% 9%;
+    --heat: 262 80% 66%;
+    --heat-foreground: 262 40% 8%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 14.9%;

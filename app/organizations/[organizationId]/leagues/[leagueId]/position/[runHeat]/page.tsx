@@ -54,7 +54,6 @@ async function PositionHeatSection({
     { data: leagueEntries, error: entriesError },
     { data: captures },
     { data: leagueRace, error: leagueRaceError },
-    { data: league },
   ] = await Promise.all([
     // Whole league, not just this heat: an operator can log an athlete who
     // ran in the wrong heat (confirmed on the capture screen) — reassigning
@@ -77,7 +76,6 @@ async function PositionHeatSection({
       .eq("league_id", leagueIdNum)
       .eq("run_heat", runHeatNum)
       .maybeSingle(),
-    supabase.from("league").select("name").eq("id", leagueIdNum).maybeSingle(),
   ]);
 
   if (entriesError) {
@@ -106,7 +104,6 @@ async function PositionHeatSection({
     <PositionCapture
       organizationId={organizationIdNum}
       leagueId={leagueIdNum}
-      leagueName={league?.name ?? `League ${leagueIdNum}`}
       runHeat={runHeatNum}
       modes={heatModes(access)}
       heats={heats}

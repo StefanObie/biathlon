@@ -54,7 +54,6 @@ async function CallRoomHeatSection({
     { data: leagueEntries, error: entriesError },
     { data: checkIns, error: checkInsError },
     { data: leagueRace, error: leagueRaceError },
-    { data: league },
   ] = await Promise.all([
     // Whole league, so a number belonging to another heat is recognised.
     supabase
@@ -71,7 +70,6 @@ async function CallRoomHeatSection({
       .eq("league_id", leagueIdNum)
       .eq("run_heat", runHeatNum)
       .maybeSingle(),
-    supabase.from("league").select("name").eq("id", leagueIdNum).maybeSingle(),
   ]);
 
   const error = entriesError ?? checkInsError;
@@ -99,7 +97,6 @@ async function CallRoomHeatSection({
     <CallRoom
       organizationId={organizationIdNum}
       leagueId={leagueIdNum}
-      leagueName={league?.name ?? `League ${leagueIdNum}`}
       runHeat={runHeatNum}
       modes={heatModes(access)}
       heats={heats}

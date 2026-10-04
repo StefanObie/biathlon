@@ -23,7 +23,7 @@ export function HeatBanner({
         "w-full max-w-sm rounded-md px-4 py-3 text-center text-4xl font-bold uppercase tracking-wide tabular-nums",
         closed
           ? "bg-muted text-muted-foreground"
-          : "bg-blue-700 text-white dark:bg-blue-600",
+          : "bg-heat text-heat-foreground",
       )}
     >
       {/* Unbroken halves, so a narrow phone wraps between them rather than

@@ -182,7 +182,6 @@ async function ReconcileHeatSection({
       <Reconcile
         organizationId={organizationIdNum}
         leagueId={leagueIdNum}
-        leagueName={league?.name ?? `League ${leagueIdNum}`}
         runHeat={runHeatNum}
         modes={heatModes(access)}
         heats={sortedHeats}
