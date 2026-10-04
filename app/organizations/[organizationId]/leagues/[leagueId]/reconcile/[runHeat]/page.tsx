@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { canUse, heatModes } from "@/lib/access/roles";
 import { getLeagueAccess } from "@/lib/access/league-access";
 import { NoAccess } from "@/components/leagues/no-access";
+import { ResultsLink } from "@/components/leagues/results-link";
 import { Reconcile } from "@/components/capture/reconcile";
 
 export default function ReconcileHeatPage({
@@ -170,26 +171,37 @@ async function ReconcileHeatSection({
     }));
 
   return (
-    <Reconcile
-      organizationId={organizationIdNum}
-      leagueId={leagueIdNum}
-      leagueName={league?.name ?? `League ${leagueIdNum}`}
-      runHeat={runHeatNum}
-      modes={heatModes(access)}
-      heats={sortedHeats}
-      roster={roster}
-      leagueRoster={leagueRoster}
-      checkIns={(checkIns ?? []).map((c) => ({
-        athleteNo: c.athlete_no,
-        runHeat: c.run_heat,
-      }))}
-      remotePositionCaptures={positionCaptures ?? []}
-      remoteTimeCaptures={timeCaptures ?? []}
-      remoteRunResults={runResults ?? []}
-      remoteNotes={notes ?? []}
-      remoteHeatClosed={leagueRaceError ? undefined : toHeatClosed(leagueRace)}
-      duplicateRunResults={leagueRunResults ?? []}
-      onTeam={team && admins ? onTeam : undefined}
-    />
+    <>
+      <div className="px-4 pt-2">
+        <ResultsLink
+          organizationId={organizationIdNum}
+          leagueId={leagueIdNum}
+          isAdmin={access.isAdmin}
+        />
+      </div>
+      <Reconcile
+        organizationId={organizationIdNum}
+        leagueId={leagueIdNum}
+        leagueName={league?.name ?? `League ${leagueIdNum}`}
+        runHeat={runHeatNum}
+        modes={heatModes(access)}
+        heats={sortedHeats}
+        roster={roster}
+        leagueRoster={leagueRoster}
+        checkIns={(checkIns ?? []).map((c) => ({
+          athleteNo: c.athlete_no,
+          runHeat: c.run_heat,
+        }))}
+        remotePositionCaptures={positionCaptures ?? []}
+        remoteTimeCaptures={timeCaptures ?? []}
+        remoteRunResults={runResults ?? []}
+        remoteNotes={notes ?? []}
+        remoteHeatClosed={
+          leagueRaceError ? undefined : toHeatClosed(leagueRace)
+        }
+        duplicateRunResults={leagueRunResults ?? []}
+        onTeam={team && admins ? onTeam : undefined}
+      />
+    </>
   );
 }
