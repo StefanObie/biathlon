@@ -75,7 +75,7 @@ export function HeatContextBar({
           onClick={() => setOpen(true)}
           className="flex min-w-0 flex-1 max-w-xs flex-col items-center rounded-full border border-input bg-background px-4 py-2 text-center shadow-sm active:scale-[0.98]"
         >
-          <span className="text-sm font-semibold tabular-nums text-heat">
+          <span className="text-sm font-semibold tabular-nums text-foreground">
             Heat {runHeat}
           </span>
           <span className="text-xs text-muted-foreground">
