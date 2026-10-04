@@ -13,7 +13,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 import type { HeatMode } from "@/lib/access/roles";
 import { leagueAddress } from "@/lib/leagues/address";
 
@@ -24,15 +23,9 @@ const MODE_LABEL: Record<HeatMode, string> = {
   reconcile: "Reconcile",
 };
 
-interface LeagueOption {
-  id: number;
-  name: string;
-  organization_id: number;
-}
-
 /**
  * Thumb-zone bar for the heat-scoped capture screens (timer, position,
- * reconcile). Center pill opens a bottom sheet to switch league, heat, or
+ * reconcile). Center pill opens a bottom sheet to switch heat or
  * mode — operators normally stay in one mode all day (§ single-task
  * enforcement), so mode-switching lives inside the sheet rather than as its
  * own persistent control. Corner arrows jump directly to the adjacent heat.
@@ -40,7 +33,6 @@ interface LeagueOption {
 export function HeatContextBar({
   organizationId,
   leagueId,
-  leagueName,
   mode,
   modes,
   runHeat,
@@ -48,7 +40,6 @@ export function HeatContextBar({
 }: {
   organizationId: number;
   leagueId: number;
-  leagueName: string;
   mode: HeatMode;
   /** The modes this Member can use; the others aren't offered. */
   modes: HeatMode[];
@@ -57,8 +48,6 @@ export function HeatContextBar({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [leagues, setLeagues] = useState<LeagueOption[] | null>(null);
-  const [loadingLeagues, setLoadingLeagues] = useState(false);
 
   const sortedHeats = [...heats].sort((a, b) => a - b);
   const index = sortedHeats.indexOf(runHeat);
@@ -72,20 +61,6 @@ export function HeatContextBar({
     return leagueAddress({ organizationId, leagueId }, mode, heat);
   }
 
-  async function handleOpen(nextOpen: boolean) {
-    setOpen(nextOpen);
-    if (nextOpen && leagues === null) {
-      setLoadingLeagues(true);
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("league")
-        .select("id, name, organization_id")
-        .order("league_date", { ascending: false });
-      setLeagues(data ?? []);
-      setLoadingLeagues(false);
-    }
-  }
-
   return (
     <>
       <div className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-between gap-3 border-t border-border bg-background/95 px-3 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
@@ -97,12 +72,14 @@ export function HeatContextBar({
 
         <button
           type="button"
-          onClick={() => void handleOpen(true)}
+          onClick={() => setOpen(true)}
           className="flex min-w-0 flex-1 max-w-xs flex-col items-center rounded-full border border-input bg-background px-4 py-2 text-center shadow-sm active:scale-[0.98]"
         >
-          <span className="truncate text-sm font-semibold">{leagueName}</span>
+          <span className="text-sm font-semibold tabular-nums text-heat">
+            Heat {runHeat}
+          </span>
           <span className="text-xs text-muted-foreground">
-            Heat {runHeat} · {MODE_LABEL[mode]}
+            {MODE_LABEL[mode]}
           </span>
         </button>
 
@@ -116,46 +93,16 @@ export function HeatContextBar({
       {/* Spacer so page content isn't hidden behind the fixed bar. */}
       <div className="h-20" aria-hidden />
 
-      <Dialog open={open} onOpenChange={(next) => void handleOpen(next)}>
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
           showCloseButton
-          className="top-auto bottom-0 left-0 right-0 translate-x-0 translate-y-0 rounded-t-xl rounded-b-none border-b-0 sm:max-w-lg sm:mx-auto data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom"
+          className="top-auto bottom-0 left-0 right-0 max-w-none translate-x-0 translate-y-0 rounded-t-xl rounded-b-none border-b-0 sm:max-w-lg sm:mx-auto data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom"
         >
           <DialogHeader>
-            <DialogTitle>Switch league or heat</DialogTitle>
+            <DialogTitle>Switch heat</DialogTitle>
           </DialogHeader>
 
           <div className="flex flex-col gap-4">
-            <div>
-              <p className="mb-2 text-sm font-medium text-muted-foreground">
-                League
-              </p>
-              <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
-                {loadingLeagues && (
-                  <p className="text-sm text-muted-foreground">Loading…</p>
-                )}
-                {leagues?.map((league) => (
-                  <Link
-                    key={league.id}
-                    href={leagueAddress(
-                      {
-                        organizationId: league.organization_id,
-                        leagueId: league.id,
-                      },
-                      mode,
-                    )}
-                    onClick={() => setOpen(false)}
-                    className={cn(
-                      "rounded-md px-3 py-2 text-sm hover:bg-accent",
-                      league.id === leagueId && "bg-accent font-semibold",
-                    )}
-                  >
-                    {league.name}
-                  </Link>
-                ))}
-              </div>
-            </div>
-
             <div>
               <p className="mb-2 text-sm font-medium text-muted-foreground">
                 Heat
@@ -168,7 +115,7 @@ export function HeatContextBar({
                     onClick={() => setOpen(false)}
                     className={cn(
                       "flex h-11 items-center justify-center rounded-md border border-input text-base font-semibold tabular-nums hover:bg-accent",
-                      heat === runHeat && "border-primary bg-accent",
+                      heat === runHeat && "border-heat bg-heat/10 text-heat",
                     )}
                   >
                     {heat}
@@ -236,7 +183,7 @@ function ArrowButton({
     <Button
       asChild
       size="icon"
-      className="h-12 w-12 shrink-0 rounded-full bg-green-600 text-white shadow-sm hover:bg-green-700"
+      className="h-12 w-12 shrink-0 rounded-full bg-foreground text-background shadow-sm hover:bg-foreground/90"
       title={`${label} (${heat})`}
     >
       <Link href={href}>

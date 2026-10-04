@@ -40,7 +40,6 @@ const CLOSED_MESSAGE = "This heat is closed. Check-ins can't be changed.";
 export function CallRoom({
   organizationId,
   leagueId,
-  leagueName,
   runHeat,
   modes,
   heats,
@@ -50,7 +49,6 @@ export function CallRoom({
 }: {
   organizationId: number;
   leagueId: number;
-  leagueName: string;
   runHeat: number;
   /** The heat screens this Member can switch to. */
   modes: HeatMode[];
@@ -312,7 +310,6 @@ export function CallRoom({
       <HeatContextBar
         organizationId={organizationId}
         leagueId={leagueId}
-        leagueName={leagueName}
         mode="call-room"
         modes={modes}
         runHeat={runHeat}

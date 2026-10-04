@@ -46,6 +46,10 @@ export default {
           DEFAULT: "hsl(var(--success))",
           foreground: "hsl(var(--success-foreground))",
         },
+        heat: {
+          DEFAULT: "hsl(var(--heat))",
+          foreground: "hsl(var(--heat-foreground))",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

@@ -70,7 +70,6 @@ export interface RemoteLeagueRace {
 export function TimeCapture({
   organizationId,
   leagueId,
-  leagueName,
   runHeat,
   modes,
   heats,
@@ -81,7 +80,6 @@ export function TimeCapture({
 }: {
   organizationId: number;
   leagueId: number;
-  leagueName: string;
   runHeat: number;
   /** The heat screens this Member can switch to. */
   modes: HeatMode[];
@@ -455,7 +453,6 @@ export function TimeCapture({
       <HeatContextBar
         organizationId={organizationId}
         leagueId={leagueId}
-        leagueName={leagueName}
         mode="timer"
         modes={modes}
         runHeat={runHeat}

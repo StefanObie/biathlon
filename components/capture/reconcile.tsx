@@ -142,7 +142,6 @@ function NoteList({ notes }: { notes: OperatorNote[] }) {
 export function Reconcile({
   organizationId,
   leagueId,
-  leagueName,
   runHeat,
   modes,
   heats,
@@ -159,7 +158,6 @@ export function Reconcile({
 }: {
   organizationId: number;
   leagueId: number;
-  leagueName: string;
   runHeat: number;
   /** The heat screens this Member can switch to. */
   modes: HeatMode[];
@@ -787,7 +785,6 @@ export function Reconcile({
       <HeatContextBar
         organizationId={organizationId}
         leagueId={leagueId}
-        leagueName={leagueName}
         mode="reconcile"
         modes={modes}
         runHeat={runHeat}

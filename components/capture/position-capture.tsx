@@ -71,7 +71,6 @@ export interface RemoteCapture {
 export function PositionCapture({
   organizationId,
   leagueId,
-  leagueName,
   runHeat,
   modes,
   heats,
@@ -81,7 +80,6 @@ export function PositionCapture({
 }: {
   organizationId: number;
   leagueId: number;
-  leagueName: string;
   runHeat: number;
   /** The heat screens this Member can switch to. */
   modes: HeatMode[];
@@ -511,7 +509,6 @@ export function PositionCapture({
       <HeatContextBar
         organizationId={organizationId}
         leagueId={leagueId}
-        leagueName={leagueName}
         mode="position"
         modes={modes}
         runHeat={runHeat}

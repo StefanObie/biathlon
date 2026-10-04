@@ -224,3 +224,97 @@ insert into position_capture (id, league_id, run_heat, position, athlete_no, dev
   ('01K5SEEDPH2N09000000000000', 1, 2, 9, 120, 'seed-position', '2026-08-25T09:27:16.880000+02:00'),
   ('01K5SEEDPH2N10000000000000', 1, 2, 10, 114, 'seed-position', '2026-08-25T09:27:30.400000+02:00'),
   ('01K5SEEDPH2N11000000000000', 1, 2, 11, 121, 'seed-position', '2026-08-25T09:27:30.400000+02:00');
+
+-- League 2: a finished day to look at the public results page. Heats 1 and 2
+-- are Closed, heat 3 is still open, so its run times are not shown yet.
+-- Public at /results/gauteng-north-biathlon-results-demo. The mix covers a
+-- tie (101 and 103), a run-only athlete (109), a swim-only athlete (111),
+-- no-shows (110, 128) and an athlete in heat 3 with no published time yet
+-- (122), none of whom are listed, and an athlete whose age group is not in
+-- the points table (127, M80: Unclassified).
+insert into league (id, name, league_date, season, organization_id) overriding system value
+select 2, 'Results Demo', '2026-09-26', 2026, id
+from organization where name = 'Gauteng North Biathlon';
+
+select setval(pg_get_serial_sequence('league', 'id'), (select max(id) from league));
+
+insert into entry (league_id, athlete_no, run_heat, swim_heat, swim_lane, age_group_code) values
+  (2, 101, 1, 1, 1, 'U13'),
+  (2, 102, 1, 1, 2, 'U13'),
+  (2, 103, 1, 1, 3, 'U13'),
+  (2, 104, 1, 1, 4, 'U13'),
+  (2, 105, 1, 1, 5, 'U15'),
+  (2, 106, 1, 1, 6, 'U15'),
+  (2, 107, 1, 1, 7, 'U15'),
+  (2, 108, 1, 1, 8, 'U15'),
+  (2, 109, 1, 2, 1, 'U15'),
+  (2, 110, 1, 2, 2, 'U15'),
+  (2, 111, 2, 2, 3, 'U17'),
+  (2, 112, 2, 2, 4, 'U17'),
+  (2, 113, 2, 2, 5, 'U17'),
+  (2, 114, 2, 2, 6, 'U17'),
+  (2, 115, 2, 2, 7, 'U19'),
+  (2, 116, 2, 2, 8, 'U19'),
+  (2, 117, 2, 3, 1, 'U19'),
+  (2, 118, 2, 3, 2, 'U19'),
+  (2, 119, 2, 3, 3, 'JNR'),
+  (2, 120, 2, 3, 4, 'JNR'),
+  (2, 121, 3, 3, 5, 'SEN'),
+  (2, 122, 3, 3, 6, 'SEN'),
+  (2, 123, 3, 3, 7, 'M40'),
+  (2, 124, 3, 3, 8, 'M40'),
+  (2, 125, 3, 4, 1, 'M50'),
+  (2, 126, 3, 4, 2, 'M50'),
+  (2, 127, 3, 4, 3, 'M80'),
+  (2, 128, 3, 4, 4, 'SN');
+
+insert into league_race (league_id, run_heat, started_at, device_id, closed_at, closed_by) values
+  (2, 1, '2026-09-26T09:00:00+02:00', 'seed-timer', '2026-09-26T09:40:00+02:00', 'seed-official'),
+  (2, 2, '2026-09-26T09:20:00+02:00', 'seed-timer', '2026-09-26T09:50:00+02:00', 'seed-official'),
+  (2, 3, '2026-09-26T09:40:00+02:00', 'seed-timer', null, null);
+
+insert into run_result (league_id, athlete_no, run_heat, run_time, status, source) values
+  (2, 101, 1, '02:57.66', 'ok', 'seed'),
+  (2, 102, 1, '03:10.43', 'ok', 'seed'),
+  (2, 103, 1, '02:57.66', 'ok', 'seed'),
+  (2, 104, 1, '02:49.09', 'ok', 'seed'),
+  (2, 105, 1, '02:34.35', 'ok', 'seed'),
+  (2, 106, 1, '02:41.51', 'ok', 'seed'),
+  (2, 107, 1, '02:48.28', 'ok', 'seed'),
+  (2, 108, 1, '02:43.46', 'ok', 'seed'),
+  (2, 109, 1, '02:55.59', 'ok', 'seed'),
+  (2, 112, 2, '03:04.15', 'ok', 'seed'),
+  (2, 113, 2, '02:52.90', 'ok', 'seed'),
+  (2, 114, 2, '02:34.19', 'ok', 'seed'),
+  (2, 115, 2, '02:26.11', 'ok', 'seed'),
+  (2, 116, 2, '02:46.51', 'ok', 'seed'),
+  (2, 117, 2, '02:38.00', 'ok', 'seed'),
+  (2, 118, 2, '02:59.72', 'ok', 'seed'),
+  (2, 119, 2, '02:23.15', 'ok', 'seed'),
+  (2, 120, 2, '03:08.49', 'ok', 'seed');
+
+insert into swim_result (league_id, athlete_no, event_no, heat, lane, swim_time, status, source) values
+  (2, 101, 1, 1, 1, '00:33.11', 'ok', 'seed'),
+  (2, 102, 1, 1, 2, '00:34.01', 'ok', 'seed'),
+  (2, 103, 1, 1, 3, '00:33.11', 'ok', 'seed'),
+  (2, 104, 1, 1, 4, '00:40.10', 'ok', 'seed'),
+  (2, 105, 1, 1, 5, '01:14.07', 'ok', 'seed'),
+  (2, 106, 1, 1, 6, '01:11.27', 'ok', 'seed'),
+  (2, 107, 1, 1, 7, '01:19.58', 'ok', 'seed'),
+  (2, 108, 1, 1, 8, '01:13.13', 'ok', 'seed'),
+  (2, 111, 2, 2, 3, '01:10.55', 'ok', 'seed'),
+  (2, 112, 2, 2, 4, '01:10.65', 'ok', 'seed'),
+  (2, 113, 2, 2, 5, '01:09.05', 'ok', 'seed'),
+  (2, 114, 2, 2, 6, '01:11.65', 'ok', 'seed'),
+  (2, 115, 2, 2, 7, '01:14.43', 'ok', 'seed'),
+  (2, 116, 2, 2, 8, '01:17.14', 'ok', 'seed'),
+  (2, 117, 3, 3, 1, '01:08.21', 'ok', 'seed'),
+  (2, 118, 3, 3, 2, '01:09.88', 'ok', 'seed'),
+  (2, 119, 3, 3, 3, '01:06.88', 'ok', 'seed'),
+  (2, 120, 3, 3, 4, '01:19.99', 'ok', 'seed'),
+  (2, 121, 3, 3, 5, '01:18.20', 'ok', 'seed'),
+  (2, 123, 3, 3, 7, '01:19.79', 'ok', 'seed'),
+  (2, 124, 3, 3, 8, '01:27.04', 'ok', 'seed'),
+  (2, 125, 4, 4, 1, '01:25.25', 'ok', 'seed'),
+  (2, 126, 4, 4, 2, '01:33.03', 'ok', 'seed'),
+  (2, 127, 4, 4, 3, '00:49.65', 'ok', 'seed');
