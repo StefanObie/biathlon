@@ -34,7 +34,7 @@ export async function setMemberAdmin(
   });
   if (error) return { error: describe(error) };
 
-  revalidatePath(`/organizations/${organizationId}/members`);
+  revalidatePath(`/organizations/${organizationId}`);
   return {};
 }
 
@@ -54,6 +54,6 @@ export async function removeMember(
   });
   if (error) return { error: describe(error) };
 
-  revalidatePath(`/organizations/${organizationId}/members`);
+  revalidatePath(`/organizations/${organizationId}`);
   return {};
 }

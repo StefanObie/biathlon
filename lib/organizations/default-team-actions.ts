@@ -38,7 +38,7 @@ export async function setDefaultTeamRole(
     if (error) return { error: error.message };
   }
 
-  revalidatePath(`/organizations/${organizationId}/team`);
+  revalidatePath(`/organizations/${organizationId}`);
   return {};
 }
 
@@ -55,6 +55,6 @@ export async function removeFromDefaultTeam(
     .eq("user_id", userId);
   if (error) return { error: error.message };
 
-  revalidatePath(`/organizations/${organizationId}/team`);
+  revalidatePath(`/organizations/${organizationId}`);
   return {};
 }
