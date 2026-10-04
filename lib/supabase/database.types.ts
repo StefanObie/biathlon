@@ -771,6 +771,15 @@ export type Database = {
         Returns: undefined;
       };
       create_organization: { Args: { org_name: string }; Returns: number };
+      featured_league: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          league_date: string;
+          name: string;
+          organization_name: string;
+          results_slug: string;
+        }[];
+      };
       league_results: { Args: { slug: string }; Returns: Json };
       my_pending_invitations: {
         Args: Record<PropertyKey, never>;
