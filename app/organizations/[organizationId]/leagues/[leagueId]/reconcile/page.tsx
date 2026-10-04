@@ -7,6 +7,7 @@ import { canUse } from "@/lib/access/roles";
 import { getLeagueAccess } from "@/lib/access/league-access";
 import { leagueAddress } from "@/lib/leagues/address";
 import { NoAccess } from "@/components/leagues/no-access";
+import { ResultsLink } from "@/components/leagues/results-link";
 
 export default function ReconcileHeatPickerPage({
   params,
@@ -61,6 +62,11 @@ async function HeatList({
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-lg font-semibold">Reconciliation</h1>
+      <ResultsLink
+        organizationId={organizationIdNum}
+        leagueId={leagueIdNum}
+        isAdmin={access.isAdmin}
+      />
       <h2 className="text-lg font-semibold">Select a Heat</h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {heats.map((heat) => (
