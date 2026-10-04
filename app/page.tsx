@@ -25,7 +25,7 @@ export default function Home() {
             generation.
           </p>
           <Button asChild>
-            <Link href="/leagues">Go to leagues</Link>
+            <Link href="/organizations">Go to leagues</Link>
           </Button>
         </div>
       </div>

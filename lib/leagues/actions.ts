@@ -73,7 +73,7 @@ export async function createLeague(
 
   // A guess at this slug may have been cached as not-found.
   updateTag(resultsTag(slug));
-  revalidatePath("/leagues");
+  revalidatePath(`/organizations/${organizationId}`);
   redirect(leagueAddress({ organizationId, leagueId: data.id }, "start-list"));
 }
 

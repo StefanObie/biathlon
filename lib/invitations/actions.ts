@@ -79,7 +79,7 @@ export async function sendInvitation(
     await sendEmail({ to: email, replyTo: inviterEmail, ...message });
   } catch (sendError) {
     await supabase.rpc("cancel_invitation", { invitation_id: invitationId });
-    revalidatePath(`/organizations/${organizationId}/invitations`);
+    revalidatePath(`/organizations/${organizationId}`);
     return {
       error:
         sendError instanceof Error
@@ -88,7 +88,7 @@ export async function sendInvitation(
     };
   }
 
-  revalidatePath(`/organizations/${organizationId}/invitations`);
+  revalidatePath(`/organizations/${organizationId}`);
   return { sentTo: email.toLowerCase() };
 }
 
@@ -102,7 +102,7 @@ export async function cancelInvitation(
   });
   if (error) return { error: error.message };
 
-  revalidatePath(`/organizations/${organizationId}/invitations`);
+  revalidatePath(`/organizations/${organizationId}`);
   return {};
 }
 

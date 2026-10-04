@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
   const decision = acceptDecision(open?.email ?? null, signedInEmail);
 
   if (decision === "sign-in") return redirectTo("/auth/login");
-  if (decision === "other-user") return redirectTo("/leagues");
+  if (decision === "other-user") return redirectTo("/organizations");
 
   // generateLink makes the account if the email has none, and gives a token
   // that signs in as it; nothing is emailed.

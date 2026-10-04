@@ -64,7 +64,7 @@ export function LoginForm({
         type: "email",
       });
       if (error) throw error;
-      router.push("/leagues");
+      router.push("/organizations");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {

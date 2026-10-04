@@ -27,7 +27,7 @@ export function NoAccess({ children }: { children?: React.ReactNode }) {
       </EmptyHeader>
       <EmptyContent>
         <Button asChild variant="outline">
-          <Link href="/leagues">Back to leagues</Link>
+          <Link href="/organizations">Back to leagues</Link>
         </Button>
       </EmptyContent>
     </Empty>

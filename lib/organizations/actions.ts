@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
@@ -11,7 +10,7 @@ export interface CreateOrganizationState {
 
 /**
  * Creates an Organization with the signed-in user as its only Admin (#30),
- * then shows them its (empty) League list.
+ * then shows them its home.
  */
 export async function createOrganization(
   _prevState: CreateOrganizationState,
@@ -32,6 +31,5 @@ export async function createOrganization(
     return { error: error?.message ?? "Failed to create organization." };
   }
 
-  revalidatePath("/leagues");
-  redirect(`/leagues#organization-${organizationId}`);
+  redirect(`/organizations/${organizationId}`);
 }
