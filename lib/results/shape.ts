@@ -1,6 +1,6 @@
 import { computePoints, type PointsRow } from "./points";
 
-type Gender = "M" | "F";
+export type Gender = "M" | "F";
 
 /** An athlete's published times, as league_results returns them. */
 export interface ResultsAthleteRow {
@@ -32,6 +32,10 @@ export interface ShapedAthlete {
 
 export interface ResultsGroup {
   title: string;
+  gender: Gender;
+  /** Null for an Unclassified group. */
+  age_group_code: string | null;
+  age_group_label: string | null;
   /** Athletes with both times, best first. */
   ranked: ShapedAthlete[];
   /** Athletes with one time, or who the points table can't score. */
@@ -66,7 +70,14 @@ export function shapeResults(
 
   const grouped = new Map<
     string,
-    { title: string; order: [number, number]; all: ShapedAthlete[] }
+    {
+      title: string;
+      gender: Gender;
+      age_group_code: string | null;
+      age_group_label: string | null;
+      order: [number, number];
+      all: ShapedAthlete[];
+    }
   >();
   for (const a of athletes) {
     // Someone with neither time did not show up.
@@ -76,13 +87,19 @@ export function shapeResults(
     const points = row
       ? computePoints(a.run_time, a.swim_time, row)
       : { run: null, swim: null, total: null };
-    const key = row ? `${row.gender}/${row.age_group_code}` : "unclassified";
+    const key = row
+      ? `${row.gender}/${row.age_group_code}`
+      : `unclassified/${a.gender}`;
     const group = grouped.get(key) ?? {
       title: row
         ? `${GENDER_TITLE[row.gender]} · ${row.age_group_label}`
         : "Unclassified",
-      // Girls first, then the PDF's age group order; Unclassified last.
-      order: row ? [row.gender === "F" ? 0 : 1, row.sort_order] : [2, 0],
+      gender: a.gender,
+      age_group_code: row ? row.age_group_code : null,
+      age_group_label: row ? row.age_group_label : null,
+      // Girls first, then the PDF's age group order; each gender ends with
+      // its own Unclassified group.
+      order: [a.gender === "F" ? 0 : 1, row ? row.sort_order : Infinity],
       all: [],
     };
     group.all.push({
@@ -99,7 +116,7 @@ export function shapeResults(
 
   return [...grouped.values()]
     .sort((a, b) => a.order[0] - b.order[0] || a.order[1] - b.order[1])
-    .map(({ title, all }) => {
+    .map(({ all, title, gender, age_group_code, age_group_label }) => {
       const ranked = all
         .filter(
           (a) =>
@@ -121,6 +138,29 @@ export function shapeResults(
             : i + 1;
       });
       const unranked = all.filter((a) => !ranked.includes(a)).sort(byName);
-      return { title, ranked, unranked };
+      return {
+        title,
+        gender,
+        age_group_code,
+        age_group_label,
+        ranked,
+        unranked,
+      };
     });
+}
+
+/**
+ * Selects the groups for one gender, and optionally one age group. Ranks are
+ * computed per group, so filtering never changes them. An age group filter
+ * leaves out Unclassified, which has no age group.
+ */
+export function filterGroups(
+  groups: ResultsGroup[],
+  filter: { gender: Gender; ageGroup?: string | null },
+): ResultsGroup[] {
+  return groups.filter(
+    (g) =>
+      g.gender === filter.gender &&
+      (!filter.ageGroup || g.age_group_code === filter.ageGroup),
+  );
 }
