@@ -72,15 +72,18 @@ async function LeagueNav({
             </span>
           </Link>
         ))}
+        {canSetUp(access) && (
+          <Link
+            href={leagueAddress(league, "setup")}
+            className="flex min-h-24 flex-col justify-center gap-1 rounded-md border border-input p-5 hover:bg-accent"
+          >
+            <span className="text-lg font-semibold">Setup</span>
+            <span className="text-sm text-muted-foreground">
+              Athletes, heats, and league settings.
+            </span>
+          </Link>
+        )}
       </div>
-      {canSetUp(access) && (
-        <Link
-          href={leagueAddress(league, "setup")}
-          className="self-start text-sm font-medium underline-offset-4 hover:underline"
-        >
-          Setup
-        </Link>
-      )}
     </div>
   );
 }
