@@ -1,5 +1,7 @@
 "use server";
 
+import { redirect } from "next/navigation";
+
 import { createClient } from "@/lib/supabase/server";
 
 export interface RequestOtpState {
@@ -31,4 +33,11 @@ export async function requestOtp(
     return { error: error.message };
   }
   return { status: "otp_sent" };
+}
+
+/** Ends the session and returns to the sign-in page. */
+export async function signOut() {
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  redirect("/auth/login");
 }

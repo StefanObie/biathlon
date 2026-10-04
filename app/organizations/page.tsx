@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { cookies } from "next/headers";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
@@ -9,8 +8,6 @@ import {
   rememberedOrganizationId,
   resolveLanding,
 } from "@/lib/organizations/landing";
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function OrganizationsPage() {
   return (
@@ -20,10 +17,10 @@ export default function OrganizationsPage() {
   );
 }
 
-// Lands on the remembered Organization, the user's only one, or shows the
-// picker. A user with no Organization goes to create one, unless an
+// Lands on the remembered Organization, the user's only one, or Profile's
+// Organization list. A user with no Organization goes to create one, unless an
 // Invitation is waiting for them (#34).
-async function Landing() {
+async function Landing(): Promise<null> {
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
   const userId = claims?.claims.sub;
@@ -51,25 +48,6 @@ async function Landing() {
     organizations.map((organization) => organization.id),
     rememberedOrganizationId(cookieStore.get(ORGANIZATION_COOKIE)?.value),
   );
-  if (landing !== "picker") redirect(`/organizations/${landing}`);
-
-  return (
-    <div className="flex max-w-xl flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">Your organizations</h1>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/organizations/new">Create organization</Link>
-        </Button>
-      </div>
-      {organizations.map((organization) => (
-        <Link key={organization.id} href={`/organizations/${organization.id}`}>
-          <Card className="hover:bg-accent transition-colors">
-            <CardHeader>
-              <CardTitle>{organization.name}</CardTitle>
-            </CardHeader>
-          </Card>
-        </Link>
-      ))}
-    </div>
-  );
+  // No remembered Organization and several to choose from: Profile lists them.
+  redirect(landing === "picker" ? "/profile" : `/organizations/${landing}`);
 }
