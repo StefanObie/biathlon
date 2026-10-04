@@ -34,7 +34,7 @@ async function LeagueSettingsSection({
   }
 
   const access = await getLeagueAccess(organizationIdNum, leagueIdNum);
-  if (!access || !canUse(access, "settings")) return <NoAccess />;
+  if (!access || !canUse(access, "results")) return <NoAccess />;
 
   const supabase = await createClient();
   const { data: league } = await supabase

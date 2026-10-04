@@ -102,7 +102,7 @@ export async function setVisibility(
   if (result.error) return { error: result.error };
 
   expireResults(league.results_slug, result.slug);
-  revalidatePath(leagueAddress(ref, "settings"));
+  revalidatePath(leagueAddress(ref, "results"));
   return {};
 }
 
@@ -142,7 +142,7 @@ export async function setResultsSlug(
   if (result.error) return { error: result.error };
 
   expireResults(league.results_slug, slug);
-  revalidatePath(leagueAddress(ref, "settings"));
+  revalidatePath(leagueAddress(ref, "results"));
   return { slug };
 }
 
@@ -168,7 +168,7 @@ export async function regenerateResultsLink(
   if (result.error) return { error: result.error };
 
   expireResults(league.results_slug, result.slug);
-  revalidatePath(leagueAddress(ref, "settings"));
+  revalidatePath(leagueAddress(ref, "results"));
   return {};
 }
 

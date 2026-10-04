@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canSetUp,
   canUse,
   hasRole,
   heatModes,
+  raceDayScreens,
+  setupGroups,
   ROLE_LABEL,
   type LeagueAccess,
 } from "./roles";
@@ -63,7 +66,7 @@ describe("canUse", () => {
       expect(canUse(official, screen)).toBe(true);
     }
     expect(canUse(official, "team")).toBe(false);
-    expect(canUse(official, "settings")).toBe(false);
+    expect(canUse(official, "results")).toBe(false);
   });
 
   it("lets an Admin use every screen without being on the League team", () => {
@@ -71,7 +74,7 @@ describe("canUse", () => {
     expect(canUse(admin, "timer")).toBe(true);
     expect(canUse(admin, "export")).toBe(true);
     expect(canUse(admin, "team")).toBe(true);
-    expect(canUse(admin, "settings")).toBe(true);
+    expect(canUse(admin, "results")).toBe(true);
   });
 
   it("combines the Roles of a Member who holds several", () => {
@@ -128,5 +131,62 @@ describe("hasRole", () => {
 describe("ROLE_LABEL", () => {
   it("labels Caller", () => {
     expect(ROLE_LABEL.caller).toBe("Caller");
+  });
+});
+
+describe("League home and Setup hub", () => {
+  const none: LeagueAccess = { isAdmin: false, roles: [] };
+  const groupsOf = (access: LeagueAccess) =>
+    setupGroups(access).map((g) => [g.title, [...g.screens]]);
+
+  it("shows a Timekeeper only the Timer tile and no Setup", () => {
+    expect(raceDayScreens(timekeeper)).toEqual(["timer"]);
+    expect(setupGroups(timekeeper)).toEqual([]);
+    expect(canSetUp(timekeeper)).toBe(false);
+  });
+
+  it("shows a Placer only the Position tile and no Setup", () => {
+    expect(raceDayScreens(placer)).toEqual(["position"]);
+    expect(setupGroups(placer)).toEqual([]);
+    expect(canSetUp(placer)).toBe(false);
+  });
+
+  it("shows a Caller only the Call room tile and no Setup", () => {
+    expect(raceDayScreens(caller)).toEqual(["call-room"]);
+    expect(setupGroups(caller)).toEqual([]);
+    expect(canSetUp(caller)).toBe(false);
+  });
+
+  it("shows an Official every Race day tile and the Official setup screens", () => {
+    expect(raceDayScreens(official)).toEqual([
+      "position",
+      "call-room",
+      "timer",
+      "reconcile",
+    ]);
+    expect(groupsOf(official)).toEqual([
+      ["Before the race", ["start-list"]],
+      ["After the race", ["swim", "export"]],
+    ]);
+    expect(canSetUp(official)).toBe(true);
+  });
+
+  it("shows an Admin every Race day tile and every setup screen", () => {
+    expect(raceDayScreens(admin)).toEqual([
+      "position",
+      "call-room",
+      "timer",
+      "reconcile",
+    ]);
+    expect(groupsOf(admin)).toEqual([
+      ["Before the race", ["start-list", "team", "results"]],
+      ["After the race", ["swim", "export"]],
+    ]);
+    expect(canSetUp(admin)).toBe(true);
+  });
+
+  it("shows someone with no Role nothing", () => {
+    expect(raceDayScreens(none)).toEqual([]);
+    expect(canSetUp(none)).toBe(false);
   });
 });

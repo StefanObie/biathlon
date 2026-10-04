@@ -37,7 +37,7 @@ export type LeagueScreen =
   | "swim"
   | "export"
   | "team"
-  | "settings";
+  | "results";
 
 // The least a Member needs to use each screen. "admin" is only met by an
 // Admin of the League's Organization.
@@ -50,7 +50,7 @@ const REQUIRED: Record<LeagueScreen, LeagueRole | "admin"> = {
   swim: "official",
   export: "official",
   team: "admin",
-  settings: "admin",
+  results: "admin",
 };
 
 /** Whether the Member holds a Role covering `required`: Admin covers
@@ -75,4 +75,46 @@ export function heatModes(access: LeagueAccess): HeatMode[] {
   return (["timer", "position", "call-room", "reconcile"] as const).filter(
     (mode) => canUse(access, mode),
   );
+}
+
+/** The screens used on the day of the race, in the order the League home
+ * shows them. */
+export const RACE_DAY_SCREENS: readonly HeatMode[] = [
+  "position",
+  "call-room",
+  "timer",
+  "reconcile",
+];
+
+/** The Race day screens a Member can use. */
+export function raceDayScreens(access: LeagueAccess): HeatMode[] {
+  return RACE_DAY_SCREENS.filter((screen) => canUse(access, screen));
+}
+
+export type SetupScreen = "start-list" | "team" | "results" | "swim" | "export";
+
+export interface SetupGroup {
+  title: string;
+  screens: readonly SetupScreen[];
+}
+
+/** The League setup hub's groups, in display order. */
+export const SETUP_GROUPS: readonly SetupGroup[] = [
+  { title: "Before the race", screens: ["start-list", "team", "results"] },
+  { title: "After the race", screens: ["swim", "export"] },
+];
+
+/** The setup groups a Member can use, each with only the screens they can
+ * use. A group with none left is left out. */
+export function setupGroups(access: LeagueAccess): SetupGroup[] {
+  return SETUP_GROUPS.map((group) => ({
+    ...group,
+    screens: group.screens.filter((screen) => canUse(access, screen)),
+  })).filter((group) => group.screens.length > 0);
+}
+
+/** Whether the Member can use any League setup screen, so the League home
+ * shows its Setup link. */
+export function canSetUp(access: LeagueAccess): boolean {
+  return setupGroups(access).length > 0;
 }

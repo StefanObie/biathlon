@@ -2,74 +2,29 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { canUse, type LeagueScreen } from "@/lib/access/roles";
+import { canSetUp, raceDayScreens, type HeatMode } from "@/lib/access/roles";
 import { getLeagueAccess } from "@/lib/access/league-access";
 import { leagueAddress } from "@/lib/leagues/address";
 import { NoAccess } from "@/components/leagues/no-access";
 
-interface NavSection {
-  screen: LeagueScreen;
-  title: string;
-  description: string;
-  available: boolean;
-}
-
-const SECTIONS: NavSection[] = [
-  {
-    screen: "start-list",
-    title: "Start list",
-    description: "Import entries, view the roster, download bib QR codes.",
-    available: true,
-  },
-  {
-    screen: "position",
+const RACE_DAY: Record<HeatMode, { title: string; description: string }> = {
+  position: {
     title: "Position",
     description: "Table capture — track finish order by athlete number.",
-    available: true,
   },
-  {
-    screen: "call-room",
+  "call-room": {
     title: "Call room",
     description: "Check in the athletes of each heat before it runs.",
-    available: true,
   },
-  {
-    screen: "timer",
+  timer: {
     title: "Timer",
     description: "Finish-line timer — one button per finisher.",
-    available: true,
   },
-  {
-    screen: "reconcile",
+  reconcile: {
     title: "Reconcile",
     description: "Match positions to times, fix gaps, save results.",
-    available: true,
   },
-  {
-    screen: "swim",
-    title: "Swim import",
-    description: "Upload the swim results file, review, and save times.",
-    available: true,
-  },
-  {
-    screen: "export",
-    title: "Export",
-    description: "Review combined swim and run times, download the XML.",
-    available: true,
-  },
-  {
-    screen: "team",
-    title: "Team",
-    description: "Choose who works on this league, and in which Roles.",
-    available: true,
-  },
-  {
-    screen: "settings",
-    title: "Results",
-    description: "Choose who can see this league's published results.",
-    available: true,
-  },
-];
+};
 
 export default function LeagueIndexPage({
   params,
@@ -98,37 +53,33 @@ async function LeagueNav({
   const access = await getLeagueAccess(organizationIdNum, leagueIdNum);
   if (!access) return <NoAccess />;
 
+  const league = { organizationId: organizationIdNum, leagueId: leagueIdNum };
+
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      {SECTIONS.filter((section) => canUse(access, section.screen)).map(
-        (section) =>
-          section.available ? (
-            <Link
-              key={section.title}
-              href={leagueAddress(
-                { organizationId: organizationIdNum, leagueId: leagueIdNum },
-                section.screen,
-              )}
-              className="flex flex-col gap-1 rounded-md border border-input p-4 hover:bg-accent"
-            >
-              <span className="font-semibold">{section.title}</span>
-              <span className="text-sm text-muted-foreground">
-                {section.description}
-              </span>
-            </Link>
-          ) : (
-            <div
-              key={section.title}
-              className="flex flex-col gap-1 rounded-md border border-dashed border-input p-4 opacity-50"
-            >
-              <span className="font-semibold">
-                {section.title} <span className="text-xs">(coming soon)</span>
-              </span>
-              <span className="text-sm text-muted-foreground">
-                {section.description}
-              </span>
-            </div>
-          ),
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {raceDayScreens(access).map((screen) => (
+          <Link
+            key={screen}
+            href={leagueAddress(league, screen)}
+            className="flex min-h-24 flex-col justify-center gap-1 rounded-md border border-input p-5 hover:bg-accent"
+          >
+            <span className="text-lg font-semibold">
+              {RACE_DAY[screen].title}
+            </span>
+            <span className="text-sm text-muted-foreground">
+              {RACE_DAY[screen].description}
+            </span>
+          </Link>
+        ))}
+      </div>
+      {canSetUp(access) && (
+        <Link
+          href={leagueAddress(league, "setup")}
+          className="self-start text-sm font-medium underline-offset-4 hover:underline"
+        >
+          Setup
+        </Link>
       )}
     </div>
   );

@@ -11,13 +11,14 @@ describe("leagueAddress", () => {
   });
 
   it.each<[LeagueScreenAddress, string]>([
-    ["start-list", "/start-list"],
-    ["team", "/team"],
-    ["settings", "/settings"],
-    ["swim", "/swim"],
-    ["export", "/export"],
-    ["export-xml", "/export/xml"],
-    ["bibs-pdf", "/bibs/pdf"],
+    ["setup", "/setup"],
+    ["start-list", "/setup/start-list"],
+    ["team", "/setup/team"],
+    ["results", "/setup/results"],
+    ["swim", "/setup/swim"],
+    ["export", "/setup/export"],
+    ["export-xml", "/setup/export/xml"],
+    ["bibs-pdf", "/setup/start-list/bibs/pdf"],
   ])("addresses the %s screen", (screen, path) => {
     expect(leagueAddress(league, screen)).toBe(`${base}${path}`);
   });
