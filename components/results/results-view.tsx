@@ -32,8 +32,8 @@ const points = (value: number | null) =>
   value === null ? "—" : value.toFixed(2);
 
 const GENDERS: { value: Gender; label: string }[] = [
-  { value: "F", label: "Female" },
-  { value: "M", label: "Male" },
+  { value: "F", label: "Girls/Ladies" },
+  { value: "M", label: "Boys/Men" },
 ];
 
 const chip = "shrink-0 rounded-full border px-3 py-1 text-sm whitespace-nowrap";
@@ -193,14 +193,14 @@ function AthleteRow({
         </span>
       </div>
       {breakdown && (
-        <p className="mt-0.5 flex flex-wrap gap-x-4 pl-9 text-xs text-muted-foreground tabular-nums">
-          <span>
-            Run {athlete.run_time ?? "—"} · {points(athlete.run_points)}
-          </span>
-          <span>
-            Swim {athlete.swim_time ?? "—"} · {points(athlete.swim_points)}
-          </span>
-        </p>
+        <dl className="mt-0.5 grid grid-cols-[auto_1fr_auto] gap-x-3 pl-9 text-xs text-muted-foreground tabular-nums">
+          <dt>Run</dt>
+          <dd>{athlete.run_time ?? "—"}</dd>
+          <dd>{points(athlete.run_points)}</dd>
+          <dt>Swim</dt>
+          <dd>{athlete.swim_time ?? "—"}</dd>
+          <dd>{points(athlete.swim_points)}</dd>
+        </dl>
       )}
     </li>
   );
