@@ -1209,6 +1209,9 @@ grant select (
   id, organization_id, email, role, league_id, invited_by, invited_by_email,
   created_at, expires_at, accepted_at, cancelled_at
 ) on invitation to authenticated;
+-- Only the Invitation link reads it with the secret key, to find an open
+-- Invitation by its hash; everything else goes through the functions below.
+grant select on invitation to service_role;
 
 create policy "Admins can read their organizations' invitations"
   on invitation for select
