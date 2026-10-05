@@ -32,8 +32,8 @@ const points = (value: number | null) =>
   value === null ? "—" : value.toFixed(2);
 
 const GENDERS: { value: Gender; label: string }[] = [
-  { value: "F", label: "Girls/Ladies" },
-  { value: "M", label: "Boys/Men" },
+  { value: "F", label: "Female" },
+  { value: "M", label: "Male" },
 ];
 
 const chip = "shrink-0 rounded-full border px-3 py-1 text-sm whitespace-nowrap";
