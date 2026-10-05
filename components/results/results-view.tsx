@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 import {
   filterGroups,
@@ -28,6 +28,28 @@ function writeBreakdown(on: boolean) {
   } catch {}
 }
 
+// The choice is kept in memory too, so the switch still works when
+// localStorage doesn't.
+let breakdownChoice: boolean | undefined;
+const breakdownListeners = new Set<() => void>();
+
+function subscribeBreakdown(listener: () => void) {
+  breakdownListeners.add(listener);
+  return () => {
+    breakdownListeners.delete(listener);
+  };
+}
+
+function getBreakdown() {
+  return (breakdownChoice ??= readBreakdown());
+}
+
+function setBreakdown(on: boolean) {
+  breakdownChoice = on;
+  writeBreakdown(on);
+  breakdownListeners.forEach((listener) => listener());
+}
+
 const points = (value: number | null) =>
   value === null ? "—" : value.toFixed(2);
 
@@ -47,12 +69,13 @@ const chipActive = "border-primary bg-primary text-primary-foreground";
 export function ResultsView({ groups: all }: { groups: ResultsGroup[] }) {
   const [gender, setGender] = useState<Gender>("F");
   const [age, setAge] = useState<string | undefined>();
-  const [breakdown, setBreakdown] = useState(false);
-
-  useEffect(() => {
-    // Read after mount so the server and first client render agree.
-    setBreakdown(readBreakdown());
-  }, []);
+  // The server renders it on, and the stored choice is read after hydration,
+  // so the server and first client render agree.
+  const breakdown = useSyncExternalStore(
+    subscribeBreakdown,
+    getBreakdown,
+    () => true,
+  );
 
   const ageGroups = filterGroups(all, { gender }).filter(
     (g) => g.age_group_code !== null,
@@ -126,7 +149,6 @@ export function ResultsView({ groups: all }: { groups: ResultsGroup[] }) {
               checked={breakdown}
               onChange={(e) => {
                 setBreakdown(e.target.checked);
-                writeBreakdown(e.target.checked);
               }}
             />
             Show breakdown
