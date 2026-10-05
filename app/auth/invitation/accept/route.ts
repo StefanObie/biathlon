@@ -18,6 +18,11 @@ import { createClient } from "@/lib/supabase/server";
 export async function POST(request: NextRequest) {
   const redirectTo = (path: string) =>
     NextResponse.redirect(new URL(path, request.url), 303);
+  // Every failure lands on sign-in, so say why in the server logs.
+  const fail = (step: string, error?: { message: string } | null) => {
+    console.error(`Invitation accept failed at ${step}:`, error?.message);
+    return redirectTo("/auth/login");
+  };
 
   const token = String((await request.formData()).get("token") ?? "");
   if (!token) return redirectTo("/auth/login");
@@ -26,7 +31,7 @@ export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const admin = createAdminClient();
 
-  const { data: open } = await admin
+  const { data: open, error: openError } = await admin
     .from("invitation")
     .select("email")
     .eq("secret_hash", hash)
@@ -39,7 +44,12 @@ export async function POST(request: NextRequest) {
   const signedInEmail = claims?.claims.email ?? null;
   const decision = acceptDecision(open?.email ?? null, signedInEmail);
 
-  if (decision === "sign-in") return redirectTo("/auth/login");
+  if (decision === "sign-in") {
+    return fail(
+      openError ? "lookup" : "lookup (no open invitation)",
+      openError,
+    );
+  }
   if (decision === "other-user") return redirectTo("/organizations");
 
   // generateLink makes the account if the email has none, and gives a token
@@ -48,7 +58,7 @@ export async function POST(request: NextRequest) {
     type: "magiclink",
     email: open!.email,
   });
-  if (linkError || !link.user) return redirectTo("/auth/login");
+  if (linkError || !link.user) return fail("generateLink", linkError);
 
   // Accepting is atomic, so of two people opening the link at once only one
   // gets this far, and the other never gets a session.
@@ -58,7 +68,7 @@ export async function POST(request: NextRequest) {
       accepting_user: link.user.id,
     })
     .single();
-  if (acceptError || !landing) return redirectTo("/auth/login");
+  if (acceptError || !landing) return fail("accept_invitation", acceptError);
 
   if (decision === "sign-invitee-in") {
     // A concurrent opener's generateLink can replace this token, so if it
@@ -80,7 +90,7 @@ export async function POST(request: NextRequest) {
         type: "email",
       }));
     }
-    if (verifyError) return redirectTo("/auth/login");
+    if (verifyError) return fail("verifyOtp", verifyError);
   }
 
   return redirectTo(
