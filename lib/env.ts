@@ -11,7 +11,7 @@ export const env = createEnv({
   // Invitations need them, and they fail loudly at that point (see
   // requireServerEnv). Never prefix these with NEXT_PUBLIC_.
   server: {
-    SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+    INVITE_MEMBERS_EMAIL_SECRET_KEY: z.string().min(1).optional(),
     ZEPTOMAIL_TOKEN: z.string().min(1).optional(),
     ZEPTOMAIL_API_URL: z.url().default("https://api.zeptomail.com/v1.1/email"),
   },
@@ -20,7 +20,8 @@ export const env = createEnv({
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
   },
   runtimeEnv: {
-    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    INVITE_MEMBERS_EMAIL_SECRET_KEY:
+      process.env.INVITE_MEMBERS_EMAIL_SECRET_KEY,
     ZEPTOMAIL_TOKEN: process.env.ZEPTOMAIL_TOKEN,
     ZEPTOMAIL_API_URL: process.env.ZEPTOMAIL_API_URL,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -31,7 +32,7 @@ export const env = createEnv({
 
 /** A server-only setting that Invitations can't work without. */
 export function requireServerEnv(
-  name: "SUPABASE_SERVICE_ROLE_KEY" | "ZEPTOMAIL_TOKEN",
+  name: "INVITE_MEMBERS_EMAIL_SECRET_KEY" | "ZEPTOMAIL_TOKEN",
 ): string {
   const value = env[name];
   if (!value) {

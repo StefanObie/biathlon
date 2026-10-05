@@ -10,4 +10,4 @@ The link's GET request only loads a landing page, which then posts to accept. Ma
 
 - Sign-in OTP remains the only way to sign in without an Invitation link. If more login options arrive later, the Invitation link should be revisited alongside them.
 - A forwarded link gives its first opener the invitee's account, and only the Admin cancelling it beforehand prevents that.
-- The app needs a server-only `SUPABASE_SERVICE_ROLE_KEY` and ZeptoMail credentials, which the repo did not have before.
+- The app needs a server-only `INVITE_MEMBERS_EMAIL_SECRET_KEY` (a dedicated Supabase secret key, not the default service-role key) and ZeptoMail credentials, which the repo did not have before.
