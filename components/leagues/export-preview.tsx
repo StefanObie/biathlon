@@ -104,12 +104,22 @@ export function ExportPreview({
           )}
         </div>
 
-        <Button asChild>
-          <a href={leagueAddress({ organizationId, leagueId }, "export-xml")}>
-            <DownloadIcon />
-            Download XML
-          </a>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild>
+            <a href={leagueAddress({ organizationId, leagueId }, "export-xml")}>
+              <DownloadIcon />
+              Download XML
+            </a>
+          </Button>
+          <Button asChild variant="outline">
+            <a
+              href={leagueAddress({ organizationId, leagueId }, "export-xlsx")}
+            >
+              <DownloadIcon />
+              Download Excel
+            </a>
+          </Button>
+        </div>
       </div>
 
       {openHeatsNotice}

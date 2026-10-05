@@ -13,17 +13,18 @@ export interface ExportRow {
  * Times pass through verbatim — both columns already store canonical
  * `mm:SS.ss`, so there is no formatting step to get wrong.
  *
- * `athleteSurname` is always empty and `athleteName` carries the whole
- * `full_name`: the consuming system keys off `athleteNo` and never reads
- * either name field, so a split that the source data can't support
- * (spec §6.1, "Van Der Merwe") is not invented here.
+ * `athleteName` and `athleteSurname` both carry the whole `full_name`: the
+ * SA Biathlon import needs a non-empty surname, and a split the source data
+ * can't support (spec §6.1, "Van Der Merwe") is not invented here.
  *
  * Status (dns/dnf/dq) is deliberately not consulted — a recorded time is
  * exported as recorded, and anything that should not reach SA Biathlon is
  * removed from the file by hand.
  */
 export function buildResultsXml(rows: ExportRow[]): string {
-  const doc = create({ version: "1.0", encoding: "UTF-8" }).ele("results");
+  const doc = create({ version: "1.0", encoding: "UTF-8" }).ele("results", {
+    "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+  });
 
   for (const row of rows) {
     doc
@@ -31,17 +32,17 @@ export function buildResultsXml(rows: ExportRow[]): string {
       .ele("athleteNo")
       .txt(String(row.athleteNo))
       .up()
-      .ele("swimtime")
-      .txt(row.swimTime ?? "")
-      .up()
-      .ele("runtime")
-      .txt(row.runTime ?? "")
-      .up()
       .ele("athleteName")
       .txt(row.fullName)
       .up()
       .ele("athleteSurname")
-      .txt("")
+      .txt(row.fullName)
+      .up()
+      .ele("runtime")
+      .txt(row.runTime ?? "")
+      .up()
+      .ele("swimtime")
+      .txt(row.swimTime ?? "")
       .up()
       .up();
   }

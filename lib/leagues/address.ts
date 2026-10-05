@@ -14,6 +14,7 @@ export type LeagueScreenAddress =
   | "swim"
   | "export"
   | "export-xml"
+  | "export-xlsx"
   | "team"
   | "results"
   | "setup"
@@ -29,6 +30,7 @@ const PATH: Record<LeagueScreenAddress, string> = {
   swim: "/setup/swim",
   export: "/setup/export",
   "export-xml": "/setup/export/xml",
+  "export-xlsx": "/setup/export/xlsx",
   team: "/setup/team",
   results: "/setup/results",
   "bibs-pdf": "/setup/start-list/bibs/pdf",

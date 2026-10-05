@@ -18,6 +18,7 @@ describe("leagueAddress", () => {
     ["swim", "/setup/swim"],
     ["export", "/setup/export"],
     ["export-xml", "/setup/export/xml"],
+    ["export-xlsx", "/setup/export/xlsx"],
     ["bibs-pdf", "/setup/start-list/bibs/pdf"],
   ])("addresses the %s screen", (screen, path) => {
     expect(leagueAddress(league, screen)).toBe(`${base}${path}`);

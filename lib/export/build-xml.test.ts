@@ -11,10 +11,12 @@ const row = (overrides: Partial<ExportRow> = {}): ExportRow => ({
 });
 
 describe("buildResultsXml", () => {
-  it("emits the declaration and a bare results root", () => {
+  it("emits the declaration and a results root with the xsi namespace", () => {
     const xml = buildResultsXml([]);
     expect(xml).toContain('<?xml version="1.0" encoding="UTF-8"?>');
-    expect(xml).toMatch(/<results\s*\/?>|<results>/);
+    expect(xml).toContain(
+      '<results xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"',
+    );
   });
 
   it("writes every field of a complete row", () => {
@@ -37,10 +39,22 @@ describe("buildResultsXml", () => {
     expect(xml).not.toContain("<swimtime/>");
   });
 
-  it("always emits an empty athleteSurname", () => {
+  it("repeats the full name in athleteSurname", () => {
     const xml = buildResultsXml([row()]);
-    expect(xml).toContain("<athleteSurname></athleteSurname>");
-    expect(xml).not.toContain("<athleteSurname/>");
+    expect(xml).toContain("<athleteSurname>Jan van der Merwe</athleteSurname>");
+  });
+
+  it("orders the fields athleteNo, athleteName, athleteSurname, runtime, swimtime", () => {
+    const xml = buildResultsXml([row()]);
+    const order = [
+      "<athleteNo>",
+      "<athleteName>",
+      "<athleteSurname>",
+      "<runtime>",
+      "<swimtime>",
+    ].map((tag) => xml.indexOf(tag));
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+    expect(order.every((i) => i >= 0)).toBe(true);
   });
 
   it("exports a recorded time regardless of status", () => {
