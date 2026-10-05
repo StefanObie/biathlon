@@ -17,7 +17,7 @@ export type LeagueScreenAddress =
   | "export-xlsx"
   | "team"
   | "results"
-  | "setup"
+  | "settings"
   | "bibs-pdf";
 
 const PATH: Record<LeagueScreenAddress, string> = {
@@ -25,15 +25,15 @@ const PATH: Record<LeagueScreenAddress, string> = {
   "call-room": "/call-room",
   timer: "/timer",
   reconcile: "/reconcile",
-  setup: "/setup",
-  "start-list": "/setup/start-list",
-  swim: "/setup/swim",
-  export: "/setup/export",
-  "export-xml": "/setup/export/xml",
-  "export-xlsx": "/setup/export/xlsx",
-  team: "/setup/team",
-  results: "/setup/results",
-  "bibs-pdf": "/setup/start-list/bibs/pdf",
+  settings: "/settings",
+  "start-list": "/settings/start-list",
+  swim: "/settings/swim",
+  export: "/settings/export",
+  "export-xml": "/settings/export/xml",
+  "export-xlsx": "/settings/export/xlsx",
+  team: "/settings/team",
+  results: "/settings/results",
+  "bibs-pdf": "/settings/start-list/bibs/pdf",
 };
 
 /**

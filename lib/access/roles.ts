@@ -91,30 +91,31 @@ export function raceDayScreens(access: LeagueAccess): HeatMode[] {
   return RACE_DAY_SCREENS.filter((screen) => canUse(access, screen));
 }
 
-export type SetupScreen = "start-list" | "team" | "results" | "swim" | "export";
+export type SettingsScreen =
+  "start-list" | "team" | "results" | "swim" | "export";
 
-export interface SetupGroup {
+export interface SettingsGroup {
   title: string;
-  screens: readonly SetupScreen[];
+  screens: readonly SettingsScreen[];
 }
 
-/** The League setup hub's groups, in display order. */
-export const SETUP_GROUPS: readonly SetupGroup[] = [
+/** The League settings hub's groups, in display order. */
+export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
   { title: "Before the race", screens: ["start-list", "team", "results"] },
   { title: "After the race", screens: ["swim", "export"] },
 ];
 
-/** The setup groups a Member can use, each with only the screens they can
+/** The settings groups a Member can use, each with only the screens they can
  * use. A group with none left is left out. */
-export function setupGroups(access: LeagueAccess): SetupGroup[] {
-  return SETUP_GROUPS.map((group) => ({
+export function settingsGroups(access: LeagueAccess): SettingsGroup[] {
+  return SETTINGS_GROUPS.map((group) => ({
     ...group,
     screens: group.screens.filter((screen) => canUse(access, screen)),
   })).filter((group) => group.screens.length > 0);
 }
 
-/** Whether the Member can use any League setup screen, so the League home
- * shows its Setup link. */
-export function canSetUp(access: LeagueAccess): boolean {
-  return setupGroups(access).length > 0;
+/** Whether the Member can use any League settings screen, so the League home
+ * shows its Settings link. */
+export function hasSettings(access: LeagueAccess): boolean {
+  return settingsGroups(access).length > 0;
 }

@@ -27,12 +27,12 @@ describe("resultsLink", () => {
     ).toEqual({ kind: "results", href: "/results/x9" });
   });
 
-  it("sends an Admin of a Private League to Setup → Visibility", () => {
+  it("sends an Admin of a Private League to Settings → Visibility", () => {
     expect(
       resultsLink({ visibility: "private", slug: null, isAdmin: true, ...ids }),
     ).toEqual({
       kind: "private",
-      href: "/organizations/1/leagues/2/setup/results",
+      href: "/organizations/1/leagues/2/settings/results",
     });
   });
 

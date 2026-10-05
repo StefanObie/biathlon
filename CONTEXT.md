@@ -106,9 +106,9 @@ _Avoid_: Present, absent, called, missing (as a state)
 The screens used while a League is running: Position, Call room, Timer and Reconcile. They are the League's home.
 _Avoid_: Capture screens (which exclude Call room and Reconcile)
 
-**League setup**:
-The screens that prepare a League or finish it off, kept apart from the Race day screens: Start list, League team and Visibility before the race, and Swim import and Export after it.
-_Avoid_: Settings, admin
+**League settings**:
+The screens that configure a League before, during and after the race, kept apart from the Race day screens: Start list, League team and Visibility before the race, and Swim import and Export after it.
+_Avoid_: Setup (sounds like pre-race only), admin
 
 ### Capture
 

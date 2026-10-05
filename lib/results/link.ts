@@ -6,7 +6,7 @@ export type ResultsLink =
 /**
  * What the reconcile pages show for a League's public results: the results
  * address when it is Public or Protected, otherwise "Results are private",
- * linked to Setup → Visibility for Admins only.
+ * linked to Settings → Visibility for Admins only.
  */
 export function resultsLink(input: {
   visibility: "public" | "protected" | "private";

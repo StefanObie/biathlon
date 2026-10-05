@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { canSetUp, raceDayScreens, type HeatMode } from "@/lib/access/roles";
+import { hasSettings, raceDayScreens, type HeatMode } from "@/lib/access/roles";
 import { getLeagueAccess } from "@/lib/access/league-access";
 import { leagueAddress } from "@/lib/leagues/address";
 import { NoAccess } from "@/components/leagues/no-access";
@@ -72,14 +72,14 @@ async function LeagueNav({
             </span>
           </Link>
         ))}
-        {canSetUp(access) && (
+        {hasSettings(access) && (
           <Link
-            href={leagueAddress(league, "setup")}
+            href={leagueAddress(league, "settings")}
             className="flex min-h-24 flex-col justify-center gap-1 rounded-md border border-input p-5 hover:bg-accent"
           >
-            <span className="text-lg font-semibold">Setup</span>
+            <span className="text-lg font-semibold">Settings</span>
             <span className="text-sm text-muted-foreground">
-              Athletes, heats, and league settings.
+              Athletes, heats, visibility, and export.
             </span>
           </Link>
         )}
