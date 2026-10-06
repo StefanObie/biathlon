@@ -5,6 +5,7 @@ import { toHeatClosed } from "@/lib/capture/heat-closed";
 import { createClient } from "@/lib/supabase/server";
 import { canUse, heatModes } from "@/lib/access/roles";
 import { getLeagueAccess } from "@/lib/access/league-access";
+import { loadOrganizationAthletes } from "@/lib/leagues/organization-athletes";
 import { NoAccess } from "@/components/leagues/no-access";
 import { ResultsLink } from "@/components/leagues/results-link";
 import { Reconcile } from "@/components/capture/reconcile";
@@ -62,6 +63,7 @@ async function ReconcileHeatSection({
     { data: league },
     { data: team },
     { data: checkIns },
+    { data: organizationAthletes, error: athletesError },
   ] = await Promise.all([
     // Whole league, not just this heat: reassigning an athlete or logging
     // one who ran outside their assigned heat (§4.5) needs to search past
@@ -130,6 +132,9 @@ async function ReconcileHeatSection({
       .from("call_room_check_in")
       .select("athlete_no, run_heat")
       .eq("league_id", leagueIdNum),
+    // Any athlete of the Organization can be assigned; one not on the Start
+    // list becomes a Late entry when the heat is saved.
+    loadOrganizationAthletes(supabase, organizationIdNum),
   ]);
 
   // Who can still capture on the League, to flag captures by anyone who
@@ -145,6 +150,9 @@ async function ReconcileHeatSection({
 
   if (entriesError) {
     return <p className="text-sm text-destructive">{entriesError.message}</p>;
+  }
+  if (athletesError) {
+    return <p className="text-sm text-destructive">{athletesError.message}</p>;
   }
 
   const heats = [...new Set((leagueEntries ?? []).map((e) => e.run_heat))];
@@ -187,6 +195,7 @@ async function ReconcileHeatSection({
         heats={sortedHeats}
         roster={roster}
         leagueRoster={leagueRoster}
+        athletes={organizationAthletes}
         checkIns={(checkIns ?? []).map((c) => ({
           athleteNo: c.athlete_no,
           runHeat: c.run_heat,

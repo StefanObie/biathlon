@@ -1,3 +1,6 @@
+import { ageGroupLabel, type Gender } from "@/lib/import/age-group";
+import type { OrganizationAthlete } from "@/lib/leagues/late-entry";
+
 /**
  * A working reconciliation row: the position_capture and time_capture at
  * the same ordinal in their (independently captured, §4.5) streams, plus
@@ -95,6 +98,7 @@ export interface AutomaticCheck {
   kind:
     | "count-mismatch"
     | "not-on-roster"
+    | "not-on-start-list"
     | "duplicate-heat"
     | "captured-after-close"
     | "author-off-team";
@@ -103,19 +107,22 @@ export interface AutomaticCheck {
 
 /**
  * §4.5's automatic checks: captured count vs roster count, an athlete
- * captured here who isn't on this heat's roster, and an athlete who already
- * has a run_result in a different heat (double-run). Flags only — never
- * blocks saving.
+ * captured here who isn't on the League's Start list (a Late entry to
+ * confirm on save) or isn't on this heat's roster, and an athlete who
+ * already has a run_result in a different heat (double-run). Flags only —
+ * never blocks saving.
  */
 export function computeAutomaticChecks({
   rosterCount,
   rows,
   rosterAthleteNos,
+  startListAthleteNos,
   duplicateAthletes,
 }: {
   rosterCount: number;
   rows: WorkingRow[];
   rosterAthleteNos: Set<number>;
+  startListAthleteNos: Set<number>;
   duplicateAthletes: { athleteNo: number; otherHeat: number }[];
 }): AutomaticCheck[] {
   const checks: AutomaticCheck[] = [];
@@ -129,7 +136,13 @@ export function computeAutomaticChecks({
   }
 
   for (const row of captured) {
-    if (row.athleteNo !== null && !rosterAthleteNos.has(row.athleteNo)) {
+    if (row.athleteNo === null) continue;
+    if (!startListAthleteNos.has(row.athleteNo)) {
+      checks.push({
+        kind: "not-on-start-list",
+        message: `#${row.athleteNo} is not on the Start list.`,
+      });
+    } else if (!rosterAthleteNos.has(row.athleteNo)) {
       checks.push({
         kind: "not-on-roster",
         message: `Athlete ${row.athleteNo} is not on this heat's roster.`,
@@ -145,6 +158,57 @@ export function computeAutomaticChecks({
   }
 
   return checks;
+}
+
+/** A Late entry a heat's save creates, once the Official confirms it. */
+export interface LateEntryToConfirm {
+  athleteNo: number;
+  fullName: string;
+  gender: Gender;
+  runHeat: number;
+  /** A label from AGE_GROUP_LABELS, or null when there is none to suggest. */
+  suggestedAgeGroupLabel: string | null;
+}
+
+/**
+ * The Late entries saving this heat would create: each athlete of the
+ * Organization on a row who isn't on the League's Start list, once, entered
+ * in this heat with the age group of their latest entry suggested. Every
+ * result has a Start list entry, so these are confirmed before the save. A
+ * number that is no athlete of the Organization can't be entered, and isn't
+ * listed.
+ */
+export function lateEntriesToConfirm({
+  rows,
+  runHeat,
+  startListAthleteNos,
+  athletes,
+}: {
+  rows: WorkingRow[];
+  runHeat: number;
+  startListAthleteNos: Set<number>;
+  athletes: OrganizationAthlete[];
+}): LateEntryToConfirm[] {
+  const listed = new Set<number>();
+  const lateEntries: LateEntryToConfirm[] = [];
+  for (const { athleteNo } of rows) {
+    if (athleteNo === null || listed.has(athleteNo)) continue;
+    if (startListAthleteNos.has(athleteNo)) continue;
+    listed.add(athleteNo);
+    const athlete = athletes.find((a) => a.athleteNo === athleteNo);
+    if (!athlete) continue;
+    lateEntries.push({
+      athleteNo,
+      fullName: athlete.fullName,
+      gender: athlete.gender,
+      runHeat,
+      suggestedAgeGroupLabel:
+        athlete.latestAgeGroupCode === null
+          ? null
+          : ageGroupLabel(athlete.latestAgeGroupCode, athlete.gender),
+    });
+  }
+  return lateEntries;
 }
 
 /**

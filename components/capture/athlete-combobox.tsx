@@ -22,12 +22,15 @@ import { cn } from "@/lib/utils";
 export interface AthleteOption {
   athleteNo: number;
   fullName: string;
+  /** Marked in the list: assigning them makes a Late entry. */
+  notOnStartList?: boolean;
 }
 
 /**
  * Athlete number or name search (§4.5's "reassign athlete by number or name
- * search"). Searches the whole league roster, not just this heat's — an
- * athlete can be reassigned in from wherever they actually ran.
+ * search"). Searches every athlete of the Organization, not just this heat's
+ * roster — an athlete can be reassigned in from wherever they actually ran,
+ * or from off the Start list.
  */
 export function AthleteCombobox({
   options,
@@ -83,6 +86,11 @@ export function AthleteCombobox({
                   )}
                 >
                   {athlete.athleteNo} {athlete.fullName}
+                  {athlete.notOnStartList && (
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      Not on Start list
+                    </span>
+                  )}
                 </CommandItem>
               ))}
             </CommandGroup>

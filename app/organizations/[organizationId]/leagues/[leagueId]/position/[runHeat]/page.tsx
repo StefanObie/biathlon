@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { toHeatClosed } from "@/lib/capture/heat-closed";
 import { createClient } from "@/lib/supabase/server";
-import type { OrganizationAthlete } from "@/lib/scan/position";
+import { loadOrganizationAthletes } from "@/lib/leagues/organization-athletes";
 import { canUse, heatModes } from "@/lib/access/roles";
 import { getLeagueAccess } from "@/lib/access/league-access";
 import { NoAccess } from "@/components/leagues/no-access";
@@ -121,29 +121,4 @@ async function PositionHeatSection({
       remoteHeatClosed={leagueRaceError ? undefined : toHeatClosed(leagueRace)}
     />
   );
-}
-
-// The API returns at most max_rows (1000) rows a request, and an
-// Organization's athletes outgrow that over the seasons, so read them a page
-// at a time rather than silently treating the rest as unknown.
-const ATHLETE_PAGE = 1000;
-
-async function loadOrganizationAthletes(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  organizationId: number,
-): Promise<{ data: OrganizationAthlete[]; error: { message: string } | null }> {
-  const athletes: OrganizationAthlete[] = [];
-  for (let from = 0; ; from += ATHLETE_PAGE) {
-    const { data, error } = await supabase
-      .from("athlete")
-      .select("athlete_no, full_name")
-      .eq("organization_id", organizationId)
-      .order("athlete_no")
-      .range(from, from + ATHLETE_PAGE - 1);
-    if (error) return { data: [], error };
-    for (const a of data) {
-      athletes.push({ athleteNo: a.athlete_no, fullName: a.full_name });
-    }
-    if (data.length < ATHLETE_PAGE) return { data: athletes, error: null };
-  }
 }

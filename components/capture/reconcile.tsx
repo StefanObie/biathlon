@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -27,6 +35,12 @@ import { createClient } from "@/lib/supabase/client";
 import { logAudit } from "@/lib/reconcile/audit";
 import { closeHeat, reopenHeat } from "@/lib/reconcile/heat-closure";
 import { publishLeagueResults } from "@/lib/results/actions";
+import {
+  addReconcileLateEntries,
+  loadLatestAgeGroups,
+} from "@/lib/leagues/actions";
+import type { StoredAthlete } from "@/lib/leagues/organization-athletes";
+import { AGE_GROUP_LABELS, parseAgeGroup } from "@/lib/import/age-group";
 import { OPEN_HEAT, type HeatClosed } from "@/lib/capture/heat-closed";
 import { useHeatClosed } from "@/components/capture/use-heat-closed";
 import {
@@ -34,7 +48,9 @@ import {
   authorOffTeamChecks,
   capturedAfterCloseChecks,
   computeAutomaticChecks,
+  lateEntriesToConfirm,
   mismatchFor,
+  type LateEntryToConfirm,
   type Mismatch,
   type PositionEntry,
   type RunStatus,
@@ -147,6 +163,7 @@ export function Reconcile({
   heats,
   roster,
   leagueRoster,
+  athletes,
   checkIns,
   remotePositionCaptures,
   remoteTimeCaptures,
@@ -164,6 +181,8 @@ export function Reconcile({
   heats: number[];
   roster: RosterAthlete[];
   leagueRoster: RosterAthlete[];
+  /** Every athlete of the Organization: any of them can be assigned. */
+  athletes: StoredAthlete[];
   /** Who is Checked in, and at which heat, across the League. */
   checkIns: CheckInFacts[];
   remotePositionCaptures: RemotePositionCapture[];
@@ -177,11 +196,7 @@ export function Reconcile({
    * the page couldn't read them, and then nothing is flagged. */
   onTeam: string[] | undefined;
 }) {
-  const rosterByNo = useMemo(() => {
-    const map = new Map<number, string>();
-    for (const a of roster) map.set(a.athleteNo, a.fullName);
-    return map;
-  }, [roster]);
+  const router = useRouter();
   const rosterAthleteNos = useMemo(
     () => new Set(roster.map((a) => a.athleteNo)),
     [roster],
@@ -192,13 +207,24 @@ export function Reconcile({
     () => new Map(leagueRoster.map((a) => [a.athleteNo, a.fullName])),
     [leagueRoster],
   );
+  const startListAthleteNos = useMemo(
+    () => new Set(leagueRoster.map((a) => a.athleteNo)),
+    [leagueRoster],
+  );
+  // Names across the Organization, so a captured athlete who isn't on the
+  // Start list is still named on their row.
+  const organizationNames = useMemo(
+    () => new Map(athletes.map((a) => [a.athleteNo, a.fullName])),
+    [athletes],
+  );
   const athleteOptions: AthleteOption[] = useMemo(
     () =>
-      leagueRoster.map((a) => ({
+      athletes.map((a) => ({
         athleteNo: a.athleteNo,
         fullName: a.fullName,
+        notOnStartList: !startListAthleteNos.has(a.athleteNo),
       })),
-    [leagueRoster],
+    [athletes, startListAthleteNos],
   );
 
   const initialRows = useMemo(() => {
@@ -220,7 +246,7 @@ export function Reconcile({
         isPlaceholder: c.is_placeholder,
       }));
 
-    const rows = buildWorkingRows(positions, times, rosterByNo);
+    const rows = buildWorkingRows(positions, times, organizationNames);
 
     // Overlay any already-saved run_result rows (a previous reconciliation
     // pass) onto the athlete they belong to, so re-opening a partly-worked
@@ -243,6 +269,11 @@ export function Reconcile({
 
   const [rows, setRows] = useState<WorkingRow[]>(initialRows);
   const [saving, setSaving] = useState(false);
+  // The Late entries this save creates, with the age group each is given,
+  // while the Official confirms them. Null when not confirming.
+  const [lateEntries, setLateEntries] = useState<
+    (LateEntryToConfirm & { ageGroupLabel: string | null })[] | null
+  >(null);
   const { closed, setClosed } = useHeatClosed(
     leagueId,
     runHeat,
@@ -367,6 +398,7 @@ export function Reconcile({
         rosterCount: roster.length,
         rows,
         rosterAthleteNos,
+        startListAthleteNos,
         duplicateAthletes,
       }),
       // A capture from a phone that was offline when the heat closed is
@@ -408,6 +440,7 @@ export function Reconcile({
       roster.length,
       rows,
       rosterAthleteNos,
+      startListAthleteNos,
       duplicateAthletes,
       closed.closedAt,
       remotePositionCaptures,
@@ -476,12 +509,15 @@ export function Reconcile({
     return user?.email ?? "unknown";
   }
 
+  /**
+   * Every result has a Start list entry, so a save that assigns an athlete
+   * who isn't on the Start list first asks the Official to confirm them as
+   * Late entries; it can't go ahead until they do, or reassign or remove
+   * the row.
+   */
   async function handleSave() {
     setSaving(true);
     try {
-      const supabase = createClient();
-      const actor = await currentActor();
-
       const toSave = rows.filter((r) => r.athleteNo !== null);
       const invalidTime = toSave.find(
         (r) => r.runTime !== null && !TIME_PATTERN.test(r.runTime),
@@ -493,60 +529,138 @@ export function Reconcile({
         return;
       }
 
-      const payload = toSave.map((r) => ({
-        league_id: leagueId,
-        athlete_no: r.athleteNo as number,
-        run_heat: runHeat,
-        run_time: r.status === "ok" ? r.runTime : null,
-        status: r.status,
-        source: "manual",
-        overridden_by: actor,
-        override_reason: "reconciliation save",
-      }));
-
-      if (payload.length > 0) {
-        const { error } = await supabase.from("run_result").upsert(payload, {
-          onConflict: "league_id,athlete_no,run_heat",
-        });
-        if (error) {
-          toast.error(error.message);
-          return;
-        }
-      }
-
-      await logAudit({
-        leagueId,
-        actor,
-        entity: "run_result",
-        action: "reconcile-save",
-        after: payload,
-        reason: `Reconciled run heat ${runHeat}`,
-      });
-
-      // Saving closes the heat (ADR 0001). Saving an already-closed heat
-      // again leaves its original close alone.
-      const { closed: newlyClosed, error } = await closeHeat({
-        leagueId,
-        runHeat,
-        actor,
-      });
-      if (error) {
-        toast.error(`Results saved, but the heat didn't close: ${error}`);
+      const offStartList = [
+        ...new Set(
+          toSave.flatMap((r) =>
+            r.athleteNo === null || startListAthleteNos.has(r.athleteNo)
+              ? []
+              : [r.athleteNo],
+          ),
+        ),
+      ];
+      const unknown = offStartList.find((no) => !organizationNames.has(no));
+      if (unknown !== undefined) {
+        toast.error(
+          `#${unknown} is not an athlete of the Organization. Reassign or remove the row.`,
+        );
         return;
       }
-      if (newlyClosed) {
-        setClosed(newlyClosed);
-        await publishLeagueResults(leagueId).catch(() => {});
+      if (offStartList.length === 0) {
+        await saveResults();
+        return;
       }
 
-      toast.success(
-        newlyClosed
-          ? "Reconciliation saved. Heat closed."
-          : "Reconciliation saved.",
+      const latest = await loadLatestAgeGroups(
+        { organizationId, leagueId },
+        offStartList,
+      );
+      if ("error" in latest) {
+        toast.error(latest.error);
+        return;
+      }
+      setLateEntries(
+        lateEntriesToConfirm({
+          rows: toSave,
+          runHeat,
+          startListAthleteNos,
+          athletes: athletes
+            .filter((a) => offStartList.includes(a.athleteNo))
+            .map((a) => ({
+              ...a,
+              latestAgeGroupCode: latest.ageGroups[a.athleteNo] ?? null,
+            })),
+        }).map((e) => ({
+          ...e,
+          ageGroupLabel: e.suggestedAgeGroupLabel,
+        })),
       );
     } finally {
       setSaving(false);
     }
+  }
+
+  /** Creates the confirmed Late entries, then saves the heat's results. */
+  async function handleConfirmLateEntries() {
+    if (!lateEntries) return;
+    setSaving(true);
+    try {
+      const { error } = await addReconcileLateEntries(
+        { organizationId, leagueId },
+        runHeat,
+        lateEntries.map((e) => ({
+          athleteNo: e.athleteNo,
+          ageGroupLabel: e.ageGroupLabel ?? "",
+        })),
+      );
+      if (error) {
+        toast.error(error);
+        return;
+      }
+      setLateEntries(null);
+      // They're on the Start list now, so its checks and options catch up.
+      router.refresh();
+      await saveResults();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveResults() {
+    const supabase = createClient();
+    const actor = await currentActor();
+    const toSave = rows.filter((r) => r.athleteNo !== null);
+
+    const payload = toSave.map((r) => ({
+      league_id: leagueId,
+      athlete_no: r.athleteNo as number,
+      run_heat: runHeat,
+      run_time: r.status === "ok" ? r.runTime : null,
+      status: r.status,
+      source: "manual",
+      overridden_by: actor,
+      override_reason: "reconciliation save",
+    }));
+
+    if (payload.length > 0) {
+      const { error } = await supabase.from("run_result").upsert(payload, {
+        onConflict: "league_id,athlete_no,run_heat",
+      });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+    }
+
+    await logAudit({
+      leagueId,
+      actor,
+      entity: "run_result",
+      action: "reconcile-save",
+      after: payload,
+      reason: `Reconciled run heat ${runHeat}`,
+    });
+
+    // Saving closes the heat (ADR 0001). Saving an already-closed heat
+    // again leaves its original close alone.
+    const { closed: newlyClosed, error } = await closeHeat({
+      leagueId,
+      runHeat,
+      actor,
+    });
+    if (error) {
+      toast.error(`Results saved, but the heat didn't close: ${error}`);
+      return;
+    }
+    if (newlyClosed) setClosed(newlyClosed);
+    // A closed heat's results are published, so saving it again (perhaps
+    // with a Late entry added) refreshes them too.
+    await publishLeagueResults(leagueId).catch(() => {});
+
+    toast.success(
+      newlyClosed
+        ? "Reconciliation saved. Heat closed."
+        : "Reconciliation saved.",
+    );
   }
 
   async function handleReopen() {
@@ -745,6 +859,83 @@ export function Reconcile({
               : "Save and close heat"}
         </Button>
       </div>
+
+      <Dialog
+        open={lateEntries !== null}
+        onOpenChange={(open) => {
+          if (!open && !saving) setLateEntries(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Late entries</DialogTitle>
+            <DialogDescription>
+              These athletes aren&apos;t on the Start list. Saving adds them to
+              it in run heat {runHeat}, with no swim slot. To leave someone off,
+              cancel and reassign or remove their row.
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="flex flex-col gap-3">
+            {lateEntries?.map((entry) => (
+              <li
+                key={entry.athleteNo}
+                className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+              >
+                <span className="text-sm">
+                  #{entry.athleteNo} {entry.fullName}
+                </span>
+                <Select
+                  value={entry.ageGroupLabel ?? ""}
+                  onValueChange={(label) =>
+                    setLateEntries(
+                      (prev) =>
+                        prev?.map((e) =>
+                          e.athleteNo === entry.athleteNo
+                            ? { ...e, ageGroupLabel: label }
+                            : e,
+                        ) ?? null,
+                    )
+                  }
+                >
+                  <SelectTrigger
+                    className="w-full sm:w-56"
+                    aria-label={`Age group for #${entry.athleteNo}`}
+                  >
+                    <SelectValue placeholder="Select an age group" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AGE_GROUP_LABELS.filter(
+                      (label) => parseAgeGroup(label)?.gender === entry.gender,
+                    ).map((label) => (
+                      <SelectItem key={label} value={label}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </li>
+            ))}
+          </ul>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setLateEntries(null)}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void handleConfirmLateEntries()}
+              disabled={
+                saving ||
+                (lateEntries?.some((e) => e.ageGroupLabel === null) ?? true)
+              }
+            >
+              {saving ? "Saving…" : "Add and save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={reopening}

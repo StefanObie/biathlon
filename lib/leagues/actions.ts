@@ -356,3 +356,131 @@ export async function addLateEntry(
   revalidatePath(leagueAddress(league, "start-list"));
   return { saved: true };
 }
+
+/**
+ * Each athlete's age group from their latest entry in the League's
+ * Organization, by Athlete number, so Reconcile can suggest one for the Late
+ * entries its save creates.
+ */
+export async function loadLatestAgeGroups(
+  league: LeagueRef,
+  athleteNos: number[],
+): Promise<{ ageGroups: Record<number, string> } | { error: string }> {
+  const supabase = await createClient();
+  const organizationId = await leagueOrganizationId(supabase, league.leagueId);
+  if (organizationId === null) return { error: "League not found." };
+  const { data, error } = await supabase.rpc("latest_age_groups", {
+    org_id: organizationId,
+    athlete_nos: athleteNos,
+  });
+  if (error) return { error: `Failed to read age groups: ${error.message}` };
+  return {
+    ageGroups: Object.fromEntries(
+      data.map((g) => [g.athlete_no, g.age_group_code]),
+    ),
+  };
+}
+
+export interface ConfirmedLateEntry {
+  athleteNo: number;
+  ageGroupLabel: string;
+}
+
+/**
+ * Adds the Late entries an Official confirmed while saving a heat in
+ * Reconcile: athletes of the Organization who ran in this heat but aren't on
+ * the Start list. They get no swim slot. One already entered in this heat
+ * (an earlier save that failed later on) is left as it is; one entered in
+ * another heat is refused rather than moved.
+ */
+export async function addReconcileLateEntries(
+  league: LeagueRef,
+  runHeat: number,
+  confirmed: ConfirmedLateEntry[],
+): Promise<{ error?: string }> {
+  const { leagueId } = league;
+  if (!Number.isInteger(runHeat) || runHeat <= 0) {
+    return { error: "Run heat must be a positive whole number." };
+  }
+  if (confirmed.length === 0) return {};
+
+  const supabase = await createClient();
+  const organizationId = await leagueOrganizationId(supabase, leagueId);
+  if (organizationId === null) return { error: "League not found." };
+
+  const athleteNos = confirmed.map((c) => c.athleteNo);
+  const [
+    { data: athletes, error: athleteError },
+    { data: places, error: placeError },
+  ] = await Promise.all([
+    supabase
+      .from("athlete")
+      .select("athlete_no, full_name, gender")
+      .eq("organization_id", organizationId)
+      .in("athlete_no", athleteNos),
+    supabase
+      .from("entry")
+      .select("athlete_no, run_heat")
+      .eq("league_id", leagueId)
+      .in("athlete_no", athleteNos),
+  ]);
+  const error = athleteError ?? placeError;
+  if (error) return { error: `Failed to check athletes: ${error.message}` };
+
+  const organizationAthletes = (athletes ?? []).map((a) => ({
+    athleteNo: a.athlete_no,
+    fullName: a.full_name,
+    gender: a.gender,
+    latestAgeGroupCode: null,
+  }));
+  const startList = (places ?? []).map((p) => ({
+    athleteNo: p.athlete_no,
+    runHeat: p.run_heat,
+  }));
+
+  const entries = [];
+  for (const { athleteNo, ageGroupLabel } of confirmed) {
+    const decision = decideLateEntry(
+      athleteNo,
+      organizationAthletes,
+      startList,
+    );
+    if (decision.kind === "already-on-start-list") {
+      if (decision.runHeat === runHeat) continue;
+      return { error: alreadyOnStartListMessage(athleteNo, decision.runHeat) };
+    }
+    if (decision.kind === "new-athlete") {
+      return { error: `#${athleteNo} is not an athlete of the Organization.` };
+    }
+    const ageGroup = parseAgeGroup(ageGroupLabel);
+    if (!ageGroup) return { error: `Choose an age group for #${athleteNo}.` };
+    if (ageGroup.gender !== decision.gender) {
+      return {
+        error: `${decision.fullName} is stored as ${decision.gender === "F" ? "female" : "male"}. Choose a matching age group.`,
+      };
+    }
+    entries.push({
+      league_id: leagueId,
+      athlete_no: athleteNo,
+      run_heat: runHeat,
+      swim_heat: null,
+      swim_lane: null,
+      age_group_code: ageGroup.code,
+    });
+  }
+
+  if (entries.length > 0) {
+    const { error: entryError } = await supabase.from("entry").insert(entries);
+    if (entryError) {
+      return {
+        error:
+          entryError.code === "23505"
+            ? "Someone else changed the Start list meanwhile. Refresh and save again."
+            : `Failed to save Late entries: ${entryError.message}`,
+      };
+    }
+  }
+
+  revalidatePath(leagueAddress(league, "start-list"));
+  return {};
+}

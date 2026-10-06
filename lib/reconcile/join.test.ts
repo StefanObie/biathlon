@@ -5,7 +5,9 @@ import {
   buildWorkingRows,
   capturedAfterCloseChecks,
   computeAutomaticChecks,
+  lateEntriesToConfirm,
   mismatchFor,
+  type WorkingRow,
   type PositionEntry,
   type TimeEntry,
 } from "./join";
@@ -266,6 +268,7 @@ describe("computeAutomaticChecks", () => {
       rosterCount: 2,
       rows: [okRow],
       rosterAthleteNos: new Set([7409, 8081]),
+      startListAthleteNos: new Set([7409, 8081]),
       duplicateAthletes: [],
     });
     expect(checks.some((c) => c.kind === "count-mismatch")).toBe(true);
@@ -276,6 +279,7 @@ describe("computeAutomaticChecks", () => {
       rosterCount: 1,
       rows: [okRow],
       rosterAthleteNos: new Set([9999]),
+      startListAthleteNos: new Set([7409, 9999]),
       duplicateAthletes: [],
     });
     expect(checks.some((c) => c.kind === "not-on-roster")).toBe(true);
@@ -286,9 +290,23 @@ describe("computeAutomaticChecks", () => {
       rosterCount: 1,
       rows: [okRow],
       rosterAthleteNos: new Set([7409]),
+      startListAthleteNos: new Set([7409]),
       duplicateAthletes: [{ athleteNo: 7409, otherHeat: 3 }],
     });
     expect(checks.some((c) => c.kind === "duplicate-heat")).toBe(true);
+  });
+
+  it("flags an athlete captured who isn't on the Start list, not as off the roster", () => {
+    const checks = computeAutomaticChecks({
+      rosterCount: 1,
+      rows: [{ ...okRow, athleteNo: 6918 }],
+      rosterAthleteNos: new Set([7409]),
+      startListAthleteNos: new Set([7409]),
+      duplicateAthletes: [],
+    });
+    expect(checks.filter((c) => c.kind !== "count-mismatch")).toEqual([
+      { kind: "not-on-start-list", message: "#6918 is not on the Start list." },
+    ]);
   });
 
   it("has no checks when everything lines up", () => {
@@ -296,6 +314,7 @@ describe("computeAutomaticChecks", () => {
       rosterCount: 1,
       rows: [okRow],
       rosterAthleteNos: new Set([7409]),
+      startListAthleteNos: new Set([7409]),
       duplicateAthletes: [],
     });
     expect(checks).toHaveLength(0);
@@ -485,5 +504,96 @@ describe("authorOffTeamChecks", () => {
       times: [{ seq: 1, authorId: "removed", voided: true }],
     });
     expect(checks).toEqual([]);
+  });
+});
+
+describe("lateEntriesToConfirm", () => {
+  const row = (athleteNo: number | null): WorkingRow => ({
+    localId: `row-${athleteNo}`,
+    position: null,
+    time: null,
+    athleteNo,
+    athleteName: null,
+    runTime: "01:47.03",
+    status: "ok",
+  });
+  const athletes = [
+    {
+      athleteNo: 6918,
+      fullName: "Athlete A",
+      gender: "F" as const,
+      latestAgeGroupCode: "U13",
+    },
+    {
+      athleteNo: 5478,
+      fullName: "Athlete B",
+      gender: "M" as const,
+      latestAgeGroupCode: null,
+    },
+    {
+      athleteNo: 7409,
+      fullName: "Athlete R",
+      gender: "M" as const,
+      latestAgeGroupCode: "SEN",
+    },
+  ];
+
+  it("lists each athlete not on the Start list, in this heat, with their latest age group", () => {
+    expect(
+      lateEntriesToConfirm({
+        rows: [row(7409), row(6918), row(null), row(5478)],
+        runHeat: 4,
+        startListAthleteNos: new Set([7409]),
+        athletes,
+      }),
+    ).toEqual([
+      {
+        athleteNo: 6918,
+        fullName: "Athlete A",
+        gender: "F",
+        runHeat: 4,
+        suggestedAgeGroupLabel: "U/13 GIRLS",
+      },
+      {
+        athleteNo: 5478,
+        fullName: "Athlete B",
+        gender: "M",
+        runHeat: 4,
+        suggestedAgeGroupLabel: null,
+      },
+    ]);
+  });
+
+  it("lists an athlete on two rows once", () => {
+    expect(
+      lateEntriesToConfirm({
+        rows: [row(6918), row(6918)],
+        runHeat: 4,
+        startListAthleteNos: new Set(),
+        athletes,
+      }).map((e) => e.athleteNo),
+    ).toEqual([6918]);
+  });
+
+  it("lists no one for a number that is no athlete of the Organization", () => {
+    expect(
+      lateEntriesToConfirm({
+        rows: [row(1234)],
+        runHeat: 4,
+        startListAthleteNos: new Set(),
+        athletes,
+      }),
+    ).toEqual([]);
+  });
+
+  it("lists nothing when everyone is on the Start list", () => {
+    expect(
+      lateEntriesToConfirm({
+        rows: [row(7409)],
+        runHeat: 4,
+        startListAthleteNos: new Set([7409]),
+        athletes,
+      }),
+    ).toEqual([]);
   });
 });
