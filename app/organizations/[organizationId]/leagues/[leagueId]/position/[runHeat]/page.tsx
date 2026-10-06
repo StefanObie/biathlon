@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { toHeatClosed } from "@/lib/capture/heat-closed";
 import { createClient } from "@/lib/supabase/server";
+import type { OrganizationAthlete } from "@/lib/scan/position";
 import { canUse, heatModes } from "@/lib/access/roles";
 import { getLeagueAccess } from "@/lib/access/league-access";
 import { NoAccess } from "@/components/leagues/no-access";
@@ -54,6 +55,7 @@ async function PositionHeatSection({
     { data: leagueEntries, error: entriesError },
     { data: captures },
     { data: leagueRace, error: leagueRaceError },
+    { data: organizationAthletes, error: athletesError },
   ] = await Promise.all([
     // Whole league, not just this heat: an operator can log an athlete who
     // ran in the wrong heat (confirmed on the capture screen) — reassigning
@@ -76,10 +78,16 @@ async function PositionHeatSection({
       .eq("league_id", leagueIdNum)
       .eq("run_heat", runHeatNum)
       .maybeSingle(),
+    // Any athlete of the Organization can be captured (a Late entry is made
+    // for them in reconciliation), so the lookup has them all for offline.
+    loadOrganizationAthletes(supabase, organizationIdNum),
   ]);
 
   if (entriesError) {
     return <p className="text-sm text-destructive">{entriesError.message}</p>;
+  }
+  if (athletesError) {
+    return <p className="text-sm text-destructive">{athletesError.message}</p>;
   }
 
   const leagueRoster = (leagueEntries ?? []).map((e) => ({
@@ -108,8 +116,34 @@ async function PositionHeatSection({
       modes={heatModes(access)}
       heats={heats}
       leagueRoster={leagueRoster}
+      athletes={organizationAthletes}
       remoteCaptures={captures ?? []}
       remoteHeatClosed={leagueRaceError ? undefined : toHeatClosed(leagueRace)}
     />
   );
+}
+
+// The API returns at most max_rows (1000) rows a request, and an
+// Organization's athletes outgrow that over the seasons, so read them a page
+// at a time rather than silently treating the rest as unknown.
+const ATHLETE_PAGE = 1000;
+
+async function loadOrganizationAthletes(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  organizationId: number,
+): Promise<{ data: OrganizationAthlete[]; error: { message: string } | null }> {
+  const athletes: OrganizationAthlete[] = [];
+  for (let from = 0; ; from += ATHLETE_PAGE) {
+    const { data, error } = await supabase
+      .from("athlete")
+      .select("athlete_no, full_name")
+      .eq("organization_id", organizationId)
+      .order("athlete_no")
+      .range(from, from + ATHLETE_PAGE - 1);
+    if (error) return { data: [], error };
+    for (const a of data) {
+      athletes.push({ athleteNo: a.athlete_no, fullName: a.full_name });
+    }
+    if (data.length < ATHLETE_PAGE) return { data: athletes, error: null };
+  }
 }

@@ -30,8 +30,14 @@ import { getDeviceId } from "@/lib/offline/device-id";
 import { parseBibPayload } from "@/lib/scan/payload";
 import {
   FILLED,
+  needsConfirm,
   nextPosition,
   positionRowAction,
+  scanOutcome,
+  scanOutcomeMessage,
+  type LeagueRosterAthlete,
+  type OrganizationAthlete,
+  type ConfirmScanOutcome,
   type PositionRowAction,
 } from "@/lib/scan/position";
 import { QrScanner } from "@/components/capture/qr-scanner";
@@ -52,12 +58,6 @@ import {
   type LocalPositionCapture,
 } from "@/lib/offline/position-capture-queue";
 
-export interface LeagueRosterAthlete {
-  athleteNo: number;
-  fullName: string;
-  runHeat: number;
-}
-
 export interface RemoteCapture {
   id: string;
   position: number;
@@ -75,6 +75,7 @@ export function PositionCapture({
   modes,
   heats,
   leagueRoster,
+  athletes,
   remoteCaptures,
   remoteHeatClosed,
 }: {
@@ -85,6 +86,8 @@ export function PositionCapture({
   modes: HeatMode[];
   heats: number[];
   leagueRoster: LeagueRosterAthlete[];
+  /** Every athlete of the Organization, so any of them can be captured. */
+  athletes: OrganizationAthlete[];
   remoteCaptures: RemoteCapture[];
   /** Undefined when the page couldn't read it; the phone's copy is used. */
   remoteHeatClosed: HeatClosed | undefined;
@@ -93,8 +96,8 @@ export function PositionCapture({
   const [loaded, setLoaded] = useState(false);
   const [athleteNoInput, setAthleteNoInput] = useState("");
   const [inputError, setInputError] = useState<string | null>(null);
-  const [pendingOutOfHeat, setPendingOutOfHeat] =
-    useState<LeagueRosterAthlete | null>(null);
+  const [pendingConfirm, setPendingConfirm] =
+    useState<ConfirmScanOutcome | null>(null);
   const [pendingUndo, setPendingUndo] = useState<{
     capture: LocalPositionCapture;
     fill: boolean;
@@ -105,11 +108,13 @@ export function PositionCapture({
   const { closed } = useHeatClosed(leagueId, runHeat, remoteHeatClosed);
   const camera = useCameraSleep();
 
-  const rosterByNo = useMemo(() => {
-    const map = new Map<number, LeagueRosterAthlete>();
-    for (const a of leagueRoster) map.set(a.athleteNo, a);
+  // Names for the captured list, including athletes not on the Start list.
+  const nameByNo = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const a of athletes) map.set(a.athleteNo, a.fullName);
+    for (const a of leagueRoster) map.set(a.athleteNo, a.fullName);
     return map;
-  }, [leagueRoster]);
+  }, [athletes, leagueRoster]);
 
   // Load Dexie rows first (unsynced local state wins on conflict with the
   // server snapshot passed down from the page — same id, local is either
@@ -225,30 +230,31 @@ export function PositionCapture({
     void syncPendingCaptures();
   }
 
-  // Shared by manual entry and QR scan: resolves an athlete number against
-  // the roster and either records the capture directly or, for an
-  // out-of-heat athlete, routes through the confirmation dialog. Returns an
-  // error message on failure so each caller can surface it its own way
-  // (inline field error vs. toast).
+  // Shared by manual entry and QR scan: records the capture, routes it
+  // through a confirmation, or refuses it. Returns an error message on
+  // refusal so each caller can surface it its own way (inline field error
+  // vs. toast).
   async function resolveAndRecord(athleteNo: number): Promise<string | null> {
-    const athlete = rosterByNo.get(athleteNo);
-    if (!athlete) {
-      return `Athlete ${athleteNo} is not entered in this league.`;
-    }
-    if (captures.some((c) => !c.voided && c.athlete_no === athleteNo)) {
-      return `Athlete ${athleteNo} ${athlete.fullName} is already captured in this heat.`;
-    }
+    const outcome = scanOutcome(
+      athleteNo,
+      runHeat,
+      leagueRoster,
+      athletes,
+      captures,
+    );
+    const error = scanOutcomeMessage(outcome);
+    if (error) return error;
     // Only an accepted athlete keeps the camera awake: a rejected bib left
     // in frame is re-read every couple of seconds and would never let it
     // sleep.
     camera.markUsed();
-    if (athlete.runHeat !== runHeat) {
+    if (needsConfirm(outcome)) {
       // Confirm before logging — the mismatch itself is resolved later in
       // reconciliation, this screen just shouldn't lose the capture.
-      setPendingOutOfHeat(athlete);
-      return null;
+      setPendingConfirm(outcome);
+    } else {
+      await recordCapture(athleteNo);
     }
-    await recordCapture(athleteNo);
     return null;
   }
 
@@ -277,10 +283,10 @@ export function PositionCapture({
     if (error) toast.error(error);
   }
 
-  async function confirmOutOfHeatCapture() {
-    if (!pendingOutOfHeat) return;
-    await recordCapture(pendingOutOfHeat.athleteNo);
-    setPendingOutOfHeat(null);
+  async function confirmCapture() {
+    if (!pendingConfirm) return;
+    await recordCapture(pendingConfirm.athlete.athleteNo);
+    setPendingConfirm(null);
     setAthleteNoInput("");
   }
 
@@ -348,7 +354,7 @@ export function PositionCapture({
       ) : (
         <QrScanner
           onDetect={(text) => void handleScanDetect(text)}
-          paused={pendingOutOfHeat !== null}
+          paused={pendingConfirm !== null}
           awake={camera.awake}
           onWake={camera.wake}
         />
@@ -405,7 +411,7 @@ export function PositionCapture({
               <span className="tabular-nums">
                 #{c.position}{" "}
                 {c.athlete_no
-                  ? `${c.athlete_no} ${rosterByNo.get(c.athlete_no)?.fullName ?? ""}`
+                  ? `${c.athlete_no} ${nameByNo.get(c.athlete_no) ?? ""}`
                   : "skip"}
               </span>
               <RowActionButton
@@ -432,33 +438,43 @@ export function PositionCapture({
       />
 
       <Dialog
-        open={pendingOutOfHeat !== null}
+        open={pendingConfirm !== null}
         onOpenChange={(open) => {
-          if (!open) setPendingOutOfHeat(null);
+          if (!open) setPendingConfirm(null);
         }}
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Athlete not in this heat</DialogTitle>
+            <DialogTitle>
+              {pendingConfirm?.kind === "not-on-start-list"
+                ? "Athlete not on the Start list"
+                : "Athlete not in this heat"}
+            </DialogTitle>
             <DialogDescription>
-              {pendingOutOfHeat && (
+              {pendingConfirm?.kind === "other-heat" && (
                 <>
-                  {pendingOutOfHeat.athleteNo} {pendingOutOfHeat.fullName} is
-                  assigned to run heat {pendingOutOfHeat.runHeat}, not heat{" "}
-                  {runHeat}. Log the capture anyway? The mismatch will need to
-                  be resolved during reconciliation.
+                  {pendingConfirm.athlete.athleteNo}{" "}
+                  {pendingConfirm.athlete.fullName} is assigned to run heat{" "}
+                  {pendingConfirm.athlete.runHeat}, not heat {runHeat}. Log the
+                  capture anyway? The mismatch will need to be resolved during
+                  reconciliation.
+                </>
+              )}
+              {pendingConfirm?.kind === "not-on-start-list" && (
+                <>
+                  {pendingConfirm.athlete.athleteNo}{" "}
+                  {pendingConfirm.athlete.fullName} is not on this league&apos;s
+                  Start list. Log the capture anyway? An Official will add them
+                  as a Late entry during reconciliation.
                 </>
               )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPendingOutOfHeat(null)}>
+            <Button variant="outline" onClick={() => setPendingConfirm(null)}>
               Cancel
             </Button>
-            <Button
-              onClick={() => void confirmOutOfHeatCapture()}
-              disabled={locked}
-            >
+            <Button onClick={() => void confirmCapture()} disabled={locked}>
               Log capture
             </Button>
           </DialogFooter>
@@ -481,7 +497,7 @@ export function PositionCapture({
                 <>
                   Position #{pendingUndo.capture.position}
                   {pendingUndo.capture.athlete_no
-                    ? ` — ${pendingUndo.capture.athlete_no} ${rosterByNo.get(pendingUndo.capture.athlete_no)?.fullName ?? ""}`
+                    ? ` — ${pendingUndo.capture.athlete_no} ${nameByNo.get(pendingUndo.capture.athlete_no) ?? ""}`
                     : " — skip"}{" "}
                   {pendingUndo.fill
                     ? "will become a Skip again."
