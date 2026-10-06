@@ -79,9 +79,13 @@ function normaliseName(name: string): string {
 /**
  * Whether the file's name can belong to the lane's owner. A cut-off name
  * column only carries the start of the name, so a prefix is enough there.
+ * The cut can also fall inside "(AFL)", leaving an unclosed "(AF" that the
+ * parser could not strip, so any unclosed trailing bracket is dropped too.
  */
 function namesAgree(raw: RawSwimRow, owner: RosterEntry): boolean {
-  const fileName = normaliseName(raw.name);
+  const fileName = normaliseName(
+    raw.truncated ? raw.name.replace(/\s*\([^)]*$/, "") : raw.name,
+  );
   const ownerName = normaliseName(owner.fullName);
   if (fileName === ownerName) return true;
   return raw.truncated && fileName !== "" && ownerName.startsWith(fileName);

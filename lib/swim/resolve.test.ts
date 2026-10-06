@@ -224,6 +224,15 @@ describe("resolveSwimRows — step 2 only when the names agree", () => {
     expect(rows[0].athleteNo).toBe(8124);
   });
 
+  it("still matches by lane when the cut falls inside the (AFL) marker", () => {
+    const rows = resolveSwimRows(
+      [row({ athleteNo: null, truncated: true, name: "Jan Nel (AF" })],
+      [entry({ athleteNo: 8124, fullName: "Jan Nel" })],
+    );
+    expect(rows[0].state).toBe("matched-by-lane");
+    expect(rows[0].athleteNo).toBe(8124);
+  });
+
   it("does not treat a prefix as agreement when the name was not cut off", () => {
     const rows = resolveSwimRows(
       [row({ athleteNo: null, name: "Anna Smit" })],

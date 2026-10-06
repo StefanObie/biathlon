@@ -688,6 +688,7 @@ function MissingList({ missing }: { missing: RosterEntry[] }) {
             <li key={entry.athleteNo} className="tabular-nums">
               {entry.athleteNo} {entry.fullName}
               {entry.swimHeat !== null &&
+                entry.swimLane !== null &&
                 ` · heat ${entry.swimHeat} lane ${entry.swimLane}`}
             </li>
           ))}
