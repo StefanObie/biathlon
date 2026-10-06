@@ -4,10 +4,14 @@
  * stays thin.
  */
 
-/** An athlete entered in the League, and the heat they're rostered in. */
-export interface CallRoomEntry {
+/** An athlete of the League's Organization, on the Start list or not. */
+export interface OrganizationAthlete {
   athleteNo: number;
   fullName: string;
+}
+
+/** An athlete entered in the League, and the heat they're rostered in. */
+export interface CallRoomEntry extends OrganizationAthlete {
   runHeat: number;
 }
 
@@ -22,7 +26,12 @@ export type CheckInOutcome =
   | { kind: "checked-in"; athlete: CallRoomEntry }
   /** Already Checked in at this heat; change nothing. */
   | { kind: "already-here"; athlete: CallRoomEntry }
-  /** Not entered in the League. */
+  /**
+   * An athlete of the Organization who isn't on the Start list. Warn, and on
+   * confirm add them as a Late entry in this heat and check them in.
+   */
+  | { kind: "not-on-start-list"; athlete: OrganizationAthlete }
+  /** No athlete of the Organization has this number. */
   | { kind: "unknown"; athleteNo: number }
   /**
    * Rostered in another heat. Warn, and on confirm check them in here
@@ -36,7 +45,9 @@ export type CheckInOutcome =
 /** Whether the Caller has to confirm the outcome before it is applied. */
 export function needsConfirm(outcome: CheckInOutcome) {
   return (
-    outcome.kind === "other-heat" || outcome.kind === "checked-in-elsewhere"
+    outcome.kind === "other-heat" ||
+    outcome.kind === "checked-in-elsewhere" ||
+    outcome.kind === "not-on-start-list"
   );
 }
 
@@ -45,10 +56,16 @@ export function checkIn(
   athleteNo: number,
   runHeat: number,
   entries: readonly CallRoomEntry[],
+  athletes: readonly OrganizationAthlete[],
   checkIns: readonly CheckInFacts[],
 ): CheckInOutcome {
   const athlete = entries.find((e) => e.athleteNo === athleteNo);
-  if (!athlete) return { kind: "unknown", athleteNo };
+  if (!athlete) {
+    const known = athletes.find((a) => a.athleteNo === athleteNo);
+    return known
+      ? { kind: "not-on-start-list", athlete: known }
+      : { kind: "unknown", athleteNo };
+  }
   const existing = checkIns.find((c) => c.athleteNo === athleteNo);
   if (existing?.runHeat === runHeat) return { kind: "already-here", athlete };
   if (athlete.runHeat !== runHeat) {
@@ -69,8 +86,10 @@ export function checkInMessage(outcome: CheckInOutcome, runHeat: number) {
       return `Checked in: #${outcome.athlete.athleteNo} ${outcome.athlete.fullName}`;
     case "already-here":
       return `#${outcome.athlete.athleteNo} ${outcome.athlete.fullName} is already checked in.`;
+    case "not-on-start-list":
+      return `#${outcome.athlete.athleteNo} ${outcome.athlete.fullName} is not on the Start list. Add them to heat ${runHeat}?`;
     case "unknown":
-      return `Athlete ${outcome.athleteNo} is not entered in this league.`;
+      return `Athlete ${outcome.athleteNo} is not an athlete of this organization.`;
     case "other-heat":
       return `#${outcome.athlete.athleteNo} ${outcome.athlete.fullName} belongs to heat ${outcome.athlete.runHeat}, not heat ${runHeat}.${
         outcome.movedFrom === undefined

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { toHeatClosed } from "@/lib/capture/heat-closed";
 import { createClient } from "@/lib/supabase/server";
+import { loadOrganizationAthletes } from "@/lib/leagues/organization-athletes";
 import { canUse, heatModes } from "@/lib/access/roles";
 import { getLeagueAccess } from "@/lib/access/league-access";
 import { NoAccess } from "@/components/leagues/no-access";
@@ -54,6 +55,7 @@ async function CallRoomHeatSection({
     { data: leagueEntries, error: entriesError },
     { data: checkIns, error: checkInsError },
     { data: leagueRace, error: leagueRaceError },
+    { data: organizationAthletes, error: athletesError },
   ] = await Promise.all([
     // Whole league, so a number belonging to another heat is recognised.
     supabase
@@ -70,9 +72,12 @@ async function CallRoomHeatSection({
       .eq("league_id", leagueIdNum)
       .eq("run_heat", runHeatNum)
       .maybeSingle(),
+    // A Caller can add any athlete of the Organization who isn't on the
+    // Start list as a Late entry, so the lookup has them all.
+    loadOrganizationAthletes(supabase, organizationIdNum),
   ]);
 
-  const error = entriesError ?? checkInsError;
+  const error = entriesError ?? checkInsError ?? athletesError;
   if (error) return <p className="text-sm text-destructive">{error.message}</p>;
 
   const entries = (leagueEntries ?? []).map((e) => ({
@@ -101,6 +106,7 @@ async function CallRoomHeatSection({
       modes={heatModes(access)}
       heats={heats}
       entries={entries}
+      athletes={organizationAthletes}
       remoteCheckIns={(checkIns ?? []).map((c) => ({
         athleteNo: c.athlete_no,
         runHeat: c.run_heat,

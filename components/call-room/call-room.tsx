@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CheckIcon } from "lucide-react";
 import { toast } from "sonner";
 
@@ -30,7 +31,9 @@ import {
   needsConfirm,
   type CallRoomEntry,
   type CheckInFacts,
+  type OrganizationAthlete,
 } from "@/lib/call-room/call-room";
+import { checkInLateEntry } from "@/lib/leagues/actions";
 import type { HeatClosed } from "@/lib/capture/heat-closed";
 import { createClient } from "@/lib/supabase/client";
 import { parseBibPayload } from "@/lib/scan/payload";
@@ -43,7 +46,8 @@ export function CallRoom({
   runHeat,
   modes,
   heats,
-  entries,
+  entries: remoteEntries,
+  athletes,
   remoteCheckIns,
   remoteHeatClosed,
 }: {
@@ -55,20 +59,51 @@ export function CallRoom({
   heats: number[];
   /** The whole League's entries, so another heat's athlete is recognised. */
   entries: CallRoomEntry[];
+  /** Every athlete of the Organization, so one not on the Start list can be added. */
+  athletes: OrganizationAthlete[];
   remoteCheckIns: CheckInFacts[];
   /** Undefined when the page couldn't read it; the phone's copy is used. */
   remoteHeatClosed: HeatClosed | undefined;
 }) {
   const [athleteNoInput, setAthleteNoInput] = useState("");
   const [inputError, setInputError] = useState<string | null>(null);
+  // Late entries this Caller added, shown before the page is next loaded.
+  const [lateEntries, setLateEntries] = useState<CallRoomEntry[]>([]);
   const [pending, setPending] = useState<{
-    athlete: CallRoomEntry;
+    /** A Late entry to add, or a check-in at another heat to confirm. */
+    kind: "late-entry" | "check-in";
+    athlete: OrganizationAthlete;
     message: string;
   } | null>(null);
   const { closed } = useHeatClosed(leagueId, runHeat, remoteHeatClosed);
   const { checkIns, apply, remove } = useCheckIns(leagueId, remoteCheckIns);
   const camera = useCameraSleep();
   const locked = closed.closedAt !== null;
+  const entries = [
+    ...remoteEntries,
+    ...lateEntries.filter(
+      (l) => !remoteEntries.some((e) => e.athleteNo === l.athleteNo),
+    ),
+  ];
+
+  // A check-in needs an entry, so one for an athlete this phone doesn't have
+  // is a Late entry another Caller added: reload the Start list, once each.
+  const router = useRouter();
+  const refreshedFor = useRef(new Set<number>());
+  const missingKey = checkIns
+    .map((c) => c.athleteNo)
+    .filter((no) => !entries.some((e) => e.athleteNo === no))
+    .join(",");
+  useEffect(() => {
+    if (!missingKey) return;
+    const fresh = missingKey
+      .split(",")
+      .map(Number)
+      .filter((no) => !refreshedFor.current.has(no));
+    if (fresh.length === 0) return;
+    for (const no of fresh) refreshedFor.current.add(no);
+    router.refresh();
+  }, [missingKey, router]);
 
   const { roster, checkedIn, rosterSize, fromOtherHeats } = callRoomState(
     runHeat,
@@ -78,7 +113,7 @@ export function CallRoom({
 
   // Writes the check-in here: a new row, or a move when the athlete is
   // checked in at another heat. Never touches the heat roster.
-  async function record(athlete: CallRoomEntry): Promise<string | null> {
+  async function record(athlete: OrganizationAthlete): Promise<string | null> {
     const athleteNo = athlete.athleteNo;
     const supabase = createClient();
     const moving = checkIns.some((c) => c.athleteNo === athleteNo);
@@ -117,7 +152,7 @@ export function CallRoom({
   // vs. toast).
   async function submit(athleteNo: number): Promise<string | null> {
     if (locked) return CLOSED_MESSAGE;
-    const outcome = checkIn(athleteNo, runHeat, entries, checkIns);
+    const outcome = checkIn(athleteNo, runHeat, entries, athletes, checkIns);
     const message = checkInMessage(outcome, runHeat);
     if (outcome.kind === "already-here") {
       camera.markUsed();
@@ -129,26 +164,51 @@ export function CallRoom({
     camera.markUsed();
     if (needsConfirm(outcome)) {
       // Cancelling the dialog changes nothing.
-      if (
+      if (outcome.kind === "not-on-start-list") {
+        setPending({ kind: "late-entry", athlete: outcome.athlete, message });
+      } else if (
         outcome.kind === "other-heat" ||
         outcome.kind === "checked-in-elsewhere"
       ) {
-        setPending({ athlete: outcome.athlete, message });
+        setPending({ kind: "check-in", athlete: outcome.athlete, message });
       }
       return null;
     }
     return record(outcome.athlete);
   }
 
+  // Adds the athlete to the Start list as a Late entry in this heat and
+  // checks them in, in one step on the server.
+  async function addLateEntry(
+    athlete: OrganizationAthlete,
+  ): Promise<string | null> {
+    const { athleteNo, fullName } = athlete;
+    const { error } = await checkInLateEntry(
+      { organizationId, leagueId },
+      runHeat,
+      athleteNo,
+    );
+    if (error) return error;
+    setLateEntries((prev) => [...prev, { athleteNo, fullName, runHeat }]);
+    apply({ athleteNo, runHeat });
+    toast.success(
+      `Added to heat ${runHeat} and checked in: #${athleteNo} ${fullName}`,
+    );
+    return null;
+  }
+
   async function handleConfirm() {
     if (!pending) return;
-    const { athlete } = pending;
+    const { kind, athlete } = pending;
     setPending(null);
     if (locked) {
       toast.error(CLOSED_MESSAGE);
       return;
     }
-    const error = await record(athlete);
+    const error =
+      kind === "late-entry"
+        ? await addLateEntry(athlete)
+        : await record(athlete);
     if (error) toast.error(error);
   }
 
@@ -295,13 +355,19 @@ export function CallRoom({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Check in at heat {runHeat}?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {pending?.kind === "late-entry"
+                ? "Not on the Start list"
+                : `Check in at heat ${runHeat}?`}
+            </AlertDialogTitle>
             <AlertDialogDescription>{pending?.message}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => void handleConfirm()}>
-              Check in here
+              {pending?.kind === "late-entry"
+                ? "Add and check in"
+                : "Check in here"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

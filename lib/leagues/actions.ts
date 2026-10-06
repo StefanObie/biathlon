@@ -484,3 +484,25 @@ export async function addReconcileLateEntries(
   revalidatePath(leagueAddress(league, "start-list"));
   return {};
 }
+
+/**
+ * Adds an athlete of the Organization who isn't on the Start list as a Late
+ * entry in the heat being called, and checks them in there, for a Caller in
+ * the Call room. public.check_in_late_entry does both and is the only entry
+ * write a Caller may make.
+ */
+export async function checkInLateEntry(
+  league: LeagueRef,
+  runHeat: number,
+  athleteNo: number,
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("check_in_late_entry", {
+    target_league_id: league.leagueId,
+    target_athlete_no: athleteNo,
+    target_run_heat: runHeat,
+  });
+  if (error) return { error: error.message };
+  revalidatePath(leagueAddress(league, "start-list"));
+  return {};
+}

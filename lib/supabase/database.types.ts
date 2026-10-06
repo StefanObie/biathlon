@@ -770,6 +770,14 @@ export type Database = {
         Args: { invitation_id: string };
         Returns: undefined;
       };
+      check_in_late_entry: {
+        Args: {
+          target_athlete_no: number;
+          target_league_id: number;
+          target_run_heat: number;
+        };
+        Returns: undefined;
+      };
       create_organization: { Args: { org_name: string }; Returns: number };
       featured_league: {
         Args: Record<PropertyKey, never>;
