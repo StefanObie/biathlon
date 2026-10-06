@@ -686,8 +686,9 @@ function MissingList({ missing }: { missing: RosterEntry[] }) {
         <ul className="mt-2 flex flex-col gap-1 text-muted-foreground">
           {missing.map((entry) => (
             <li key={entry.athleteNo} className="tabular-nums">
-              {entry.athleteNo} {entry.fullName} · heat {entry.swimHeat} lane{" "}
-              {entry.swimLane}
+              {entry.athleteNo} {entry.fullName}
+              {entry.swimHeat !== null &&
+                ` · heat ${entry.swimHeat} lane ${entry.swimLane}`}
             </li>
           ))}
         </ul>

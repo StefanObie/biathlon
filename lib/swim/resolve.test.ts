@@ -79,7 +79,15 @@ describe("resolveSwimRows — ladder step 1: athlete number", () => {
     // would be a believable wrong result, which is the failure mode §300
     // cares about.
     const rows = resolveSwimRows(
-      [row({ athleteNo: 81, truncated: true, heat: 3, lane: 3 })],
+      [
+        row({
+          athleteNo: 81,
+          truncated: true,
+          name: "Right Pers",
+          heat: 3,
+          lane: 3,
+        }),
+      ],
       [
         entry({ athleteNo: 81, fullName: "Wrong Person", swimLane: 9 }),
         entry({ athleteNo: 8124, fullName: "Right Person", swimLane: 3 }),
@@ -105,7 +113,7 @@ describe("resolveSwimRows — ladder step 1: athlete number", () => {
 describe("resolveSwimRows — ladder step 2: (swim_heat, swim_lane)", () => {
   it("resolves a row with no athlete number at all (§2 Finding 5)", () => {
     const rows = resolveSwimRows(
-      [row({ athleteNo: null, name: "Nameless Swimmer", heat: 4, lane: 2 })],
+      [row({ athleteNo: null, name: "Real Name", heat: 4, lane: 2 })],
       [
         entry({
           athleteNo: 7777,
@@ -144,6 +152,116 @@ describe("resolveSwimRows — ladder step 2: (swim_heat, swim_lane)", () => {
     );
     expect(rows[0].state).toBe("matched-by-lane");
     expect(rows[0].reasons.join(" ")).toContain("not in this league");
+  });
+});
+
+describe("resolveSwimRows — step 2 only when the names agree", () => {
+  it("does not credit a Late entry's swim to the non-starter whose lane they used", () => {
+    // #62: Heinrich swam in the lane of 10350 Abel Pretorius, who did not
+    // start. The lane alone must not make it Abel's swim.
+    const roster = [
+      entry({
+        athleteNo: 10350,
+        fullName: "Abel Pretorius",
+        swimHeat: 4,
+        swimLane: 3,
+      }),
+      entry({
+        athleteNo: 10777,
+        fullName: "Heinrich von Wielligh",
+        swimHeat: 8,
+        swimLane: 1,
+      }),
+    ];
+    const rows = resolveSwimRows(
+      [
+        row({
+          athleteNo: null,
+          name: "Heinrich von Wielligh",
+          heat: 4,
+          lane: 3,
+        }),
+      ],
+      roster,
+    );
+    expect(rows[0].state).toBe("unresolved");
+    expect(rows[0].athleteNo).toBeNull();
+    expect(rows[0].suggestion).toEqual({
+      athleteNo: 10777,
+      fullName: "Heinrich von Wielligh",
+    });
+    expect(rows[0].reasons).toContain(
+      "Lane 4/3 is #10350 Abel Pretorius on the entry list, but the file says Heinrich von Wielligh",
+    );
+    // Abel is only missing from the file, never written as DNS.
+    expect(rows[0].status).toBe("ok");
+    expect(missingFromFile(rows, roster).map((m) => m.athleteNo)).toEqual([
+      10350, 10777,
+    ]);
+  });
+
+  it("accepts the lane when the names differ only in case, punctuation and (AFL)", () => {
+    const rows = resolveSwimRows(
+      [row({ athleteNo: null, name: "jean-pierre DU TOIT (AFL)" })],
+      [entry({ athleteNo: 4444, fullName: "Jean Pierre du Toit" })],
+    );
+    expect(rows[0].state).toBe("matched-by-lane");
+    expect(rows[0].athleteNo).toBe(4444);
+  });
+
+  it("still matches by lane when the name column was cut off", () => {
+    const rows = resolveSwimRows(
+      [
+        row({
+          athleteNo: 81,
+          truncated: true,
+          name: "Christiaan van der Westhui",
+        }),
+      ],
+      [entry({ athleteNo: 8124, fullName: "Christiaan van der Westhuizen" })],
+    );
+    expect(rows[0].state).toBe("matched-by-lane");
+    expect(rows[0].athleteNo).toBe(8124);
+  });
+
+  it("does not treat a prefix as agreement when the name was not cut off", () => {
+    const rows = resolveSwimRows(
+      [row({ athleteNo: null, name: "Anna Smit" })],
+      [entry({ athleteNo: 2222, fullName: "Anna Smith" })],
+    );
+    expect(rows[0].state).toBe("unresolved");
+  });
+
+  it("drops a spelling difference to a name suggestion, never auto-accepted", () => {
+    const roster = [
+      entry({ athleteNo: 3333, fullName: "Jaco Pieterse" }),
+      entry({
+        athleteNo: 3334,
+        fullName: "Jako Pieterse",
+        swimHeat: 9,
+        swimLane: 9,
+      }),
+    ];
+    const rows = resolveSwimRows(
+      [row({ athleteNo: null, name: "Jako Pieterse" })],
+      roster,
+    );
+    expect(rows[0].state).toBe("unresolved");
+    expect(rows[0].athleteNo).toBeNull();
+    expect(rows[0].suggestion?.athleteNo).toBe(3334);
+    expect(rows[0].reasons.join(" ")).toContain(
+      "Lane 3/1 is #3333 Jaco Pieterse on the entry list, but the file says Jako Pieterse",
+    );
+  });
+
+  it("never lane-matches a Start list entry without a swim slot", () => {
+    const rows = resolveSwimRows(
+      [row({ athleteNo: null, name: "Test Swimmer" })],
+      [entry({ swimHeat: null, swimLane: null })],
+    );
+    expect(rows[0].state).toBe("unresolved");
+    expect(rows[0].athleteNo).toBeNull();
+    expect(rows[0].suggestion?.athleteNo).toBe(1234);
   });
 });
 

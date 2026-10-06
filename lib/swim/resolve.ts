@@ -4,7 +4,7 @@
  * The resolution ladder is strict and never skipped ahead:
  *
  *   1. Exact athlete number match
- *   2. (swim_heat, swim_lane) -> entry roster
+ *   2. (swim_heat, swim_lane) -> entry roster, only when the names agree
  *   3. Name match, only if unambiguous
  *   4. Human exception queue — unresolved, operator picks
  *
@@ -15,6 +15,10 @@
  * A truncated athlete number is never treated as step 1: "... (81" may be
  * athlete 81, 812 or 8124 (§2 Finding 1). Those rows fall to step 2, which
  * resolves all twelve of the real file's problem rows (§2 Finding 5).
+ *
+ * Step 2 also requires the file's name to agree with the lane's owner: an
+ * athlete can swim in a non-starter's lane, and the lane alone would credit
+ * the swim to the wrong person (#62). A disagreeing row falls to step 3.
  */
 import type { RawSwimRow } from "@/lib/swim/parse-results";
 
@@ -33,8 +37,9 @@ export type SwimRowState =
 export interface RosterEntry {
   athleteNo: number;
   fullName: string;
-  swimHeat: number;
-  swimLane: number;
+  /** Null for a Late entry whose swim slot is not known yet. */
+  swimHeat: number | null;
+  swimLane: number | null;
 }
 
 export interface ResolvedSwimRow {
@@ -71,6 +76,17 @@ function normaliseName(name: string): string {
     .trim();
 }
 
+/**
+ * Whether the file's name can belong to the lane's owner. A cut-off name
+ * column only carries the start of the name, so a prefix is enough there.
+ */
+function namesAgree(raw: RawSwimRow, owner: RosterEntry): boolean {
+  const fileName = normaliseName(raw.name);
+  const ownerName = normaliseName(owner.fullName);
+  if (fileName === ownerName) return true;
+  return raw.truncated && fileName !== "" && ownerName.startsWith(fileName);
+}
+
 export function resolveSwimRows(
   rows: RawSwimRow[],
   roster: RosterEntry[],
@@ -81,7 +97,9 @@ export function resolveSwimRows(
 
   for (const entry of roster) {
     byNumber.set(entry.athleteNo, entry);
-    byHeatLane.set(`${entry.swimHeat}:${entry.swimLane}`, entry);
+    if (entry.swimHeat !== null && entry.swimLane !== null) {
+      byHeatLane.set(`${entry.swimHeat}:${entry.swimLane}`, entry);
+    }
     const key = normaliseName(entry.fullName);
     const bucket = byName.get(key);
     if (bucket) bucket.push(entry);
@@ -136,7 +154,7 @@ export function resolveSwimRows(
           `Entry list has lane ${raw.heat}/${raw.lane} as ${laneMatch.athleteNo} ${laneMatch.fullName}`,
         );
       }
-    } else if (laneMatch) {
+    } else if (laneMatch && namesAgree(raw, laneMatch)) {
       // Step 2 — (swim_heat, swim_lane). Resolves truncated and missing
       // numbers alike (§2 Finding 5).
       athlete = laneMatch;
@@ -156,6 +174,11 @@ export function resolveSwimRows(
         }
       }
     } else {
+      if (laneMatch) {
+        reasons.push(
+          `Lane ${raw.heat}/${raw.lane} is #${laneMatch.athleteNo} ${laneMatch.fullName} on the entry list, but the file says ${raw.name}`,
+        );
+      }
       // Step 3 — name, suggestion only, never auto-accepted (§2 Finding 2).
       const candidates = byName.get(normaliseName(raw.name)) ?? [];
       if (candidates.length === 1) {
