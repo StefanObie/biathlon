@@ -14,8 +14,9 @@ export interface BibData {
   athleteNo: number;
   fullName: string;
   runHeat: number;
-  swimHeat: number;
-  swimLane: number;
+  /** Null for a Late entry with no swim slot yet: the bib leaves a blank. */
+  swimHeat: number | null;
+  swimLane: number | null;
 }
 
 const QR_MM = 25;
@@ -100,8 +101,8 @@ function Bib({ athlete }: { athlete: BibData }) {
           {athlete.fullName}
         </Text>
         <Text style={styles.heats}>Run Heat {athlete.runHeat}</Text>
-        <Text style={styles.heats}>Swim Heat {athlete.swimHeat}</Text>
-        <Text style={styles.heats}>Swim Lane {athlete.swimLane}</Text>
+        <Text style={styles.heats}>Swim Heat {athlete.swimHeat ?? "___"}</Text>
+        <Text style={styles.heats}>Swim Lane {athlete.swimLane ?? "___"}</Text>
       </View>
     </View>
   );

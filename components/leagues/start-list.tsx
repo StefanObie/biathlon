@@ -5,7 +5,7 @@ import { UploadIcon } from "lucide-react";
 
 import { leagueAddress } from "@/lib/leagues/address";
 import { saveStartList } from "@/lib/leagues/actions";
-import { AddWalkUpAthleteForm } from "@/components/leagues/add-walk-up-athlete-form";
+import { AddLateEntryForm } from "@/components/leagues/add-late-entry-form";
 import { parseUploadedEntryFile } from "@/lib/import/parse-file";
 import {
   parseEntryRows,
@@ -40,8 +40,8 @@ export interface StartListEntry {
   gender: string;
   ageGroupCode: string;
   runHeat: number;
-  swimHeat: number;
-  swimLane: number;
+  swimHeat: number | null;
+  swimLane: number | null;
 }
 
 type Stage =
@@ -243,7 +243,7 @@ function CommittedTable({
               Download QR codes
             </a>
           </Button>
-          <AddWalkUpAthleteForm
+          <AddLateEntryForm
             organizationId={organizationId}
             leagueId={leagueId}
           />
@@ -305,7 +305,8 @@ function PreviewTable({
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
           Previewing {parsed.length} athletes from the uploaded file. Saving
-          will replace the current start list.
+          updates these athletes on the start list; late entries not in the file
+          stay.
         </p>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={onCancel} disabled={isSaving}>
@@ -367,8 +368,8 @@ function EntryTable({
     ageGroupCode: string;
     gender: string;
     runHeat: number;
-    swimHeat: number;
-    swimLane: number;
+    swimHeat: number | null;
+    swimLane: number | null;
   }[];
 }) {
   return (
@@ -399,10 +400,10 @@ function EntryTable({
               {row.runHeat}
             </TableCell>
             <TableCell className="font-mono tabular-nums">
-              {row.swimHeat}
+              {row.swimHeat ?? "—"}
             </TableCell>
             <TableCell className="font-mono tabular-nums">
-              {row.swimLane}
+              {row.swimLane ?? "—"}
             </TableCell>
           </TableRow>
         ))}

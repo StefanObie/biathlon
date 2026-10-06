@@ -9,7 +9,7 @@ export interface ParsedAgeGroup {
  * The finite set of age-group labels the club's import files use (§6.1) —
  * every one of these must parse via parseAgeGroup below (enforced in
  * age-group.test.ts). Exported so UI that needs a closed list to pick from
- * (rather than free-text entry, e.g. a walk-up athlete form) can reuse the
+ * (rather than free-text entry, e.g. the Late entry form) can reuse the
  * same vocabulary instead of guessing at it separately.
  */
 export const AGE_GROUP_LABELS = [
@@ -101,4 +101,17 @@ export function parseAgeGroup(label: string): ParsedAgeGroup | null {
   }
 
   return null;
+}
+
+/**
+ * The label for a stored age-group code and gender, so a form can pre-select
+ * it from AGE_GROUP_LABELS. Null when no label parses to that pair.
+ */
+export function ageGroupLabel(code: string, gender: Gender): string | null {
+  return (
+    AGE_GROUP_LABELS.find((label) => {
+      const parsed = parseAgeGroup(label);
+      return parsed?.code === code && parsed.gender === gender;
+    }) ?? null
+  );
 }

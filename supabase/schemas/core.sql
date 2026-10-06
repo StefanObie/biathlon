@@ -375,10 +375,12 @@ create table entry (
   organization_id integer not null default 0,
   athlete_no integer not null,
   run_heat integer not null,
-  swim_heat integer not null,
-  swim_lane integer not null,
+  -- A Late entry's swim slot can stay unknown, but never half known.
+  swim_heat integer,
+  swim_lane integer,
   age_group_code text not null,
   primary key (league_id, athlete_no),
+  constraint entry_swim_slot_check check ((swim_heat is null) = (swim_lane is null)),
   foreign key (organization_id, athlete_no) references athlete (organization_id, athlete_no)
 );
 
@@ -500,6 +502,30 @@ create policy "Officials can delete entries"
   on entry for delete
   to authenticated
   using (private.has_league_role(league_id, 'official'));
+
+-- Each of these athletes' age group from their latest entry in the
+-- Organization: the League with the latest date, the newest League winning a
+-- tie. A Late entry pre-fills its age group from it (#65). An Official may not
+-- be on the team of the League that entry is in, so this is security definer
+-- and, like reading the athletes themselves, needs a Role in the Organization.
+create function public.latest_age_groups(org_id integer, athlete_nos integer[])
+returns table (athlete_no integer, age_group_code text)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select distinct on (e.athlete_no) e.athlete_no, e.age_group_code
+  from public.entry e
+  join public.league l on l.id = e.league_id
+  where e.organization_id = org_id
+    and e.athlete_no = any (athlete_nos)
+    and private.has_org_role(org_id)
+  order by e.athlete_no, l.league_date desc, l.id desc;
+$$;
+
+revoke execute on function public.latest_age_groups(integer, integer[]) from public, anon;
+grant execute on function public.latest_age_groups(integer, integer[]) to authenticated;
 
 -- Admins manage every League team in their Organization. There's no
 -- delete: removing a Role ends its entry (see league_team_member above).

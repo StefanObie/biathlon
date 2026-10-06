@@ -182,8 +182,8 @@ export type Database = {
           league_id: number;
           organization_id: number;
           run_heat: number;
-          swim_heat: number;
-          swim_lane: number;
+          swim_heat: number | null;
+          swim_lane: number | null;
         };
         Insert: {
           age_group_code: string;
@@ -191,8 +191,8 @@ export type Database = {
           league_id: number;
           organization_id?: number;
           run_heat: number;
-          swim_heat: number;
-          swim_lane: number;
+          swim_heat?: number | null;
+          swim_lane?: number | null;
         };
         Update: {
           age_group_code?: string;
@@ -200,8 +200,8 @@ export type Database = {
           league_id?: number;
           organization_id?: number;
           run_heat?: number;
-          swim_heat?: number;
-          swim_lane?: number;
+          swim_heat?: number | null;
+          swim_lane?: number | null;
         };
         Relationships: [
           {
@@ -778,6 +778,13 @@ export type Database = {
           name: string;
           organization_name: string;
           results_slug: string;
+        }[];
+      };
+      latest_age_groups: {
+        Args: { athlete_nos: number[]; org_id: number };
+        Returns: {
+          age_group_code: string;
+          athlete_no: number;
         }[];
       };
       league_results: { Args: { slug: string }; Returns: Json };

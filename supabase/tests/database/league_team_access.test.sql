@@ -262,7 +262,7 @@ select is_empty($$ select 1 from athlete $$, 'a Member on no team reads no athle
 set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000000f1", "role": "authenticated", "email": "official@team.test"}';
 
 select lives_ok(
-  $$ insert into athlete (organization_id, athlete_no, full_name, gender) values (901, 8, 'Walk Up', 'F') $$,
+  $$ insert into athlete (organization_id, athlete_no, full_name, gender) values (901, 8, 'Late Entry', 'F') $$,
   'an Official adds an athlete'
 );
 select lives_ok(

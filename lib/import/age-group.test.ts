@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { AGE_GROUP_LABELS, parseAgeGroup } from "./age-group";
+import { AGE_GROUP_LABELS, ageGroupLabel, parseAgeGroup } from "./age-group";
 
 describe("parseAgeGroup", () => {
   it.each([
@@ -48,4 +48,17 @@ describe("parseAgeGroup", () => {
       expect(parseAgeGroup(label)).not.toBeNull();
     },
   );
+});
+
+describe("ageGroupLabel", () => {
+  it("finds the label for every code and gender a label parses to", () => {
+    for (const label of AGE_GROUP_LABELS) {
+      const parsed = parseAgeGroup(label)!;
+      expect(ageGroupLabel(parsed.code, parsed.gender)).toBe(label);
+    }
+  });
+
+  it("is null for a code with no label", () => {
+    expect(ageGroupLabel("TST", "M")).toBeNull();
+  });
 });
