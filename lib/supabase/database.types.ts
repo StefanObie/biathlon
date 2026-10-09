@@ -311,6 +311,29 @@ export type Database = {
           },
         ];
       };
+      league_folder: {
+        Row: {
+          drive_folder_id: string;
+          league_id: number;
+        };
+        Insert: {
+          drive_folder_id: string;
+          league_id: number;
+        };
+        Update: {
+          drive_folder_id?: string;
+          league_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "league_folder_league_id_fkey";
+            columns: ["league_id"];
+            isOneToOne: true;
+            referencedRelation: "league";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       league_race: {
         Row: {
           closed_at: string | null;
@@ -628,6 +651,29 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "athlete";
             referencedColumns: ["organization_id", "athlete_no"];
+          },
+        ];
+      };
+      swim_folder: {
+        Row: {
+          drive_folder_id: string;
+          organization_id: number;
+        };
+        Insert: {
+          drive_folder_id: string;
+          organization_id: number;
+        };
+        Update: {
+          drive_folder_id?: string;
+          organization_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "swim_folder_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: true;
+            referencedRelation: "organization";
+            referencedColumns: ["id"];
           },
         ];
       };

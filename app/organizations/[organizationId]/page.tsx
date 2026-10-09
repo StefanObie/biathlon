@@ -11,15 +11,18 @@ import {
   setDefaultTeamRole,
 } from "@/lib/organizations/default-team-actions";
 import { teamRows } from "@/lib/organizations/team-rows";
+import { serviceAccountEmail } from "@/lib/swim/drive";
+import { driveFolderLink } from "@/lib/swim/drive-folder";
 import { InviteForm } from "@/components/invitations/invite-form";
 import { PendingInvitations } from "@/components/invitations/pending-invitations";
 import { NewLeagueButton } from "@/components/leagues/new-league-button";
 import { MembersList } from "@/components/members/members-list";
+import { SwimFolderForm } from "@/components/organizations/swim-folder-form";
 import { TeamRoles } from "@/components/organizations/team-roles";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-type Tab = "leagues" | "members" | "team";
+type Tab = "leagues" | "members" | "team" | "swim";
 
 type Params = Promise<{ organizationId: string }>;
 type SearchParams = Promise<{ tab?: string | string[] }>;
@@ -71,7 +74,8 @@ async function OrganizationSection({
   const { is_admin: isAdmin, organization } = membership;
   const requested = Array.isArray(tabParam) ? tabParam[0] : tabParam;
   const tab: Tab =
-    isAdmin && (requested === "members" || requested === "team")
+    isAdmin &&
+    (requested === "members" || requested === "team" || requested === "swim")
       ? requested
       : "leagues";
 
@@ -81,6 +85,7 @@ async function OrganizationSection({
       ? [
           { id: "members" as const, label: "Members" },
           { id: "team" as const, label: "Default team" },
+          { id: "swim" as const, label: "Swim folder" },
         ]
       : []),
   ];
@@ -118,6 +123,7 @@ async function OrganizationSection({
         <MembersTab organizationId={organizationIdNum} userId={userId} />
       )}
       {tab === "team" && <TeamTab organizationId={organizationIdNum} />}
+      {tab === "swim" && <SwimTab organizationId={organizationIdNum} />}
     </div>
   );
 }
@@ -311,5 +317,27 @@ async function TeamTab({ organizationId }: { organizationId: number }) {
       setRole={setDefaultTeamRole.bind(null, organizationId)}
       remove={removeFromDefaultTeam.bind(null, organizationId)}
     />
+  );
+}
+
+// Where Swim import fetches each League's Swim results file from (#71).
+async function SwimTab({ organizationId }: { organizationId: number }) {
+  const supabase = await createClient();
+  const { data: swimFolder } = await supabase
+    .from("swim_folder")
+    .select("drive_folder_id")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  return (
+    <div className="max-w-xl">
+      <SwimFolderForm
+        organizationId={organizationId}
+        currentLink={
+          swimFolder ? driveFolderLink(swimFolder.drive_folder_id) : ""
+        }
+        serviceAccountEmail={serviceAccountEmail()}
+      />
+    </div>
   );
 }
