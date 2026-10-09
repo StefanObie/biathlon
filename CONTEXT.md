@@ -83,9 +83,17 @@ _Avoid_: Meet, event, race
 A group of at most 20 athletes who run together, identified by its run heat number within a league. Without a qualifier, "heat" always means a run heat.
 _Avoid_: Race, wave
 
+**Start list**:
+The athletes entered in a League, each with a run heat, an age group and, when known, a swim slot. It is first filled from an imported start list file and can grow by Late entries.
+_Avoid_: Entry list, roster (when you mean the whole League)
+
+**Late entry**:
+An athlete added to a League's Start list after it was imported, whether they are new to the Organization or have raced for it before. Their swim slot may stay unknown.
+_Avoid_: Walk-up, new athlete
+
 **Heat roster**:
-The athletes entered to run in a given heat.
-_Avoid_: Start list (that's the import file, not the per-heat set)
+The athletes entered to run in a given heat: one heat's share of the Start list.
+_Avoid_: Start list (that's the whole League, not one heat)
 
 **Closed**:
 The state a heat enters when an official saves its reconciliation. A closed heat accepts no new captures, and its results are official and published. A swim time has no Closed state and is published as soon as it is recorded and ok. An official can reopen it, giving a reason.
