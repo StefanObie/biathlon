@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
-import { UploadIcon } from "lucide-react";
+import { Fragment, useMemo, useRef, useState, useTransition } from "react";
+import { RotateCcwIcon, UploadIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -120,6 +120,12 @@ export function SwimImport({
 }) {
   const [stage, setStage] = useState<Stage>({ name: "idle" });
   const [rows, setRows] = useState<ResolvedSwimRow[]>([]);
+  /**
+   * Rows the Official took out of this review, such as a test heat swum
+   * before the session. They're never saved, and a fresh fetch or upload
+   * brings them back.
+   */
+  const [removed, setRemoved] = useState<ReadonlySet<string>>(new Set());
   const [parseError, setParseError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState<number | null>(null);
@@ -174,6 +180,7 @@ export function SwimImport({
     }
 
     setRows(resolveSwimRows(raw, roster));
+    setRemoved(new Set());
     setStage({ name: "review", fileName, drive });
   }
 
@@ -214,10 +221,28 @@ export function SwimImport({
     );
   }
 
+  function setRowsRemoved(localIds: string[], remove: boolean) {
+    setRemoved((prev) => {
+      const next = new Set(prev);
+      for (const id of localIds) {
+        if (remove) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  }
+
+  /** The rows still in the review: everything the Official didn't remove. */
+  const keptRows = useMemo(
+    () => rows.filter((r) => !removed.has(r.localId)),
+    [rows, removed],
+  );
+
   /** Rows that will actually be written: resolved, and not an empty lane. */
   const savableRows = useMemo(
-    () => rows.filter((r) => r.state !== "no-result" && r.athleteNo !== null),
-    [rows],
+    () =>
+      keptRows.filter((r) => r.state !== "no-result" && r.athleteNo !== null),
+    [keptRows],
   );
 
   const changeFor = useMemo(() => {
@@ -251,15 +276,19 @@ export function SwimImport({
     return { created, updated, unchanged, overridesManual };
   }, [changeFor]);
 
-  const editedCount = rows.filter((r) => r.edited).length;
-  const unresolvedCount = rows.filter((r) => r.state === "unresolved").length;
-  const needsReviewCount = rows.filter(
+  const editedCount =
+    rows.filter((r) => r.edited && !removed.has(r.localId)).length +
+    removed.size;
+  const unresolvedCount = keptRows.filter(
+    (r) => r.state === "unresolved",
+  ).length;
+  const needsReviewCount = keptRows.filter(
     (r) => r.state === "needs-review",
   ).length;
-  const duplicates = useMemo(() => duplicateAthletes(rows), [rows]);
+  const duplicates = useMemo(() => duplicateAthletes(keptRows), [keptRows]);
   const missing = useMemo(
-    () => (rows.length > 0 ? missingFromFile(rows, roster) : []),
-    [rows, roster],
+    () => (rows.length > 0 ? missingFromFile(keptRows, roster) : []),
+    [rows.length, keptRows, roster],
   );
 
   const invalidTime = savableRows.find(
@@ -394,8 +423,8 @@ export function SwimImport({
         <p className="rounded-md border border-destructive/50 p-3 text-sm text-destructive">
           {unresolvedCount}{" "}
           {unresolvedCount === 1 ? "swimmer is" : "swimmers are"} not on the
-          start list. Assign each one, or add them to the start list and upload
-          again.
+          start list. Assign or remove each one, or add them to the start list
+          and fetch or upload again.
         </p>
       )}
 
@@ -416,9 +445,11 @@ export function SwimImport({
 
       <ReviewTable
         rows={rows}
+        removed={removed}
         changeFor={changeFor}
         athleteOptions={athleteOptions}
         onUpdate={updateRow}
+        onRemove={setRowsRemoved}
       />
 
       {missing.length > 0 && <MissingList missing={missing} />}
@@ -555,29 +586,111 @@ function Dropzone({
   );
 }
 
+/** One swim heat of the review, in file order. */
+interface HeatGroup {
+  heat: number;
+  rows: ResolvedSwimRow[];
+}
+
+function heatGroups(rows: ResolvedSwimRow[]): HeatGroup[] {
+  const groups: HeatGroup[] = [];
+  for (const row of rows) {
+    const last = groups.at(-1);
+    if (last && last.heat === row.raw.heat) last.rows.push(row);
+    else groups.push({ heat: row.raw.heat, rows: [row] });
+  }
+  return groups;
+}
+
+/** Removes or restores a whole swim heat, ignoring its empty lanes. */
+function HeatHeader({
+  group,
+  removed,
+  onRemove,
+}: {
+  group: HeatGroup;
+  removed: ReadonlySet<string>;
+  onRemove: (localIds: string[], remove: boolean) => void;
+}) {
+  const ids = group.rows
+    .filter((row) => row.state !== "no-result")
+    .map((row) => row.localId);
+  const allRemoved = ids.length > 0 && ids.every((id) => removed.has(id));
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-sm font-medium tabular-nums">
+        Heat {group.heat}
+      </span>
+      {ids.length > 0 && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onRemove(ids, !allRemoved)}
+        >
+          {allRemoved ? "Restore heat" : "Remove heat"}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/** Takes one row out of the review, or puts it back. */
+function RemoveRowButton({
+  isRemoved,
+  onClick,
+}: {
+  isRemoved: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="size-8"
+      aria-label={isRemoved ? "Restore row" : "Remove row"}
+      title={isRemoved ? "Restore row" : "Remove row"}
+      onClick={onClick}
+    >
+      {isRemoved ? <RotateCcwIcon /> : <XIcon />}
+    </Button>
+  );
+}
+
 function ReviewTable({
   rows,
+  removed,
   changeFor,
   athleteOptions,
   onUpdate,
+  onRemove,
 }: {
   rows: ResolvedSwimRow[];
+  removed: ReadonlySet<string>;
   changeFor: Map<string, Change>;
   athleteOptions: AthleteOption[];
   onUpdate: (localId: string, patch: Partial<ResolvedSwimRow>) => void;
+  onRemove: (localIds: string[], remove: boolean) => void;
 }) {
+  const groups = heatGroups(rows);
   return (
     <>
       {/* Mobile: one card per row — the table is too wide to squeeze (NOTES.md). */}
       <div className="flex flex-col gap-2 sm:hidden">
-        {rows.map((row) => (
-          <RowCard
-            key={row.localId}
-            row={row}
-            change={changeFor.get(row.localId)}
-            athleteOptions={athleteOptions}
-            onUpdate={onUpdate}
-          />
+        {groups.map((group) => (
+          <Fragment key={group.rows[0].localId}>
+            <HeatHeader group={group} removed={removed} onRemove={onRemove} />
+            {group.rows.map((row) => (
+              <RowCard
+                key={row.localId}
+                row={row}
+                isRemoved={removed.has(row.localId)}
+                change={changeFor.get(row.localId)}
+                athleteOptions={athleteOptions}
+                onUpdate={onUpdate}
+                onRemove={onRemove}
+              />
+            ))}
+          </Fragment>
         ))}
       </div>
 
@@ -585,73 +698,108 @@ function ReviewTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-16">Heat</TableHead>
               <TableHead className="w-16">Lane</TableHead>
               <TableHead>From file</TableHead>
               <TableHead className="w-64">Athlete</TableHead>
               <TableHead className="w-28">Time</TableHead>
               <TableHead className="w-40">Status</TableHead>
+              <TableHead className="w-10">
+                <span className="sr-only">Remove</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((row) => (
-              <TableRow
-                key={row.localId}
-                className={row.state === "no-result" ? "opacity-50" : undefined}
-              >
-                <TableCell className="tabular-nums">{row.raw.heat}</TableCell>
-                <TableCell className="tabular-nums">{row.raw.lane}</TableCell>
-                <TableCell>
-                  <FileCell row={row} />
-                </TableCell>
-                <TableCell>
-                  {row.state === "no-result" ? (
-                    <span className="text-muted-foreground">—</span>
-                  ) : (
-                    <AthleteCombobox
-                      options={athleteOptions}
-                      value={
-                        row.athleteNo !== null
-                          ? {
-                              athleteNo: row.athleteNo,
-                              fullName: row.athleteName ?? "",
+            {groups.map((group) => (
+              <Fragment key={group.rows[0].localId}>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableCell colSpan={6} className="py-1">
+                    <HeatHeader
+                      group={group}
+                      removed={removed}
+                      onRemove={onRemove}
+                    />
+                  </TableCell>
+                </TableRow>
+                {group.rows.map((row) => {
+                  const isRemoved = removed.has(row.localId);
+                  const inert = isRemoved || row.state === "no-result";
+                  return (
+                    <TableRow
+                      key={row.localId}
+                      className={inert ? "opacity-50" : undefined}
+                    >
+                      <TableCell className="tabular-nums">
+                        {row.raw.lane}
+                      </TableCell>
+                      <TableCell>
+                        <FileCell row={row} isRemoved={isRemoved} />
+                      </TableCell>
+                      <TableCell>
+                        {inert ? (
+                          <span className="text-muted-foreground">—</span>
+                        ) : (
+                          <AthleteCombobox
+                            options={athleteOptions}
+                            value={
+                              row.athleteNo !== null
+                                ? {
+                                    athleteNo: row.athleteNo,
+                                    fullName: row.athleteName ?? "",
+                                  }
+                                : null
                             }
-                          : null
-                      }
-                      onSelect={(athlete) =>
-                        onUpdate(row.localId, {
-                          athleteNo: athlete.athleteNo,
-                          athleteName: athlete.fullName,
-                          state: "matched",
-                          suggestion: null,
-                        })
-                      }
-                    />
-                  )}
-                </TableCell>
-                <TableCell>
-                  {row.state === "no-result" ? (
-                    <span className="text-muted-foreground">—</span>
-                  ) : (
-                    <Input
-                      value={row.time ?? ""}
-                      placeholder="mm:SS.ss"
-                      inputMode="numeric"
-                      className="h-8 w-24 tabular-nums"
-                      onChange={(e) => {
-                        const value = e.target.value.trim();
-                        onUpdate(row.localId, {
-                          time: value === "" ? null : value,
-                          status: value === "" ? "dns" : "ok",
-                        });
-                      }}
-                    />
-                  )}
-                </TableCell>
-                <TableCell>
-                  <StatusCell row={row} change={changeFor.get(row.localId)} />
-                </TableCell>
-              </TableRow>
+                            onSelect={(athlete) =>
+                              onUpdate(row.localId, {
+                                athleteNo: athlete.athleteNo,
+                                athleteName: athlete.fullName,
+                                state: "matched",
+                                suggestion: null,
+                              })
+                            }
+                          />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {inert ? (
+                          <span className="text-muted-foreground">—</span>
+                        ) : (
+                          <Input
+                            value={row.time ?? ""}
+                            placeholder="mm:SS.ss"
+                            inputMode="numeric"
+                            className="h-8 w-24 tabular-nums"
+                            onChange={(e) => {
+                              const value = e.target.value.trim();
+                              onUpdate(row.localId, {
+                                time: value === "" ? null : value,
+                                status: value === "" ? "dns" : "ok",
+                              });
+                            }}
+                          />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isRemoved ? (
+                          <Badge variant="outline">Removed</Badge>
+                        ) : (
+                          <StatusCell
+                            row={row}
+                            change={changeFor.get(row.localId)}
+                          />
+                        )}
+                      </TableCell>
+                      <TableCell className="px-0">
+                        {row.state !== "no-result" && (
+                          <RemoveRowButton
+                            isRemoved={isRemoved}
+                            onClick={() => onRemove([row.localId], !isRemoved)}
+                          />
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </Fragment>
             ))}
           </TableBody>
         </Table>
@@ -660,12 +808,18 @@ function ReviewTable({
   );
 }
 
-function FileCell({ row }: { row: ResolvedSwimRow }) {
+function FileCell({
+  row,
+  isRemoved = false,
+}: {
+  row: ResolvedSwimRow;
+  isRemoved?: boolean;
+}) {
   if (row.state === "no-result") {
     return <span className="text-muted-foreground">Empty lane (NS)</span>;
   }
   return (
-    <div className="flex flex-col">
+    <div className={`flex flex-col ${isRemoved ? "line-through" : ""}`}>
       <span>
         {row.raw.name}
         {row.raw.athleteNo !== null && (
@@ -722,33 +876,50 @@ function StatusCell({
 
 function RowCard({
   row,
+  isRemoved,
   change,
   athleteOptions,
   onUpdate,
+  onRemove,
 }: {
   row: ResolvedSwimRow;
+  isRemoved: boolean;
   change: Change | undefined;
   athleteOptions: AthleteOption[];
   onUpdate: (localId: string, patch: Partial<ResolvedSwimRow>) => void;
+  onRemove: (localIds: string[], remove: boolean) => void;
 }) {
+  const inert = isRemoved || row.state === "no-result";
   return (
     <div
       className={`flex flex-col gap-2 rounded-md border border-input p-3 ${
-        row.state === "no-result" ? "opacity-50" : ""
+        inert ? "opacity-50" : ""
       }`}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-medium tabular-nums">
-          Heat {row.raw.heat} · Lane {row.raw.lane}
+          Lane {row.raw.lane}
         </span>
-        <Badge variant={STATE_VARIANT[row.state]}>
-          {STATE_LABEL[row.state]}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {isRemoved ? (
+            <Badge variant="outline">Removed</Badge>
+          ) : (
+            <Badge variant={STATE_VARIANT[row.state]}>
+              {STATE_LABEL[row.state]}
+            </Badge>
+          )}
+          {row.state !== "no-result" && (
+            <RemoveRowButton
+              isRemoved={isRemoved}
+              onClick={() => onRemove([row.localId], !isRemoved)}
+            />
+          )}
+        </div>
       </div>
 
-      <FileCell row={row} />
+      <FileCell row={row} isRemoved={isRemoved} />
 
-      {row.state !== "no-result" && (
+      {!inert && (
         <>
           <AthleteCombobox
             options={athleteOptions}
@@ -785,20 +956,21 @@ function RowCard({
         </>
       )}
 
-      {(row.reasons.length > 0 || change === "overrides-manual") && (
-        <div className="flex flex-col gap-1">
-          {change === "overrides-manual" && (
-            <span className="text-xs text-destructive">
-              overwrites manual edit
-            </span>
-          )}
-          {row.reasons.map((reason) => (
-            <span key={reason} className="text-xs text-muted-foreground">
-              {reason}
-            </span>
-          ))}
-        </div>
-      )}
+      {!isRemoved &&
+        (row.reasons.length > 0 || change === "overrides-manual") && (
+          <div className="flex flex-col gap-1">
+            {change === "overrides-manual" && (
+              <span className="text-xs text-destructive">
+                overwrites manual edit
+              </span>
+            )}
+            {row.reasons.map((reason) => (
+              <span key={reason} className="text-xs text-muted-foreground">
+                {reason}
+              </span>
+            ))}
+          </div>
+        )}
     </div>
   );
 }
