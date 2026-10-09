@@ -21,6 +21,13 @@ export interface SwimResultInput {
   edited: boolean;
 }
 
+/** Where a fetched Swim results file came from (#71). */
+export interface DriveOrigin {
+  fileId: string;
+  modifiedTime: string;
+  leagueFolder: string;
+}
+
 export interface SaveSwimResultsState {
   saved?: number;
   fatalError?: string;
@@ -51,6 +58,8 @@ export async function saveSwimResults(
     unchanged: number;
     needsReview: number;
   },
+  /** Set when the file was fetched from Drive rather than uploaded. */
+  drive?: DriveOrigin,
 ): Promise<SaveSwimResultsState> {
   const { leagueId } = league;
   if (rows.length === 0) {
@@ -128,6 +137,14 @@ export async function saveSwimResults(
       action: "swim_import",
       after: {
         file_name: fileName,
+        source: drive ? "drive" : "upload",
+        ...(drive
+          ? {
+              drive_file_id: drive.fileId,
+              drive_modified_time: drive.modifiedTime,
+              league_folder: drive.leagueFolder,
+            }
+          : {}),
         rows: rows.length,
         created: counts.created,
         updated: counts.updated,

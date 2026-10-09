@@ -118,6 +118,19 @@ _Avoid_: Capture screens (which exclude Call room and Reconcile)
 The screens that configure a League before, during and after the race, kept apart from the Race day screens: Start list, League team and Visibility before the race, and Swim import and Export after it.
 _Avoid_: Setup (sounds like pre-race only), admin
 
+### Swim
+
+**Swim results file**:
+The Time Drops export for a League's swim session. It grows as the session runs, a swim heat can appear in it more than once, and the later block for a heat wins.
+_Avoid_: Session file, console export, times file
+
+**Swim folder**:
+The Google Drive folder an Organization shares with the app, holding one League folder per League.
+_Avoid_: Drive, share
+
+**League folder**:
+One League's folder inside the Swim folder, holding its Swim results file. It is named after the League's name and date, and an Official can pick a different one when the name doesn't match.
+
 ### Capture
 
 **Capture**:

@@ -25,6 +25,17 @@ import {
 } from "@/components/ui/empty";
 import { Field, FieldError } from "@/components/ui/field";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { SwimDriveFetch } from "@/components/capture/swim-drive-fetch";
+import {
   AthleteCombobox,
   type AthleteOption,
 } from "@/components/capture/athlete-combobox";
@@ -37,7 +48,13 @@ import {
   type RosterEntry,
   type SwimRowState,
 } from "@/lib/swim/resolve";
-import { saveSwimResults } from "@/lib/swim/actions";
+import { saveSwimResults, type DriveOrigin } from "@/lib/swim/actions";
+import {
+  chooseLeagueFolder,
+  fetchSwimResultsFile,
+  type FetchProblem,
+  type FetchSwimResultsState,
+} from "@/lib/swim/drive-actions";
 
 export interface ExistingSwimResult {
   athlete_no: number;
@@ -67,8 +84,23 @@ const STATE_VARIANT: Record<
   "no-result": "outline",
 };
 
+/** A Swim results file fetched from Drive (#71), and when it was read. */
+type FetchedFrom = DriveOrigin & { fetchedAt: string };
+
 type Stage =
-  { name: "idle" } | { name: "parsing" } | { name: "review"; fileName: string };
+  | { name: "idle" }
+  | { name: "parsing" }
+  | { name: "review"; fileName: string; drive?: FetchedFrom };
+
+/** "6 Oct, 18:42" in the viewer's time zone. */
+function shortTime(iso: string): string {
+  return new Date(iso).toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 /** What a re-import would do to a row that is already saved (Q7). */
 type Change = "new" | "updated" | "unchanged" | "overrides-manual";
@@ -92,6 +124,9 @@ export function SwimImport({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState<number | null>(null);
   const [isSaving, startSaving] = useTransition();
+  const [driveState, setDriveState] = useState<FetchProblem | null>(null);
+  const [isFetching, startFetching] = useTransition();
+  const [confirmRefetch, setConfirmRefetch] = useState(false);
 
   const athleteOptions: AthleteOption[] = useMemo(
     () =>
@@ -123,18 +158,53 @@ export function SwimImport({
       return;
     }
 
+    loadText(text, file.name);
+  }
+
+  /** Parses and resolves a Swim results file into the review table. */
+  function loadText(text: string, fileName: string, drive?: FetchedFrom) {
     const raw = parseSwimResults(text);
     if (raw.length === 0) {
-      setParseError(
-        "No result blocks found. Expected a Time Drops console export (.txt).",
-      );
+      const message =
+        "No result blocks found. Expected a Time Drops swim results file (.txt).";
+      if (drive) setDriveState({ status: "error", message });
+      else setParseError(message);
       setStage({ name: "idle" });
       return;
     }
 
     setRows(resolveSwimRows(raw, roster));
-    setStage({ name: "review", fileName: file.name });
+    setStage({ name: "review", fileName, drive });
   }
+
+  /**
+   * Fetches from Drive and, when it yields a file, rebuilds the review
+   * table from it. Anything else is shown in the Drive panel, which a
+   * review in progress keeps rather than losing it to a failed fetch.
+   */
+  function runFetch(fetch: () => Promise<FetchSwimResultsState>) {
+    setParseError(null);
+    setSaveError(null);
+    setSaved(null);
+    startFetching(async () => {
+      const result = await fetch();
+      if (result.status !== "fetched") {
+        setDriveState(result);
+        if (stage.name !== "review") setStage({ name: "idle" });
+        return;
+      }
+      setDriveState(null);
+      loadText(result.file.text, result.file.name, {
+        fileId: result.file.id,
+        modifiedTime: result.file.modifiedTime,
+        leagueFolder: result.leagueFolder.name,
+        fetchedAt: result.fetchedAt,
+      });
+    });
+  }
+
+  const fetchLatest = () =>
+    runFetch(() => fetchSwimResultsFile({ organizationId, leagueId }));
 
   function updateRow(localId: string, patch: Partial<ResolvedSwimRow>) {
     setRows((prev) =>
@@ -181,6 +251,7 @@ export function SwimImport({
     return { created, updated, unchanged, overridesManual };
   }, [changeFor]);
 
+  const editedCount = rows.filter((r) => r.edited).length;
   const unresolvedCount = rows.filter((r) => r.state === "unresolved").length;
   const needsReviewCount = rows.filter(
     (r) => r.state === "needs-review",
@@ -224,6 +295,7 @@ export function SwimImport({
           unchanged: counts.unchanged,
           needsReview: needsReviewCount,
         },
+        stage.name === "review" ? stage.drive : undefined,
       );
       if (result.fatalError) {
         setSaveError(result.fatalError);
@@ -234,6 +306,23 @@ export function SwimImport({
       setRows([]);
     });
   }
+
+  /** Fetches, first asking to discard any unsaved edits to the review. */
+  const requestFetch = () =>
+    editedCount > 0 ? setConfirmRefetch(true) : fetchLatest();
+
+  const drivePanel = (
+    <SwimDriveFetch
+      state={driveState}
+      isFetching={isFetching}
+      onFetch={requestFetch}
+      onChooseFolder={(folderId) =>
+        runFetch(() =>
+          chooseLeagueFolder({ organizationId, leagueId }, folderId),
+        )
+      }
+    />
+  );
 
   if (stage.name === "parsing") {
     return (
@@ -252,6 +341,8 @@ export function SwimImport({
             Saved {saved} swim {saved === 1 ? "result" : "results"}.
           </p>
         )}
+        {drivePanel}
+        <p className="text-sm text-muted-foreground">Or upload the file:</p>
         <Dropzone onFile={handleFile} error={parseError} />
       </div>
     );
@@ -261,8 +352,30 @@ export function SwimImport({
     <div className="flex flex-col gap-4">
       <Header leagueName={leagueName} existingCount={existing.length} />
 
+      {/* A fetch that failed keeps the review it would have replaced. */}
+      {driveState && drivePanel}
+
       <div className="flex flex-col gap-2 rounded-md border border-input p-3 text-sm">
-        <p className="font-medium">{stage.fileName}</p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-1">
+            <p className="font-medium">{stage.fileName}</p>
+            {stage.drive && (
+              <p className="text-muted-foreground">
+                {stage.drive.leagueFolder} on Google Drive · modified{" "}
+                {shortTime(stage.drive.modifiedTime)} · fetched at{" "}
+                {shortTime(stage.drive.fetchedAt)}
+              </p>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isFetching || isSaving}
+            onClick={requestFetch}
+          >
+            {isFetching && <Spinner />} Fetch latest from Google Drive
+          </Button>
+        </div>
         <p className="text-muted-foreground">
           {counts.created} new · {counts.updated} updated · {counts.unchanged}{" "}
           unchanged
@@ -315,6 +428,27 @@ export function SwimImport({
           <FieldError>{saveError}</FieldError>
         </Field>
       )}
+
+      <AlertDialog open={confirmRefetch} onOpenChange={setConfirmRefetch}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Discard {editedCount} {editedCount === 1 ? "edit" : "edits"} and
+              fetch the latest?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              The table is rebuilt from the newest Swim results file. Changes
+              you made here and haven&apos;t saved are lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+            <AlertDialogAction onClick={fetchLatest}>
+              Discard and fetch
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
         <Button
