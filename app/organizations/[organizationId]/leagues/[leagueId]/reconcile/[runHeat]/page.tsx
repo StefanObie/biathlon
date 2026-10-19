@@ -64,6 +64,7 @@ async function ReconcileHeatSection({
     { data: team },
     { data: checkIns },
     { data: organizationAthletes, error: athletesError },
+    { data: savedReconciliation, error: reconciliationError },
   ] = await Promise.all([
     // Whole league, not just this heat: reassigning an athlete or logging
     // one who ran outside their assigned heat (§4.5) needs to search past
@@ -135,6 +136,16 @@ async function ReconcileHeatSection({
     // Any athlete of the Organization can be assigned; one not on the Start
     // list becomes a Late entry when the heat is saved.
     loadOrganizationAthletes(supabase, organizationIdNum),
+    // The heat's saved Reconciliation, which it opens from once saved
+    // (ADR 0006).
+    supabase
+      .from("reconciliation_row")
+      .select(
+        "athlete_no, run_time, status, position_capture_id, time_capture_id",
+      )
+      .eq("league_id", leagueIdNum)
+      .eq("run_heat", runHeatNum)
+      .order("row_no"),
   ]);
 
   // Who can still capture on the League, to flag captures by anyone who
@@ -153,6 +164,13 @@ async function ReconcileHeatSection({
   }
   if (athletesError) {
     return <p className="text-sm text-destructive">{athletesError.message}</p>;
+  }
+  // Opening a saved heat from its Captures would hide its fixes, and saving
+  // it again would undo them.
+  if (reconciliationError) {
+    return (
+      <p className="text-sm text-destructive">{reconciliationError.message}</p>
+    );
   }
 
   const heats = [...new Set((leagueEntries ?? []).map((e) => e.run_heat))];
@@ -203,6 +221,7 @@ async function ReconcileHeatSection({
         remotePositionCaptures={positionCaptures ?? []}
         remoteTimeCaptures={timeCaptures ?? []}
         remoteRunResults={runResults ?? []}
+        remoteReconciliation={savedReconciliation ?? []}
         remoteNotes={notes ?? []}
         remoteHeatClosed={
           leagueRaceError ? undefined : toHeatClosed(leagueRace)

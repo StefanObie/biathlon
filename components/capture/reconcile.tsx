@@ -32,8 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { createClient } from "@/lib/supabase/client";
-import { logAudit } from "@/lib/reconcile/audit";
-import { closeHeat, reopenHeat } from "@/lib/reconcile/heat-closure";
+import { reopenHeat } from "@/lib/reconcile/heat-closure";
 import { publishLeagueResults } from "@/lib/results/actions";
 import {
   addReconcileLateEntries,
@@ -44,7 +43,6 @@ import { AGE_GROUP_LABELS, parseAgeGroup } from "@/lib/import/age-group";
 import { OPEN_HEAT, type HeatClosed } from "@/lib/capture/heat-closed";
 import { useHeatClosed } from "@/components/capture/use-heat-closed";
 import {
-  buildWorkingRows,
   authorOffTeamChecks,
   capturedAfterCloseChecks,
   computeAutomaticChecks,
@@ -57,6 +55,16 @@ import {
   type TimeEntry,
   type WorkingRow,
 } from "@/lib/reconcile/join";
+import {
+  openReconciliation,
+  reconciliationPayload,
+  rowChanges,
+  runTimeInput,
+  unplacedCaptures,
+  voidedCapture,
+  type PositionCaptureFacts,
+  type TimeCaptureFacts,
+} from "@/lib/reconcile/reconciliation";
 import {
   CAPTURE_SCREEN_LABEL,
   describeAnchor,
@@ -80,6 +88,7 @@ import {
 import { RowInsertDivider } from "@/components/capture/row-insert-divider";
 import { HeatContextBar } from "@/components/leagues/heat-context-bar";
 import type { HeatMode } from "@/lib/access/roles";
+import type { Json } from "@/lib/supabase/database.types";
 
 export interface RemotePositionCapture {
   id: string;
@@ -111,6 +120,15 @@ export interface RemoteRunResult {
   source: string;
   overridden_by: string | null;
   override_reason: string | null;
+}
+
+/** A row of the heat's saved Reconciliation, as the page reads it. */
+export interface RemoteReconciliationRow {
+  athlete_no: number | null;
+  run_time: string | null;
+  status: string;
+  position_capture_id: string | null;
+  time_capture_id: string | null;
 }
 
 /** An operator note as the reconcile page reads it out of Supabase. */
@@ -168,6 +186,7 @@ export function Reconcile({
   remotePositionCaptures,
   remoteTimeCaptures,
   remoteRunResults,
+  remoteReconciliation,
   remoteNotes,
   remoteHeatClosed,
   duplicateRunResults,
@@ -188,6 +207,8 @@ export function Reconcile({
   remotePositionCaptures: RemotePositionCapture[];
   remoteTimeCaptures: RemoteTimeCapture[];
   remoteRunResults: RemoteRunResult[];
+  /** The heat's saved Reconciliation, in order; empty when there is none. */
+  remoteReconciliation: RemoteReconciliationRow[];
   remoteNotes: RemoteOperatorNote[];
   /** Undefined when the page couldn't read it; the phone's copy is used. */
   remoteHeatClosed: HeatClosed | undefined;
@@ -227,45 +248,55 @@ export function Reconcile({
     [athletes, startListAthleteNos],
   );
 
-  const initialRows = useMemo(() => {
-    const positions: PositionEntry[] = remotePositionCaptures
-      .filter((c) => !c.voided)
-      .sort((a, b) => a.position - b.position)
-      .map((c) => ({
+  // Every Capture of the heat, voided or not: a saved row keeps the Capture
+  // it came from even after that Capture is voided.
+  const positionFacts: PositionCaptureFacts[] = useMemo(
+    () =>
+      remotePositionCaptures.map((c) => ({
         id: c.id,
         position: c.position,
         athleteNo: c.athlete_no,
-      }));
-    const times: TimeEntry[] = remoteTimeCaptures
-      .filter((c) => !c.voided)
-      .sort((a, b) => a.seq - b.seq)
-      .map((c) => ({
+        voided: c.voided,
+        voidReason: c.void_reason,
+      })),
+    [remotePositionCaptures],
+  );
+  const timeFacts: TimeCaptureFacts[] = useMemo(
+    () =>
+      remoteTimeCaptures.map((c) => ({
         id: c.id,
         seq: c.seq,
         elapsedTime: c.elapsed_time,
         isPlaceholder: c.is_placeholder,
-      }));
+        voided: c.voided,
+      })),
+    [remoteTimeCaptures],
+  );
 
-    const rows = buildWorkingRows(positions, times, organizationNames);
-
-    // Overlay any already-saved run_result rows (a previous reconciliation
-    // pass) onto the athlete they belong to, so re-opening a partly-worked
-    // heat doesn't discard prior edits.
-    const resultByAthlete = new Map(
-      remoteRunResults.map((r) => [r.athlete_no, r]),
-    );
-    return rows.map((row) => {
-      if (row.athleteNo === null) return row;
-      const saved = resultByAthlete.get(row.athleteNo);
-      if (!saved) return row;
-      return {
-        ...row,
-        runTime: saved.run_time ?? row.runTime,
-        status: (saved.status as RunStatus) ?? row.status,
-      };
-    });
+  // A saved heat opens from its saved Reconciliation (ADR 0006); one with
+  // none opens from its Captures.
+  const initialRows = useMemo(
+    () =>
+      openReconciliation({
+        saved: remoteReconciliation.map((r) => ({
+          athleteNo: r.athlete_no,
+          runTime: r.run_time,
+          status: r.status as RunStatus,
+          positionCaptureId: r.position_capture_id,
+          timeCaptureId: r.time_capture_id,
+        })),
+        positions: positionFacts,
+        times: timeFacts,
+        runResults: remoteRunResults.map((r) => ({
+          athleteNo: r.athlete_no,
+          runTime: r.run_time,
+          status: r.status as RunStatus,
+        })),
+        names: organizationNames,
+      }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    [],
+  );
 
   const [rows, setRows] = useState<WorkingRow[]>(initialRows);
   const [saving, setSaving] = useState(false);
@@ -475,6 +506,47 @@ export function Reconcile({
   );
   const untabledHints = hints.filter((h) => !tabledAthletes.has(h.athleteNo));
 
+  // Captures no row came from, for the official to place or leave out.
+  const unplaced = useMemo(
+    () => unplacedCaptures(rows, positionFacts, timeFacts),
+    [rows, positionFacts, timeFacts],
+  );
+  // A Closed heat's Reconciliation can't change until it is reopened.
+  const editable = closed.closedAt === null;
+
+  function addPositionRow(position: PositionEntry) {
+    setRows((prev) => [
+      ...prev,
+      {
+        localId: `added-${position.id}`,
+        position,
+        time: null,
+        athleteNo: position.athleteNo,
+        athleteName:
+          position.athleteNo === null
+            ? null
+            : (organizationNames.get(position.athleteNo) ?? null),
+        runTime: null,
+        status: "ok",
+      },
+    ]);
+  }
+
+  function addTimeRow(time: TimeEntry) {
+    setRows((prev) => [
+      ...prev,
+      {
+        localId: `added-${time.id}`,
+        position: null,
+        time,
+        athleteNo: null,
+        athleteName: null,
+        runTime: time.isPlaceholder ? null : time.elapsedTime,
+        status: "ok",
+      },
+    ]);
+  }
+
   function insertGapAt(index: number) {
     setRows((prev) => {
       const gap: WorkingRow = {
@@ -519,12 +591,13 @@ export function Reconcile({
     setSaving(true);
     try {
       const toSave = rows.filter((r) => r.athleteNo !== null);
-      const invalidTime = toSave.find(
+      const invalidTime = rows.findIndex(
         (r) => r.runTime !== null && !TIME_PATTERN.test(r.runTime),
       );
-      if (invalidTime) {
+      if (invalidTime !== -1) {
+        const row = rows[invalidTime];
         toast.error(
-          `${invalidTime.athleteName ?? invalidTime.athleteNo}: time must be mm:SS.ss`,
+          `${row.athleteName ?? row.athleteNo ?? `Row ${invalidTime + 1}`}: time must be mm:SS.ss`,
         );
         return;
       }
@@ -605,62 +678,31 @@ export function Reconcile({
     }
   }
 
+  /**
+   * Saves the Reconciliation as the heat's record. In one transaction, the
+   * database replaces the heat's Run results with exactly the athletes on
+   * it, closes the heat and audits the change (ADR 0001, ADR 0006).
+   */
   async function saveResults() {
     const supabase = createClient();
     const actor = await currentActor();
-    const toSave = rows.filter((r) => r.athleteNo !== null);
-
-    const payload = toSave.map((r) => ({
-      league_id: leagueId,
-      athlete_no: r.athleteNo as number,
-      run_heat: runHeat,
-      run_time: r.status === "ok" ? r.runTime : null,
-      status: r.status,
-      source: "manual",
-      overridden_by: actor,
-      override_reason: "reconciliation save",
-    }));
-
-    if (payload.length > 0) {
-      const { error } = await supabase.from("run_result").upsert(payload, {
-        onConflict: "league_id,athlete_no,run_heat",
-      });
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-    }
-
-    await logAudit({
-      leagueId,
-      actor,
-      entity: "run_result",
-      action: "reconcile-save",
-      after: payload,
-      reason: `Reconciled run heat ${runHeat}`,
-    });
-
-    // Saving closes the heat (ADR 0001). Saving an already-closed heat
-    // again leaves its original close alone.
-    const { closed: newlyClosed, error } = await closeHeat({
-      leagueId,
-      runHeat,
-      actor,
-    });
+    const { data: closedAt, error } = await supabase.rpc(
+      "save_reconciliation",
+      {
+        target_league_id: leagueId,
+        target_run_heat: runHeat,
+        reconciliation: reconciliationPayload(rows) as unknown as Json,
+      },
+    );
     if (error) {
-      toast.error(`Results saved, but the heat didn't close: ${error}`);
+      toast.error(error.message);
       return;
     }
-    if (newlyClosed) setClosed(newlyClosed);
-    // A closed heat's results are published, so saving it again (perhaps
-    // with a Late entry added) refreshes them too.
+    setClosed({ closedAt, closedBy: actor });
+    // A closed heat's results are published.
     await publishLeagueResults(leagueId).catch(() => {});
 
-    toast.success(
-      newlyClosed
-        ? "Reconciliation saved. Heat closed."
-        : "Reconciliation saved.",
-    );
+    toast.success("Reconciliation saved. Heat closed.");
   }
 
   async function handleReopen() {
@@ -754,9 +796,11 @@ export function Reconcile({
           </TableRow>
         </TableHeader>
         <TableBody>
-          <RowInsertDivider onInsert={() => insertGapAt(0)} />
+          {editable && <RowInsertDivider onInsert={() => insertGapAt(0)} />}
           {rows.map((row, index) => {
             const mismatch = mismatchFor(row);
+            const changes = rowChanges(row);
+            const voided = voidedCapture(row, positionFacts, timeFacts);
             const rowNotes = notes.byRow.get(row.localId);
             const rowHints =
               row.athleteNo === null
@@ -767,33 +811,51 @@ export function Reconcile({
                 <TableRow>
                   <TableCell className="tabular-nums">{index + 1}</TableCell>
                   <TableCell>
-                    <Input
-                      value={row.runTime ?? ""}
-                      onChange={(e) =>
-                        updateRow(row.localId, { runTime: e.target.value })
-                      }
-                      placeholder="mm:SS.ss"
-                      className="h-8 w-28 tabular-nums"
-                    />
+                    {editable ? (
+                      <Input
+                        value={row.runTime ?? ""}
+                        onChange={(e) =>
+                          updateRow(row.localId, {
+                            runTime: runTimeInput(e.target.value),
+                          })
+                        }
+                        placeholder="mm:SS.ss"
+                        className="h-8 w-28 tabular-nums"
+                      />
+                    ) : (
+                      <span className="tabular-nums">
+                        {row.status === "ok"
+                          ? (row.runTime ?? "—")
+                          : row.status.toUpperCase()}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>
-                    <AthleteCombobox
-                      options={athleteOptions}
-                      value={
-                        row.athleteNo !== null
-                          ? {
-                              athleteNo: row.athleteNo,
-                              fullName: row.athleteName ?? "",
-                            }
-                          : null
-                      }
-                      onSelect={(athlete) =>
-                        updateRow(row.localId, {
-                          athleteNo: athlete.athleteNo,
-                          athleteName: athlete.fullName,
-                        })
-                      }
-                    />
+                    {editable ? (
+                      <AthleteCombobox
+                        options={athleteOptions}
+                        value={
+                          row.athleteNo !== null
+                            ? {
+                                athleteNo: row.athleteNo,
+                                fullName: row.athleteName ?? "",
+                              }
+                            : null
+                        }
+                        onSelect={(athlete) =>
+                          updateRow(row.localId, {
+                            athleteNo: athlete.athleteNo,
+                            athleteName: athlete.fullName,
+                          })
+                        }
+                      />
+                    ) : row.athleteNo === null ? (
+                      <span className="text-muted-foreground">—</span>
+                    ) : (
+                      <span>
+                        #{row.athleteNo} {row.athleteName}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>
                     {mismatch ? (
@@ -805,15 +867,59 @@ export function Reconcile({
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeRowAt(index)}
-                    >
-                      Remove
-                    </Button>
+                    {editable && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeRowAt(index)}
+                      >
+                        Remove
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
+                {(changes.length > 0 || voided) && (
+                  <TableRow className="border-0 hover:bg-transparent">
+                    <TableCell />
+                    <TableCell
+                      colSpan={4}
+                      className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0 text-sm"
+                    >
+                      {changes.map((change) => (
+                        <span key={change} className="text-muted-foreground">
+                          {change}
+                        </span>
+                      ))}
+                      {voided && (
+                        <span className="text-amber-700 dark:text-amber-400">
+                          ⚠ {voided.message}
+                        </span>
+                      )}
+                      {voided?.replacement && editable && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7"
+                          onClick={() => {
+                            const fill = voided.replacement;
+                            if (!fill) return;
+                            updateRow(row.localId, {
+                              position: fill,
+                              athleteNo: fill.athleteNo,
+                              athleteName:
+                                fill.athleteNo === null
+                                  ? null
+                                  : (organizationNames.get(fill.athleteNo) ??
+                                    null),
+                            });
+                          }}
+                        >
+                          Use #{voided.replacement.athleteNo}
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )}
                 {rowHints && (
                   <TableRow className="border-0 hover:bg-transparent">
                     <TableCell />
@@ -832,7 +938,9 @@ export function Reconcile({
                     </TableCell>
                   </TableRow>
                 )}
-                <RowInsertDivider onInsert={() => insertGapAt(index + 1)} />
+                {editable && (
+                  <RowInsertDivider onInsert={() => insertGapAt(index + 1)} />
+                )}
               </Fragment>
             );
           })}
@@ -846,18 +954,75 @@ export function Reconcile({
         </TableBody>
       </Table>
 
-      <div className="flex justify-end gap-2">
-        <Button
-          variant="outline"
-          onClick={() => void handleSave()}
-          disabled={saving || rows.every((r) => r.athleteNo === null)}
-        >
-          {saving
-            ? "Saving…"
-            : closed.closedAt
-              ? "Save"
-              : "Save and close heat"}
-        </Button>
+      {(unplaced.positions.length > 0 || unplaced.times.length > 0) && (
+        <div className="flex flex-col gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
+          <p className="font-medium">Not in the Reconciliation</p>
+          <p className="text-muted-foreground">
+            Captures no row came from. Add one as a row, or leave it out.
+          </p>
+          <ul className="flex flex-col gap-1">
+            {unplaced.positions.map((p) => (
+              <li
+                key={p.id}
+                className="flex items-center justify-between gap-3"
+              >
+                <span>
+                  Position {p.position}:{" "}
+                  {p.athleteNo === null
+                    ? "Skip"
+                    : `#${p.athleteNo} ${organizationNames.get(p.athleteNo) ?? ""}`}
+                </span>
+                {editable && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7"
+                    onClick={() => addPositionRow(p)}
+                  >
+                    Add row
+                  </Button>
+                )}
+              </li>
+            ))}
+            {unplaced.times.map((t) => (
+              <li
+                key={t.id}
+                className="flex items-center justify-between gap-3"
+              >
+                <span className="tabular-nums">
+                  Time {t.seq}:{" "}
+                  {t.isPlaceholder ? "Missed finish" : t.elapsedTime}
+                </span>
+                {editable && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7"
+                    onClick={() => addTimeRow(t)}
+                  >
+                    Add row
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="flex items-center justify-end gap-2">
+        {editable ? (
+          <Button
+            variant="outline"
+            onClick={() => void handleSave()}
+            disabled={saving || rows.every((r) => r.athleteNo === null)}
+          >
+            {saving ? "Saving…" : "Save and close heat"}
+          </Button>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Reopen the heat to change its Reconciliation.
+          </p>
+        )}
       </div>
 
       <Dialog

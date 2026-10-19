@@ -96,8 +96,16 @@ The athletes entered to run in a given heat: one heat's share of the Start list.
 _Avoid_: Start list (that's the whole League, not one heat)
 
 **Closed**:
-The state a heat enters when an official saves its reconciliation. A closed heat accepts no new captures, and its results are official and published. A swim time has no Closed state and is published as soon as it is recorded and ok. An official can reopen it, giving a reason.
+The state a heat enters when an official saves its Reconciliation. A closed heat accepts no new captures, and its results are official and published. Its Reconciliation can't be changed until an official reopens the heat, giving a reason. A swim time has no Closed state and is published as soon as it is recorded and ok.
 _Avoid_: Published, finalised, reconciled, locked
+
+**Reconciliation**:
+A heat's table of finishers in order, as an official last saved it. Each row has an athlete (or none), a time and a status, and the Captures it came from (none for a row the official added). Once saved, it is the record of the heat's result. The Captures stay as the evidence of what was originally scanned and pressed.
+_Avoid_: Reconcile table, working rows (when you mean what was saved)
+
+**Run result**:
+One athlete's saved time and status for a heat, taken from its Reconciliation. A heat's Run results are exactly the athletes in its saved Reconciliation, and they are what is published once the heat is Closed.
+_Avoid_: Run time (when you mean the saved, official result), score
 
 **Finisher**:
 An athlete who crossed the finish line in a heat, whether or not they have been identified yet.
@@ -173,7 +181,7 @@ _Avoid_: Missed one, placeholder press
 
 **Skip**:
 A position capture with no athlete, recorded when a finisher's bib can't be scanned in order. It marks a finisher whose identity is not yet known.
-_Avoid_: Gap (a gap is a reconciliation edit)
+_Avoid_: Gap (a gap is a row an official adds to a Reconciliation)
 
 **Fill**:
 Giving a Skip its athlete afterwards on the Position screen, once the Placer can identify them. The Skip is voided and the athlete is captured at the same position, so the positions after it stay as they are. Undoing a Fill turns the position back into a Skip.

@@ -6,3 +6,4 @@ The spec (§4.5) described two steps: an official confirms a heat, and publishin
 
 - A capture that syncs after its heat has closed (from a phone that was offline) is accepted, never rejected, and flagged on the reconcile screen.
 - The export shows how many athletes it left out because their heat is not closed.
+- A closed heat's Reconciliation is read-only until it is reopened (ADR 0006).

@@ -743,6 +743,29 @@ create trigger run_result_set_organization
 create index run_result_run_heat_idx
   on run_result (league_id, run_heat);
 
+-- A heat's Reconciliation as an official last saved it (ADR 0006): its rows
+-- in order, each with the Captures it came from (none for a row the official
+-- added). Once a heat is saved, Reconcile opens from these rows, not from the
+-- Captures. Written only by save_reconciliation, below.
+create table reconciliation_row (
+  league_id integer not null references league (id),
+  run_heat integer not null,
+  row_no integer not null,
+  athlete_no integer,
+  run_time text check (run_time ~ '^\d{2}:\d{2}\.\d{2}$'),
+  status text not null default 'ok', -- ok | dns | dnf | dq
+  position_capture_id text references position_capture (id),
+  time_capture_id text references time_capture (id),
+  primary key (league_id, run_heat, row_no)
+);
+
+alter table reconciliation_row enable row level security;
+
+create policy "Officials can read their leagues' reconciliations"
+  on reconciliation_row for select
+  to authenticated
+  using (private.has_league_role(league_id, 'official'));
+
 -- Most audit rows are about one League. Changes to the Organization itself,
 -- such as its Default team, belong to no League and name the Organization
 -- instead; a row names exactly one of the two.
@@ -2086,3 +2109,142 @@ $$;
 
 revoke execute on function public.featured_league() from public;
 grant execute on function public.featured_league() to anon, authenticated;
+
+-- A heat's saved Reconciliation and Run results, for save_reconciliation's
+-- audit entry.
+create function private.reconciliation_state(target_league_id integer, target_run_heat integer)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select jsonb_build_object(
+    'reconciliation', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'athlete_no', r.athlete_no, 'run_time', r.run_time, 'status', r.status,
+        'position_capture_id', r.position_capture_id,
+        'time_capture_id', r.time_capture_id
+      ) order by r.row_no)
+      from public.reconciliation_row r
+      where r.league_id = target_league_id and r.run_heat = target_run_heat
+    ), '[]'::jsonb),
+    'run_results', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'athlete_no', rr.athlete_no, 'run_time', rr.run_time, 'status', rr.status
+      ) order by rr.athlete_no)
+      from public.run_result rr
+      where rr.league_id = target_league_id and rr.run_heat = target_run_heat
+    ), '[]'::jsonb)
+  );
+$$;
+
+-- Saves a heat's Reconciliation (#69, ADR 0006). `reconciliation` is the
+-- table in order, one object per row: athlete_no, run_time, status,
+-- position_capture_id and time_capture_id. One transaction stores the rows
+-- as the heat's record, replaces its Run results, closes the heat (ADR 0001)
+-- and audits the Reconciliation and Run results before and after. Returns
+-- when the heat closed.
+create function public.save_reconciliation(
+  target_league_id integer,
+  target_run_heat integer,
+  reconciliation jsonb
+)
+returns timestamptz
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  actor text := coalesce((select auth.jwt() ->> 'email'), 'unknown');
+  closed timestamptz := now();
+  before_state jsonb;
+  duplicate integer;
+begin
+  if not private.has_league_role(target_league_id, 'official') then
+    raise exception 'Only an Official of the League can save a Reconciliation'
+      using errcode = '42501';
+  end if;
+  -- A Closed heat's results are published: changing them means reopening
+  -- the heat with a reason first.
+  if private.heat_is_closed(target_league_id, target_run_heat) then
+    raise exception 'Heat % is closed. Reopen it to change its Reconciliation.', target_run_heat
+      using errcode = '42501';
+  end if;
+  select (r ->> 'athlete_no')::integer into duplicate
+  from jsonb_array_elements(reconciliation) r
+  where r ->> 'athlete_no' is not null
+  group by 1
+  having count(*) > 1
+  limit 1;
+  if duplicate is not null then
+    raise exception '#% is on more than one row', duplicate
+      using errcode = '23505';
+  end if;
+
+  before_state := private.reconciliation_state(target_league_id, target_run_heat);
+
+  delete from public.reconciliation_row
+  where league_id = target_league_id and run_heat = target_run_heat;
+  insert into public.reconciliation_row (
+    league_id, run_heat, row_no, athlete_no, run_time, status,
+    position_capture_id, time_capture_id
+  )
+  select target_league_id, target_run_heat, r.row_no::integer,
+    (r.value ->> 'athlete_no')::integer, r.value ->> 'run_time',
+    coalesce(r.value ->> 'status', 'ok'),
+    r.value ->> 'position_capture_id', r.value ->> 'time_capture_id'
+  from jsonb_array_elements(reconciliation) with ordinality as r (value, row_no);
+
+  -- A heat's Run results are exactly the athletes on its Reconciliation:
+  -- an athlete changed or removed from a row loses their result.
+  delete from public.run_result rr
+  where rr.league_id = target_league_id and rr.run_heat = target_run_heat
+    and not exists (
+      select 1 from public.reconciliation_row r
+      where r.league_id = target_league_id and r.run_heat = target_run_heat
+        and r.athlete_no = rr.athlete_no
+    );
+  insert into public.run_result (
+    league_id, athlete_no, run_heat, run_time, status, source,
+    overridden_by, override_reason
+  )
+  select league_id, athlete_no, run_heat,
+    case when status = 'ok' then run_time end, status, 'manual',
+    actor, 'reconciliation save'
+  from public.reconciliation_row
+  where league_id = target_league_id and run_heat = target_run_heat
+    and athlete_no is not null
+  on conflict (league_id, athlete_no, run_heat) do update set
+    run_time = excluded.run_time,
+    status = excluded.status,
+    source = excluded.source,
+    overridden_by = excluded.overridden_by,
+    override_reason = excluded.override_reason;
+
+  insert into public.league_race (league_id, run_heat, closed_at, closed_by)
+  values (target_league_id, target_run_heat, closed, actor)
+  on conflict (league_id, run_heat) do update set
+    closed_at = excluded.closed_at,
+    closed_by = excluded.closed_by;
+
+  insert into public.audit_log (league_id, actor, entity, action, before, after, reason)
+  values (
+    target_league_id, actor, 'reconciliation', 'reconcile-save',
+    before_state,
+    private.reconciliation_state(target_league_id, target_run_heat),
+    format('Reconciled run heat %s', target_run_heat)
+  ), (
+    target_league_id, actor, 'league_race', 'close',
+    null,
+    jsonb_build_object('league_id', target_league_id, 'run_heat', target_run_heat,
+      'closed_at', closed, 'closed_by', actor),
+    format('Closed run heat %s', target_run_heat)
+  );
+
+  return closed;
+end;
+$$;
+
+revoke execute on function public.save_reconciliation(integer, integer, jsonb) from public, anon;
+grant execute on function public.save_reconciliation(integer, integer, jsonb) to authenticated;

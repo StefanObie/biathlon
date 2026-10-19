@@ -16,6 +16,11 @@ export interface WorkingRow {
   athleteName: string | null;
   runTime: string | null;
   status: RunStatus;
+  /**
+   * A Run result saved before Reconciliations were stored, whose athlete no
+   * Capture accounts for (ADR 0006).
+   */
+  savedWithoutCapture?: boolean;
 }
 
 export type RunStatus = "ok" | "dns" | "dnf" | "dq";

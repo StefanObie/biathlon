@@ -606,6 +606,61 @@ export type Database = {
           },
         ];
       };
+      reconciliation_row: {
+        Row: {
+          athlete_no: number | null;
+          league_id: number;
+          position_capture_id: string | null;
+          row_no: number;
+          run_heat: number;
+          run_time: string | null;
+          status: string;
+          time_capture_id: string | null;
+        };
+        Insert: {
+          athlete_no?: number | null;
+          league_id: number;
+          position_capture_id?: string | null;
+          row_no: number;
+          run_heat: number;
+          run_time?: string | null;
+          status?: string;
+          time_capture_id?: string | null;
+        };
+        Update: {
+          athlete_no?: number | null;
+          league_id?: number;
+          position_capture_id?: string | null;
+          row_no?: number;
+          run_heat?: number;
+          run_time?: string | null;
+          status?: string;
+          time_capture_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "reconciliation_row_league_id_fkey";
+            columns: ["league_id"];
+            isOneToOne: false;
+            referencedRelation: "league";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "reconciliation_row_position_capture_id_fkey";
+            columns: ["position_capture_id"];
+            isOneToOne: false;
+            referencedRelation: "position_capture";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "reconciliation_row_time_capture_id_fkey";
+            columns: ["time_capture_id"];
+            isOneToOne: false;
+            referencedRelation: "time_capture";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       run_result: {
         Row: {
           athlete_no: number;
@@ -898,6 +953,14 @@ export type Database = {
       remove_member: {
         Args: { member_user_id: string; org_id: number };
         Returns: undefined;
+      };
+      save_reconciliation: {
+        Args: {
+          reconciliation: Json;
+          target_league_id: number;
+          target_run_heat: number;
+        };
+        Returns: string;
       };
       send_invitation: {
         Args: {
