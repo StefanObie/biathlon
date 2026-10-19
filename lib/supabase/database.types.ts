@@ -660,6 +660,38 @@ export type Database = {
           },
         ];
       };
+      swim_call_room_check_in: {
+        Row: {
+          athlete_no: number;
+          checked_in_at: string;
+          checked_in_by: string | null;
+          league_id: number;
+          swim_heat: number;
+        };
+        Insert: {
+          athlete_no: number;
+          checked_in_at?: string;
+          checked_in_by?: string | null;
+          league_id: number;
+          swim_heat: number;
+        };
+        Update: {
+          athlete_no?: number;
+          checked_in_at?: string;
+          checked_in_by?: string | null;
+          league_id?: number;
+          swim_heat?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "swim_call_room_check_in_league_id_athlete_no_fkey";
+            columns: ["league_id", "athlete_no"];
+            isOneToOne: true;
+            referencedRelation: "entry";
+            referencedColumns: ["league_id", "athlete_no"];
+          },
+        ];
+      };
       swim_folder: {
         Row: {
           drive_folder_id: string;

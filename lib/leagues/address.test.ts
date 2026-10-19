@@ -31,4 +31,10 @@ describe("leagueAddress", () => {
       expect(leagueAddress(league, screen, 3)).toBe(`${base}/${screen}/3`);
     },
   );
+
+  it("addresses a swim heat of the Call room", () => {
+    expect(leagueAddress(league, "call-room-swim", 2)).toBe(
+      `${base}/call-room/swim/2`,
+    );
+  });
 });

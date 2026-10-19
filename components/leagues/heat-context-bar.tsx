@@ -37,6 +37,7 @@ export function HeatContextBar({
   modes,
   runHeat,
   heats,
+  swim = false,
 }: {
   organizationId: number;
   leagueId: number;
@@ -45,6 +46,9 @@ export function HeatContextBar({
   modes: HeatMode[];
   runHeat: number;
   heats: number[];
+  /** The swim Call room: `runHeat` and `heats` are swim heats, and there
+   * is no other mode for a swim heat to switch to. */
+  swim?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -58,7 +62,11 @@ export function HeatContextBar({
       : null;
 
   function heatHref(heat: number) {
-    return leagueAddress({ organizationId, leagueId }, mode, heat);
+    return leagueAddress(
+      { organizationId, leagueId },
+      swim ? "call-room-swim" : mode,
+      heat,
+    );
   }
 
   return (
@@ -76,7 +84,7 @@ export function HeatContextBar({
           className="flex min-w-0 flex-1 max-w-xs flex-col items-center rounded-full border border-input bg-background px-4 py-2 text-center shadow-sm active:scale-[0.98]"
         >
           <span className="text-sm font-semibold tabular-nums text-foreground">
-            Heat {runHeat}
+            {swim ? "Swim heat" : "Heat"} {runHeat}
           </span>
           <span className="text-xs text-muted-foreground">
             {MODE_LABEL[mode]}
@@ -105,7 +113,7 @@ export function HeatContextBar({
           <div className="flex flex-col gap-4">
             <div>
               <p className="mb-2 text-sm font-medium text-muted-foreground">
-                Heat
+                {swim ? "Swim heat" : "Heat"}
               </p>
               <div className="grid grid-cols-4 gap-2">
                 {sortedHeats.map((heat) => (
@@ -124,7 +132,7 @@ export function HeatContextBar({
               </div>
             </div>
 
-            {modes.length > 1 && (
+            {!swim && modes.length > 1 && (
               <div>
                 <p className="mb-2 text-sm font-medium text-muted-foreground">
                   Mode

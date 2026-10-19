@@ -40,7 +40,7 @@ async function HeatList({
   const supabase = await createClient();
   const { data: entries, error } = await supabase
     .from("entry")
-    .select("run_heat")
+    .select("run_heat, swim_heat")
     .eq("league_id", leagueIdNum)
     .order("run_heat");
 
@@ -48,7 +48,15 @@ async function HeatList({
     return <p className="text-sm text-destructive">{error.message}</p>;
   }
 
+  const league = { organizationId: organizationIdNum, leagueId: leagueIdNum };
   const heats = [...new Set((entries ?? []).map((e) => e.run_heat))];
+  const swimHeats = [
+    ...new Set(
+      (entries ?? []).flatMap((e) =>
+        e.swim_heat === null ? [] : [e.swim_heat],
+      ),
+    ),
+  ].sort((a, b) => a - b);
 
   if (heats.length === 0) {
     return (
@@ -61,22 +69,45 @@ async function HeatList({
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-lg font-semibold">Call room</h1>
-      <h2 className="text-lg font-semibold">Select a Heat</h2>
+      <HeatGrid
+        title="Run heats"
+        heats={heats}
+        href={(heat) => leagueAddress(league, "call-room", heat)}
+      />
+      {swimHeats.length > 0 && (
+        <HeatGrid
+          title="Swim heats"
+          heats={swimHeats}
+          href={(heat) => leagueAddress(league, "call-room-swim", heat)}
+        />
+      )}
+    </div>
+  );
+}
+
+function HeatGrid({
+  title,
+  heats,
+  href,
+}: {
+  title: string;
+  heats: number[];
+  href: (heat: number) => string;
+}) {
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-lg font-semibold">{title}</h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {heats.map((heat) => (
           <Link
             key={heat}
-            href={leagueAddress(
-              { organizationId: organizationIdNum, leagueId: leagueIdNum },
-              "call-room",
-              heat,
-            )}
+            href={href(heat)}
             className="flex h-20 items-center justify-center rounded-md border border-input text-2xl font-bold tabular-nums hover:bg-accent"
           >
             {heat}
           </Link>
         ))}
       </div>
-    </div>
+    </section>
   );
 }

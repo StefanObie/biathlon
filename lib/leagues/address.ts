@@ -4,9 +4,10 @@ export interface LeagueRef {
   leagueId: number;
 }
 
-/** The screens that run once per heat, and so can address a single heat. */
+/** The screens that run once per heat, and so can address a single heat.
+ * "call-room-swim" addresses a swim heat; the others a run heat. */
 export type HeatScreenAddress =
-  "position" | "call-room" | "timer" | "reconcile";
+  "position" | "call-room" | "call-room-swim" | "timer" | "reconcile";
 
 export type LeagueScreenAddress =
   | HeatScreenAddress
@@ -23,6 +24,7 @@ export type LeagueScreenAddress =
 const PATH: Record<LeagueScreenAddress, string> = {
   position: "/position",
   "call-room": "/call-room",
+  "call-room-swim": "/call-room/swim",
   timer: "/timer",
   reconcile: "/reconcile",
   settings: "/settings",

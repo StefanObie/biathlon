@@ -47,7 +47,7 @@ A Member who uses a League's Position screen, scanning each finisher's bib in fi
 _Avoid_: Marshal, scanner, recorder
 
 **Caller**:
-A Member who uses a League's Call room screen, checking in the athletes of each heat before it runs.
+A Member who uses a League's Call room screen, checking in the athletes of each run heat and swim heat before it starts.
 _Avoid_: Marshal, steward, call room judge
 
 **League team**:
@@ -103,11 +103,11 @@ _Avoid_: Published, finalised, reconciled, locked
 An athlete who crossed the finish line in a heat, whether or not they have been identified yet.
 
 **Call room**:
-The holding area where a heat's athletes gather before they run. It is used only for run heats.
+The holding area where a heat's athletes gather before they run or swim. It is used for run heats and swim heats.
 _Avoid_: Marshalling area, holding pen
 
 **Check in**:
-To record that an athlete has reported to the Call room for a heat. An athlete is Checked in or Not checked in, and a Caller can undo a check-in. An athlete is checked in to at most one heat per League, so checking them in at another heat moves the check-in. Checking in is advice for reconciliation: it never sets a result, and checking in at another heat never changes the heat roster.
+To record that an athlete has reported to the Call room for a heat. An athlete is Checked in or Not checked in, and a Caller can undo a check-in. An athlete is checked in to at most one run heat and at most one swim heat per League, so checking them in at another heat of the same kind moves the check-in. A check-in never sets or refuses a result: an athlete who was Not checked in is captured and scored as usual. A run check-in is advice for reconciliation and is shown on the Capture screens; a swim check-in is information only, and nothing reads it. Checking in at another heat never changes the heat roster or the swim slot.
 _Avoid_: Present, absent, called, missing (as a state)
 
 **Race day screens**:
@@ -154,7 +154,7 @@ The results-table screen where the Placer scans each finisher's bib in finishing
 _Avoid_: Scanner, scan page, table capture
 
 **Call room screen**:
-The screen where the Caller checks in a heat's athletes by scanning their bibs or entering athlete numbers. Check-ins are not Captures, and it is not a Capture screen.
+The screen where the Caller checks in a run heat's or a swim heat's athletes by scanning their bibs or entering athlete numbers. Check-ins are not Captures, and it is not a Capture screen. A swim heat's check-ins are never locked, since swim heats are not Closed.
 _Avoid_: Check-in page, roll call
 
 **Capture screens**:

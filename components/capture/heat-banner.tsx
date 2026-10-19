@@ -10,12 +10,15 @@ export function HeatBanner({
   runHeat,
   closed,
   screen,
+  heatLabel = "Heat",
 }: {
   runHeat: number;
   closed: boolean;
   /** Names the screen ahead of the heat ("CALL ROOM · Heat 3"), for
    * screens that could be mistaken for one another. */
   screen?: string;
+  /** What the heat is called: "Swim heat" on the swim Call room. */
+  heatLabel?: string;
 }) {
   return (
     <div
@@ -33,7 +36,9 @@ export function HeatBanner({
           <span className="whitespace-nowrap">{screen} ·</span>{" "}
         </>
       )}
-      <span className="whitespace-nowrap">Heat {runHeat}</span>
+      <span className="whitespace-nowrap">
+        {heatLabel} {runHeat}
+      </span>
       {closed && (
         <>
           {" "}
