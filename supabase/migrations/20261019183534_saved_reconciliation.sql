@@ -10,7 +10,8 @@ CREATE TABLE "public"."reconciliation_row" (
   "position_capture_id" text,
   "time_capture_id"     text,
   CONSTRAINT "reconciliation_row_pkey" PRIMARY KEY (league_id, run_heat, row_no),
-  CONSTRAINT "reconciliation_row_run_time_check" CHECK ((run_time ~ '^\d{2}:\d{2}\.\d{2}$'::text))
+  CONSTRAINT "reconciliation_row_run_time_check" CHECK ((run_time ~ '^\d{2}:\d{2}\.\d{2}$'::text)),
+  CONSTRAINT "reconciliation_row_status_check" CHECK ((status = ANY (ARRAY['ok'::text, 'dns'::text, 'dnf'::text, 'dq'::text])))
 );
 
 ALTER TABLE "public"."reconciliation_row"
@@ -71,6 +72,10 @@ begin
   if private.heat_is_closed(target_league_id, target_run_heat) then
     raise exception 'Heat % is closed. Reopen it to change its Reconciliation.', target_run_heat
       using errcode = '42501';
+  end if;
+  if jsonb_array_length(reconciliation) = 0 then
+    raise exception 'A Reconciliation needs at least one row'
+      using errcode = '22023';
   end if;
   select (r ->> 'athlete_no')::integer into duplicate
   from jsonb_array_elements(reconciliation) r
@@ -178,3 +183,12 @@ REVOKE ALL ON TABLE "public"."reconciliation_row" FROM "postgres";
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE "public"."reconciliation_row" TO "postgres";
 
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE "public"."reconciliation_row" TO "service_role";
+
+-- A heat's Run results are exactly the athletes in its saved Reconciliation
+-- (ADR 0006), so they are only written by save_reconciliation.
+DROP POLICY "Officials can manage their leagues' run results" ON "public"."run_result";
+
+CREATE POLICY "Officials can read their leagues' run results" ON "public"."run_result"
+  FOR SELECT
+  TO "authenticated"
+  USING (private.has_league_role(league_id, 'official'::public.league_role));

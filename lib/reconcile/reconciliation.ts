@@ -60,6 +60,22 @@ function timeEntry(c: TimeCaptureFacts): TimeEntry {
   };
 }
 
+/** The heat's active position captures, in finishing order. */
+function activePositions(positions: PositionCaptureFacts[]): PositionEntry[] {
+  return positions
+    .filter((c) => !c.voided)
+    .sort((a, b) => a.position - b.position)
+    .map(positionEntry);
+}
+
+/** The heat's active time captures, in the order they were pressed. */
+function activeTimes(times: TimeCaptureFacts[]): TimeEntry[] {
+  return times
+    .filter((c) => !c.voided)
+    .sort((a, b) => a.seq - b.seq)
+    .map(timeEntry);
+}
+
 /**
  * The rows Reconcile opens a heat with. A saved heat opens from its saved
  * Reconciliation, each row linked to the Captures it came from, voided or
@@ -120,14 +136,8 @@ function fromCaptures({
   names: Map<number, string>;
 }): WorkingRow[] {
   const rows = buildWorkingRows(
-    positions
-      .filter((c) => !c.voided)
-      .sort((a, b) => a.position - b.position)
-      .map(positionEntry),
-    times
-      .filter((c) => !c.voided)
-      .sort((a, b) => a.seq - b.seq)
-      .map(timeEntry),
+    activePositions(positions),
+    activeTimes(times),
     names,
   );
 
@@ -179,14 +189,8 @@ export function unplacedCaptures(
     ]),
   );
   return {
-    positions: positions
-      .filter((c) => !c.voided && !placed.has(c.id))
-      .sort((a, b) => a.position - b.position)
-      .map(positionEntry),
-    times: times
-      .filter((c) => !c.voided && !placed.has(c.id))
-      .sort((a, b) => a.seq - b.seq)
-      .map(timeEntry),
+    positions: activePositions(positions).filter((c) => !placed.has(c.id)),
+    times: activeTimes(times).filter((c) => !placed.has(c.id)),
   };
 }
 
@@ -249,12 +253,17 @@ export function rowChanges(row: WorkingRow): string[] {
   if (row.position && row.position.athleteNo !== row.athleteNo) {
     const scanned =
       row.position.athleteNo === null ? "a Skip" : `#${row.position.athleteNo}`;
-    const now = row.athleteNo === null ? "no athlete" : `#${row.athleteNo}`;
-    changes.push(`Scanned ${scanned} → ${now}`);
+    const assigned =
+      row.athleteNo === null ? "no athlete" : `#${row.athleteNo}`;
+    changes.push(`Scanned ${scanned} → ${assigned}`);
   }
   if (row.time) {
     if (row.time.isPlaceholder) {
       if (row.runTime !== null) changes.push(`Missed finish → ${row.runTime}`);
+    } else if (row.status !== "ok") {
+      changes.push(
+        `Captured ${row.time.elapsedTime} → ${row.status.toUpperCase()}`,
+      );
     } else if (row.runTime !== row.time.elapsedTime) {
       changes.push(
         `Captured ${row.time.elapsedTime} → ${row.runTime ?? "no time"}`,

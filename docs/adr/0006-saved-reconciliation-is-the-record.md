@@ -6,7 +6,7 @@ The Captures stay immutable. We considered writing an athlete change back onto `
 
 ## Consequences
 
-- A heat's Run results are exactly the athletes in its saved Reconciliation. Saving deletes Run results for athletes no longer on it.
+- A heat's Run results are exactly the athletes in its saved Reconciliation. Saving deletes Run results for athletes no longer on it. Run results are only written by saving a Reconciliation, never directly, so the two can't drift apart.
 - A Closed heat's Reconciliation is read-only. Changing it, even to add a Late entry, means reopening the heat with a reason (ADR 0001).
 - Captures that no saved row came from, such as a late sync or a capture made after a reopen, are listed beside the table, flagged, for the official to place or leave out. The table never changes by itself.
 - A saved row whose Capture was later voided keeps its saved values and is flagged. If a Fill replaced that Capture, the replacement is offered.

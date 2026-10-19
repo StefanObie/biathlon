@@ -269,9 +269,10 @@ select lives_ok(
   $$ insert into entry (league_id, athlete_no, run_heat, swim_heat, swim_lane, age_group_code) values (901, 8, 1, 1, 2, 'U13') $$,
   'an Official imports an entry'
 );
-select lives_ok(
-  $$ insert into run_result (league_id, athlete_no, run_heat, run_time, source) values (901, 8, 1, '05:05.00', 'manual') $$,
-  'an Official writes a run result'
+select results_eq(
+  $$ select athlete_no from run_result where league_id = 901 $$,
+  $$ values (7) $$,
+  'an Official reads run results'
 );
 select lives_ok(
   $$ insert into swim_result (league_id, athlete_no, event_no, heat, lane, swim_time, source) values (901, 8, 1, 1, 2, '01:05.00', 'manual') $$,
@@ -320,8 +321,8 @@ set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-00000000000a", 
 
 select results_eq($$ select id from league order by id $$, $$ values (901), (902) $$, 'an Admin sees every league');
 select lives_ok(
-  $$ insert into run_result (league_id, athlete_no, run_heat, run_time, source) values (902, 7, 1, '05:00.00', 'manual') $$,
-  'an Admin writes results on a league they''re not on the team of'
+  $$ select public.save_reconciliation(902, 1, '[{"athlete_no": 7, "run_time": "05:00.00", "status": "ok"}]'::jsonb) $$,
+  'an Admin saves results on a league they''re not on the team of'
 );
 select results_eq(
   $$ update league_race set closed_at = now(), closed_by = 'admin' where league_id = 902 and run_heat = 1 returning run_heat $$,

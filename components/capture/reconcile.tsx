@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -275,7 +275,7 @@ export function Reconcile({
 
   // A saved heat opens from its saved Reconciliation (ADR 0006); one with
   // none opens from its Captures.
-  const initialRows = useMemo(
+  const openedRows = useMemo(
     () =>
       openReconciliation({
         saved: remoteReconciliation.map((r) => ({
@@ -294,11 +294,16 @@ export function Reconcile({
         })),
         names: organizationNames,
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+    [
+      remoteReconciliation,
+      positionFacts,
+      timeFacts,
+      remoteRunResults,
+      organizationNames,
+    ],
   );
 
-  const [rows, setRows] = useState<WorkingRow[]>(initialRows);
+  const [rows, setRows] = useState<WorkingRow[]>(openedRows);
   const [saving, setSaving] = useState(false);
   // The Late entries this save creates, with the age group each is given,
   // while the Official confirms them. Null when not confirming.
@@ -310,6 +315,23 @@ export function Reconcile({
     runHeat,
     remoteHeatClosed,
   );
+
+  // A Closed heat shows what was saved. When someone else saves or reopens
+  // it, the page reloads its Reconciliation, and a Closed heat's table
+  // follows it; an open heat keeps the official's edits.
+  const [openedFrom, setOpenedFrom] = useState(openedRows);
+  if (openedFrom !== openedRows) {
+    setOpenedFrom(openedRows);
+    if (closed.closedAt !== null) setRows(openedRows);
+  }
+  const closedAt = closed.closedAt;
+  const seenClosedAt = useRef(closedAt);
+  useEffect(() => {
+    if (seenClosedAt.current === closedAt) return;
+    seenClosedAt.current = closedAt;
+    router.refresh();
+  }, [closedAt, router]);
+
   const [reopening, setReopening] = useState(false);
   const [reopenReason, setReopenReason] = useState("");
   const [reopenBusy, setReopenBusy] = useState(false);
@@ -886,8 +908,15 @@ export function Reconcile({
                       className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0 text-sm"
                     >
                       {changes.map((change) => (
-                        <span key={change} className="text-muted-foreground">
-                          {change}
+                        <span
+                          key={change}
+                          className={
+                            row.savedWithoutCapture
+                              ? "text-amber-700 dark:text-amber-400"
+                              : "text-muted-foreground"
+                          }
+                        >
+                          {row.savedWithoutCapture ? `⚠ ${change}` : change}
                         </span>
                       ))}
                       {voided && (

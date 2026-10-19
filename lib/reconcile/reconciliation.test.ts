@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { RunStatus } from "@/lib/reconcile/join";
 import { FILLED } from "@/lib/scan/position";
 
 import {
@@ -237,7 +238,7 @@ describe("rowChanges", () => {
   ) => ({
     athleteNo,
     runTime,
-    status: "ok" as const,
+    status: "ok" as RunStatus,
     positionCaptureId,
     timeCaptureId,
   });
@@ -275,6 +276,12 @@ describe("rowChanges", () => {
     expect(changesOf(saved(12, "02:40.00", "p1", "t2"))).toEqual([
       "Missed finish → 02:40.00",
     ]);
+  });
+
+  it("shows a captured time the official marked DNF", () => {
+    expect(
+      changesOf({ ...saved(12, null, "p1", "t1"), status: "dnf" as RunStatus }),
+    ).toEqual(["Captured 02:31.10 → DNF"]);
   });
 
   it("shows nothing for a row that matches its Captures", () => {

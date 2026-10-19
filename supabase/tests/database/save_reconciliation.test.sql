@@ -5,7 +5,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(11);
+select plan(15);
 
 insert into organization (id, name) overriding system value values
   (691, 'Reconciliation Org');
@@ -122,6 +122,31 @@ select results_eq(
      where league_id = 691 and run_heat = 1 $$,
   $$ values (34, null::text, 'dnf') $$,
   'saving the reopened heat replaces its Run results'
+);
+
+select throws_ok(
+  $$ select public.save_reconciliation(691, 2, '[]'::jsonb) $$,
+  '22023', null,
+  'a Reconciliation with no rows can''t be saved'
+);
+
+select throws_ok(
+  $$ select public.save_reconciliation(691, 2, '[{"athlete_no": null, "run_time": null, "status": "gone"}]'::jsonb) $$,
+  '23514', null,
+  'a row''s status is ok, dns, dnf or dq'
+);
+
+select throws_ok(
+  $$ insert into run_result (league_id, athlete_no, run_heat, run_time, source)
+     values (691, 12, 2, '02:50.00', 'manual') $$,
+  '42501', null,
+  'an Official writes Run results only by saving a Reconciliation'
+);
+
+select results_eq(
+  $$ select athlete_no from run_result where league_id = 691 $$,
+  $$ values (34) $$,
+  'an Official reads their League''s Run results'
 );
 
 select throws_ok(

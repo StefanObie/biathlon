@@ -753,7 +753,7 @@ create table reconciliation_row (
   row_no integer not null,
   athlete_no integer,
   run_time text check (run_time ~ '^\d{2}:\d{2}\.\d{2}$'),
-  status text not null default 'ok', -- ok | dns | dnf | dq
+  status text not null default 'ok' check (status in ('ok', 'dns', 'dnf', 'dq')),
   position_capture_id text references position_capture (id),
   time_capture_id text references time_capture (id),
   primary key (league_id, run_heat, row_no)
@@ -907,11 +907,12 @@ create policy "Timekeepers can reset open heats, and Officials any heat"
     or (private.has_league_role(league_id, 'timekeeper') and closed_at is null)
   );
 
-create policy "Officials can manage their leagues' run results"
-  on run_result for all
+-- A heat's Run results are exactly the athletes in its saved Reconciliation
+-- (ADR 0006), so they are only written by save_reconciliation.
+create policy "Officials can read their leagues' run results"
+  on run_result for select
   to authenticated
-  using (private.has_league_role(league_id, 'official'))
-  with check (private.has_league_role(league_id, 'official'));
+  using (private.has_league_role(league_id, 'official'));
 
 -- League team changes are written to the audit log here, not by the app,
 -- so no change can skip it. security definer to read the Member's email
@@ -2170,6 +2171,10 @@ begin
   if private.heat_is_closed(target_league_id, target_run_heat) then
     raise exception 'Heat % is closed. Reopen it to change its Reconciliation.', target_run_heat
       using errcode = '42501';
+  end if;
+  if jsonb_array_length(reconciliation) = 0 then
+    raise exception 'A Reconciliation needs at least one row'
+      using errcode = '22023';
   end if;
   select (r ->> 'athlete_no')::integer into duplicate
   from jsonb_array_elements(reconciliation) r
