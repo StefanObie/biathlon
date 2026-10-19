@@ -279,6 +279,7 @@ export type Database = {
           league_date: string;
           name: string;
           organization_id: number;
+          pool_length_m: number;
           results_slug: string | null;
           season: number;
           visibility: Database["public"]["Enums"]["league_visibility"];
@@ -288,6 +289,7 @@ export type Database = {
           league_date: string;
           name: string;
           organization_id: number;
+          pool_length_m?: number;
           results_slug?: string | null;
           season: number;
           visibility?: Database["public"]["Enums"]["league_visibility"];
@@ -297,6 +299,7 @@ export type Database = {
           league_date?: string;
           name?: string;
           organization_id?: number;
+          pool_length_m?: number;
           results_slug?: string | null;
           season?: number;
           visibility?: Database["public"]["Enums"]["league_visibility"];
@@ -504,6 +507,7 @@ export type Database = {
           run_base_time: string;
           run_distance_m: number;
           run_points_per_second: number;
+          short_course_seconds_per_turn: number;
           sort_order: number;
           swim_base_time: string;
           swim_distance_m: number;
@@ -520,6 +524,7 @@ export type Database = {
           run_base_time: string;
           run_distance_m: number;
           run_points_per_second: number;
+          short_course_seconds_per_turn: number;
           sort_order: number;
           swim_base_time: string;
           swim_distance_m: number;
@@ -536,6 +541,7 @@ export type Database = {
           run_base_time?: string;
           run_distance_m?: number;
           run_points_per_second?: number;
+          short_course_seconds_per_turn?: number;
           sort_order?: number;
           swim_base_time?: string;
           swim_distance_m?: number;
@@ -873,6 +879,10 @@ export type Database = {
       };
       set_member_admin: {
         Args: { make_admin: boolean; member_user_id: string; org_id: number };
+        Returns: undefined;
+      };
+      set_pool_length: {
+        Args: { length_m: number; target_league_id: number };
         Returns: undefined;
       };
     };

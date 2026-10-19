@@ -120,6 +120,14 @@ _Avoid_: Setup (sounds like pre-race only), admin
 
 ### Swim
 
+**Pool length**:
+The length of the pool a League's swim session is held in: 25 m or 50 m. Every League has one, chosen when the League is created, and an Official can change it later.
+_Avoid_: Course, pool size
+
+**Short course adjustment**:
+SA Biathlon's correction to swim Points when the swim was held in a 25 m pool. It adds a fixed time for each turn the swim takes beyond what it would take in a 50 m pool. The time is set in the scoring rules for the season (0.8 s for 2027), and the swim rate converts it to points. The swim time shown is always the recorded time. Only the Points are adjusted.
+_Avoid_: Pool correction, turn penalty
+
 **Swim results file**:
 The Time Drops export for a League's swim session. It grows as the session runs, a swim heat can appear in it more than once, and the later block for a heat wins.
 _Avoid_: Session file, console export, times file
@@ -153,7 +161,7 @@ _Avoid_: Check-in page, roll call
 The Timer screen and the Position screen together. They do not include reconciliation or the Call room screen.
 
 **Points**:
-An athlete's score from a run and a swim: 1000 at the age group's base time, plus or minus a rate for every second faster or slower, per gender and age group. The run and swim components are shown separately and the total adds whichever exist. Age bonus points are not included, so Points are not official SA Biathlon points.
+An athlete's score from a run and a swim: 1000 at the age group's base time, plus or minus a rate for every second faster or slower, per gender and age group. The run and swim components are shown separately and the total adds whichever exist. Swim Points include the Short course adjustment. Age bonus points are not included, so Points are not official SA Biathlon points.
 _Avoid_: Score (when you mean one component)
 
 **Unclassified**:

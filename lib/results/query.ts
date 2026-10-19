@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
 import type { Database } from "@/lib/supabase/database.types";
 
+import type { PoolLength } from "./points";
 import type { ResultsAthleteRow, ResultsPointsRow } from "./shape";
 
 /** What league_results (supabase/schemas/core.sql) returns. */
@@ -13,6 +14,8 @@ export interface LeagueResults {
   league_date: string;
   season: number;
   visibility: "public" | "protected";
+  /** The pool the swim session was held in, which decides swim points. */
+  pool_length_m: PoolLength;
   /** Run heats in the League, and how many of them are Closed. */
   heats_total: number;
   heats_closed: number;

@@ -174,7 +174,8 @@ export async function regenerateResultsLink(
 
 /**
  * Refreshes a League's results page after one of its heats is closed or
- * reopened, so it shows the change without waiting for the cache to expire.
+ * reopened, or its Pool length changes, so it shows the change without
+ * waiting for the cache to expire.
  * Anyone on the League's team can call it, and all it does is expire a
  * cache entry.
  */

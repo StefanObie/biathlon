@@ -53,7 +53,10 @@ create table league (
   season integer not null,
   organization_id integer not null references organization (id),
   visibility league_visibility not null default 'public',
-  results_slug text
+  results_slug text,
+  -- The pool its swim session is held in, which decides the Short course
+  -- adjustment (#70).
+  pool_length_m integer not null default 25 check (pool_length_m in (25, 50))
 );
 
 alter table league enable row level security;
@@ -409,6 +412,9 @@ create table points_table (
   swim_points_per_second numeric not null,
   -- Stored, not applied — see spec §6.3 (masters bonus deferred).
   bonus_points_per_year numeric not null,
+  -- The Short course adjustment (#70): seconds added to a swim in a 25 m pool
+  -- for each turn beyond the ones it makes in a 50 m pool.
+  short_course_seconds_per_turn numeric not null,
   primary key (effective_from, gender, age_group_code)
 );
 
@@ -1885,6 +1891,7 @@ as $$
     'league_date', l.league_date,
     'season', l.season,
     'visibility', l.visibility,
+    'pool_length_m', l.pool_length_m,
     'heats_total', (
       select count(distinct e.run_heat) from public.entry e where e.league_id = l.id
     ),
@@ -1943,8 +1950,10 @@ as $$
           'sort_order', p.sort_order,
           'run_base_time', p.run_base_time,
           'run_points_per_second', p.run_points_per_second,
+          'swim_distance_m', p.swim_distance_m,
           'swim_base_time', p.swim_base_time,
-          'swim_points_per_second', p.swim_points_per_second
+          'swim_points_per_second', p.swim_points_per_second,
+          'short_course_seconds_per_turn', p.short_course_seconds_per_turn
         )
         order by p.gender, p.sort_order
       )
@@ -1962,6 +1971,51 @@ $$;
 
 revoke execute on function public.league_results(text) from public;
 grant execute on function public.league_results(text) to anon, authenticated;
+
+-- Sets the Pool length a League's swim session was held in (#70). An Official
+-- of the League sets it while importing swim times, but RLS only lets an
+-- Admin update a League, so this is security definer and checks the Role
+-- itself. A change rescores the League's swim points, so it is audited.
+create function public.set_pool_length(target_league_id integer, length_m integer)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  previous integer;
+begin
+  if not private.has_league_role(target_league_id, 'official') then
+    raise exception 'Only an Official of the League can change its Pool length'
+      using errcode = '42501';
+  end if;
+
+  select pool_length_m into previous
+  from public.league
+  where id = target_league_id
+  for update;
+  if previous = length_m then
+    return;
+  end if;
+
+  update public.league
+  set pool_length_m = length_m
+  where id = target_league_id;
+
+  insert into public.audit_log (league_id, actor, entity, action, before, after)
+  values (
+    target_league_id,
+    coalesce((select auth.jwt() ->> 'email'), 'unknown'),
+    'league',
+    'league.pool-length-changed',
+    jsonb_build_object('pool_length_m', previous),
+    jsonb_build_object('pool_length_m', length_m)
+  );
+end;
+$$;
+
+revoke execute on function public.set_pool_length(integer, integer) from public, anon;
+grant execute on function public.set_pool_length(integer, integer) to authenticated;
 
 -- The Featured league for the home page: the Public League with the latest
 -- date on or before today (South African time), across all Organizations,

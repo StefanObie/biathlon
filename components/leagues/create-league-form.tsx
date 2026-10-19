@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { createLeague, type CreateLeagueState } from "@/lib/leagues/actions";
+import { POOL_LENGTHS } from "@/lib/results/points";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -81,6 +82,21 @@ export function CreateLeagueForm({
             required
             defaultValue={new Date().getFullYear()}
           />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="poolLength">Pool length</FieldLabel>
+          <Select name="poolLength" defaultValue="25" required>
+            <SelectTrigger id="poolLength" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {POOL_LENGTHS.map((length) => (
+                <SelectItem key={length} value={String(length)}>
+                  {length} m
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
         {state.error && (
           <Field data-invalid>

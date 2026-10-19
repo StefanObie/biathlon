@@ -14,8 +14,10 @@ const boysU15: ResultsPointsRow = {
   sort_order: 5,
   run_base_time: "02:47.00",
   run_points_per_second: 2,
+  swim_distance_m: 100,
   swim_base_time: "01:13.00",
   swim_points_per_second: 5,
+  short_course_seconds_per_turn: 0.8,
 };
 const girlsU15: ResultsPointsRow = {
   ...boysU15,
@@ -56,6 +58,7 @@ describe("shapeResults — grouping and ranking", () => {
         athlete("Girl", "02:50.00", "01:10.00", { gender: "F" }),
       ],
       table,
+      50,
     );
 
     const boys = groups.find((g) => g.title === "Boys/Men · Under 15");
@@ -68,7 +71,11 @@ describe("shapeResults — grouping and ranking", () => {
   });
 
   it("shows each athlete's run points, swim points and total", () => {
-    const [group] = shapeResults([athlete("A", "02:45.00", "01:13.00")], table);
+    const [group] = shapeResults(
+      [athlete("A", "02:45.00", "01:13.00")],
+      table,
+      50,
+    );
     expect(group.ranked[0]).toMatchObject({
       run_time: "02:45.00",
       swim_time: "01:13.00",
@@ -86,6 +93,7 @@ describe("shapeResults — grouping and ranking", () => {
         athlete("G15", "02:45.00", "01:13.00", { gender: "F" }),
       ],
       table,
+      50,
     );
     expect(groups.map((g) => g.title)).toEqual([
       "Girls/Ladies · Under 15",
@@ -105,6 +113,7 @@ describe("shapeResults — ties", () => {
         athlete("Dot", "02:47.50", "01:13.00"),
       ],
       table,
+      50,
     );
     expect(group.ranked.map((a) => [a.rank, a.full_name])).toEqual([
       [1, "Bea"],
@@ -124,6 +133,7 @@ describe("shapeResults — who is shown and ranked", () => {
         athlete("Both", "02:47.00", "01:13.00"),
       ],
       table,
+      50,
     );
     expect(group.ranked.map((a) => a.full_name)).toEqual(["Both"]);
     expect(group.unranked.map((a) => a.full_name)).toEqual([
@@ -139,7 +149,7 @@ describe("shapeResults — who is shown and ranked", () => {
   });
 
   it("leaves out an athlete with neither time", () => {
-    const groups = shapeResults([athlete("No show", null, null)], table);
+    const groups = shapeResults([athlete("No show", null, null)], table, 50);
     expect(groups).toEqual([]);
   });
 });
@@ -152,6 +162,7 @@ describe("shapeResults — Unclassified", () => {
         athlete("Normal", "02:45.00", "01:13.00"),
       ],
       table,
+      50,
     );
     expect(groups.map((g) => g.title)).toEqual([
       "Boys/Men · Under 15",
@@ -181,6 +192,7 @@ describe("shapeResults — Unclassified", () => {
     const groups = shapeResults(
       [athlete("Ghost", null, null, { age_group_code: "M80" })],
       table,
+      50,
     );
     expect(groups).toEqual([]);
   });
@@ -188,7 +200,11 @@ describe("shapeResults — Unclassified", () => {
 
 describe("shapeResults — gender and age group on groups", () => {
   it("carries the gender and age group code and label", () => {
-    const [group] = shapeResults([athlete("A", "02:45.00", "01:13.00")], table);
+    const [group] = shapeResults(
+      [athlete("A", "02:45.00", "01:13.00")],
+      table,
+      50,
+    );
     expect(group).toMatchObject({
       gender: "M",
       age_group_code: "U15",
@@ -208,6 +224,7 @@ describe("shapeResults — gender and age group on groups", () => {
         athlete("Girl", "02:45.00", "01:13.00", { gender: "F" }),
       ],
       table,
+      50,
     );
     expect(groups.map((g) => [g.gender, g.title])).toEqual([
       ["F", "Girls/Ladies · Under 15"],
@@ -227,6 +244,7 @@ describe("filterGroups", () => {
       athlete("G15", "02:45.00", "01:13.00", { gender: "F" }),
     ],
     table,
+    50,
   );
 
   it("keeps a gender's groups, including its Unclassified", () => {
@@ -252,6 +270,7 @@ describe("filterGroups", () => {
         athlete("Fast", "02:40.00", "01:10.00"),
       ],
       table,
+      50,
     );
     const [filtered] = filterGroups(all, { gender: "M", ageGroup: "U15" });
     expect(filtered.ranked).toEqual(all[0].ranked);

@@ -1,4 +1,4 @@
-import { computePoints, type PointsRow } from "./points";
+import { computePoints, type PointsRow, type PoolLength } from "./points";
 
 export type Gender = "M" | "F";
 
@@ -58,11 +58,13 @@ const byName = (a: ShapedAthlete, b: ShapedAthlete) =>
  * points. An athlete with neither time did not show up and is left out. An
  * athlete with one time is shown but not ranked, since one component is not
  * comparable with a full total. An athlete the points table has no row for is
- * shown in an Unclassified group, with times and no points.
+ * shown in an Unclassified group, with times and no points. Swim points are
+ * scored for the League's Pool length.
  */
 export function shapeResults(
   athletes: ResultsAthleteRow[],
   pointsTable: ResultsPointsRow[],
+  poolLength: PoolLength,
 ): ResultsGroup[] {
   const rows = new Map(
     pointsTable.map((row) => [`${row.gender}/${row.age_group_code}`, row]),
@@ -85,7 +87,7 @@ export function shapeResults(
 
     const row = rows.get(`${a.gender}/${a.age_group_code}`);
     const points = row
-      ? computePoints(a.run_time, a.swim_time, row)
+      ? computePoints(a.run_time, a.swim_time, row, poolLength)
       : { run: null, swim: null, total: null };
     const key = row
       ? `${row.gender}/${row.age_group_code}`

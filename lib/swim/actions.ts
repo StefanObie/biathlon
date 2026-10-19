@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { leagueAddress, type LeagueRef } from "@/lib/leagues/address";
 import type { Json } from "@/lib/supabase/database.types";
+import type { PoolLength } from "@/lib/results/points";
+import { publishLeagueResults } from "@/lib/results/actions";
 
 export interface SwimResultInput {
   athleteNo: number;
@@ -182,4 +184,25 @@ export async function saveSwimResults(
 
   revalidatePath(leagueAddress(league, "swim"));
   return { saved: rows.length };
+}
+
+/**
+ * Sets the Pool length the League's swim session was held in (#70). It
+ * decides the Short course adjustment, so the results page is refreshed to
+ * rescore the swim points.
+ */
+export async function setPoolLength(
+  league: LeagueRef,
+  poolLength: PoolLength,
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_pool_length", {
+    target_league_id: league.leagueId,
+    length_m: poolLength,
+  });
+  if (error) return { error: error.message };
+
+  await publishLeagueResults(league.leagueId);
+  revalidatePath(leagueAddress(league, "swim"));
+  return {};
 }

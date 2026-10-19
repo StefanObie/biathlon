@@ -44,7 +44,11 @@ async function Results({ params }: { params: Promise<{ slug: string }> }) {
   const results = await getLeagueResults(slug);
   if (!results) notFound();
 
-  const groups = shapeResults(results.athletes, results.points_table);
+  const groups = shapeResults(
+    results.athletes,
+    results.points_table,
+    results.pool_length_m,
+  );
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4">

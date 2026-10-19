@@ -14,6 +14,7 @@ import {
 } from "@/lib/leagues/late-entry";
 import { resultsTag } from "@/lib/results/query";
 import { defaultSlug } from "@/lib/results/slug";
+import { isPoolLength } from "@/lib/results/points";
 
 export interface CreateLeagueState {
   error?: string;
@@ -27,12 +28,16 @@ export async function createLeague(
   const leagueDate = String(formData.get("leagueDate") ?? "").trim();
   const season = Number(formData.get("season"));
   const organizationId = Number(formData.get("organizationId"));
+  const poolLength = Number(formData.get("poolLength"));
 
   if (!Number.isInteger(organizationId) || organizationId <= 0) {
     return { error: "Choose an organization." };
   }
   if (!name || !leagueDate || !Number.isInteger(season)) {
     return { error: "Name, date, and season are all required." };
+  }
+  if (!isPoolLength(poolLength)) {
+    return { error: "Choose a pool length of 25 m or 50 m." };
   }
 
   const supabase = await createClient();
@@ -61,6 +66,7 @@ export async function createLeague(
         organization_id: organizationId,
         visibility: "public",
         results_slug: slug,
+        pool_length_m: poolLength,
       })
       .select("id")
       .single();

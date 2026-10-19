@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { canUse } from "@/lib/access/roles";
 import { getLeagueAccess } from "@/lib/access/league-access";
 import { NoAccess } from "@/components/leagues/no-access";
+import { PoolLengthSetting } from "@/components/leagues/pool-length-setting";
+import type { PoolLength } from "@/lib/results/points";
 import {
   SwimImport,
   type ExistingSwimResult,
@@ -61,7 +63,11 @@ async function SwimImportSection({
       .from("swim_result")
       .select("athlete_no, swim_time, status, source")
       .eq("league_id", leagueIdNum),
-    supabase.from("league").select("name").eq("id", leagueIdNum).maybeSingle(),
+    supabase
+      .from("league")
+      .select("name, pool_length_m")
+      .eq("id", leagueIdNum)
+      .maybeSingle(),
   ]);
 
   if (entriesError) {
@@ -75,21 +81,28 @@ async function SwimImportSection({
     swimLane: entry.swim_lane,
   }));
 
-  if (roster.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        No athletes in this league yet — import a start list first.
-      </p>
-    );
-  }
-
   return (
-    <SwimImport
-      organizationId={organizationIdNum}
-      leagueId={leagueIdNum}
-      leagueName={league?.name ?? `League ${leagueIdNum}`}
-      roster={roster}
-      existing={(existing ?? []) as ExistingSwimResult[]}
-    />
+    <div className="flex flex-col gap-6">
+      {league && (
+        <PoolLengthSetting
+          organizationId={organizationIdNum}
+          leagueId={leagueIdNum}
+          poolLength={league.pool_length_m as PoolLength}
+        />
+      )}
+      {roster.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No athletes in this league yet — import a start list first.
+        </p>
+      ) : (
+        <SwimImport
+          organizationId={organizationIdNum}
+          leagueId={leagueIdNum}
+          leagueName={league?.name ?? `League ${leagueIdNum}`}
+          roster={roster}
+          existing={(existing ?? []) as ExistingSwimResult[]}
+        />
+      )}
+    </div>
   );
 }

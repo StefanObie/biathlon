@@ -6,7 +6,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(37);
+select plan(41);
 
 -- Fixtures, written as the table owner so RLS doesn't apply.
 
@@ -41,11 +41,11 @@ select is(
   'a colliding default slug gets a counter'
 );
 
-insert into league (id, name, league_date, season, organization_id, visibility, results_slug)
+insert into league (id, name, league_date, season, organization_id, visibility, results_slug, pool_length_m)
 overriding system value values
-  (953, 'Protected One', '2027-02-01', 2027, 951, 'protected', 'Abcdefghijklmnopqrstuv_-XYZ'),
-  (954, 'Private One', '2027-02-08', 2027, 951, 'private', null),
-  (955, 'Org B League', '2027-02-15', 2027, 952, 'public', 'org-b-league');
+  (953, 'Protected One', '2027-02-01', 2027, 951, 'protected', 'Abcdefghijklmnopqrstuv_-XYZ', 50),
+  (954, 'Private One', '2027-02-08', 2027, 951, 'private', null, 25),
+  (955, 'Org B League', '2027-02-15', 2027, 952, 'public', 'org-b-league', 25);
 
 insert into athlete (organization_id, athlete_no, full_name, gender) values
   (951, 1, 'Closed Athlete', 'M'),
@@ -56,16 +56,18 @@ insert into athlete (organization_id, athlete_no, full_name, gender) values
 insert into points_table (
   effective_from, gender, age_group_code, age_group_label, sort_order, age_from, age_to,
   run_distance_m, run_base_time, run_points_per_second,
-  swim_distance_m, swim_base_time, swim_points_per_second, bonus_points_per_year
-) values ('1900-01-01', 'M', 'TST', 'Test', 1, 0, 99, 1000, '05:00.00', 1, 100, '01:00.00', 1, 0)
+  swim_distance_m, swim_base_time, swim_points_per_second, bonus_points_per_year,
+  short_course_seconds_per_turn
+) values ('1900-01-01', 'M', 'TST', 'Test', 1, 0, 99, 1000, '05:00.00', 1, 100, '01:00.00', 1, 0, 0.8)
 on conflict do nothing;
 
 -- A later season's table must not rescore a League that came before it.
 insert into points_table (
   effective_from, gender, age_group_code, age_group_label, sort_order, age_from, age_to,
   run_distance_m, run_base_time, run_points_per_second,
-  swim_distance_m, swim_base_time, swim_points_per_second, bonus_points_per_year
-) values ('2028-01-01', 'M', 'TST', 'Test 2028', 1, 0, 99, 1000, '05:00.00', 1, 100, '01:00.00', 1, 0);
+  swim_distance_m, swim_base_time, swim_points_per_second, bonus_points_per_year,
+  short_course_seconds_per_turn
+) values ('2028-01-01', 'M', 'TST', 'Test 2028', 1, 0, 99, 1000, '05:00.00', 1, 100, '01:00.00', 1, 0, 0.8);
 
 insert into entry (league_id, athlete_no, run_heat, swim_heat, swim_lane, age_group_code) values
   (951, 1, 1, 1, 1, 'U13'),
@@ -193,6 +195,30 @@ select is(
    where p ->> 'gender' = 'F' and p ->> 'age_group_code' = 'U13'),
   '10',
   'Public: U/13 swims score 10 points a second'
+);
+select is(
+  (select public.league_results('crossland-gnb-league-1') ->> 'pool_length_m'),
+  '25',
+  'Public: a League swims in a 25 m pool unless told otherwise (#70)'
+);
+select is(
+  (select public.league_results('Abcdefghijklmnopqrstuv_-XYZ') ->> 'pool_length_m'),
+  '50',
+  'Protected: returns the League''s own Pool length'
+);
+select is(
+  (select p ->> 'swim_distance_m'
+   from jsonb_array_elements(public.league_results('crossland-gnb-league-1') -> 'points_table') p
+   where p ->> 'gender' = 'F' and p ->> 'age_group_code' = 'U13'),
+  '50',
+  'Public: returns the swim distance, which decides the turns'
+);
+select is(
+  (select p ->> 'short_course_seconds_per_turn'
+   from jsonb_array_elements(public.league_results('crossland-gnb-league-1') -> 'points_table') p
+   where p ->> 'gender' = 'F' and p ->> 'age_group_code' = 'U13'),
+  '0.8',
+  'Public: the 2027 season adds 0.8 s per extra turn in a 25 m pool'
 );
 select is(
   (select public.league_results('Abcdefghijklmnopqrstuv_-XYZ') ->> 'visibility'),
