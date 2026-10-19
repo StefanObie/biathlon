@@ -56,6 +56,7 @@ async function PositionHeatSection({
     { data: captures },
     { data: leagueRace, error: leagueRaceError },
     { data: organizationAthletes, error: athletesError },
+    { data: checkIns, error: checkInsError },
   ] = await Promise.all([
     // Whole league, not just this heat: an operator can log an athlete who
     // ran in the wrong heat (confirmed on the capture screen) — reassigning
@@ -81,6 +82,11 @@ async function PositionHeatSection({
     // Any athlete of the Organization can be captured (a Late entry is made
     // for them in reconciliation), so the lookup has them all for offline.
     loadOrganizationAthletes(supabase, organizationIdNum),
+    // Shown as advice; an athlete Not checked in is captured as usual.
+    supabase
+      .from("call_room_check_in")
+      .select("athlete_no, run_heat")
+      .eq("league_id", leagueIdNum),
   ]);
 
   if (entriesError) {
@@ -88,6 +94,9 @@ async function PositionHeatSection({
   }
   if (athletesError) {
     return <p className="text-sm text-destructive">{athletesError.message}</p>;
+  }
+  if (checkInsError) {
+    return <p className="text-sm text-destructive">{checkInsError.message}</p>;
   }
 
   const leagueRoster = (leagueEntries ?? []).map((e) => ({
@@ -118,6 +127,10 @@ async function PositionHeatSection({
       leagueRoster={leagueRoster}
       athletes={organizationAthletes}
       remoteCaptures={captures ?? []}
+      remoteCheckIns={(checkIns ?? []).map((c) => ({
+        athleteNo: c.athlete_no,
+        runHeat: c.run_heat,
+      }))}
       remoteHeatClosed={leagueRaceError ? undefined : toHeatClosed(leagueRace)}
     />
   );

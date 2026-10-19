@@ -26,6 +26,9 @@ import {
 import { HeatContextBar } from "@/components/leagues/heat-context-bar";
 import type { HeatMode } from "@/lib/access/roles";
 import { FinishedCount } from "@/components/capture/finished-count";
+import { CheckedInCount } from "@/components/call-room/checked-in-count";
+import { useCheckIns } from "@/components/call-room/use-check-ins";
+import type { CheckInFacts } from "@/lib/call-room/call-room";
 import { OperatorNotes } from "@/components/capture/operator-notes";
 import { HeatBanner } from "@/components/capture/heat-banner";
 import { HeatClosedNotice } from "@/components/capture/heat-closed-notice";
@@ -74,6 +77,8 @@ export function TimeCapture({
   modes,
   heats,
   rosterSize,
+  rosterAthleteNos,
+  remoteCheckIns,
   remoteCaptures,
   remoteLeagueRace,
   remoteHeatClosed,
@@ -85,6 +90,10 @@ export function TimeCapture({
   modes: HeatMode[];
   heats: number[];
   rosterSize: number;
+  /** This heat's roster, for the Call room's "Checked in 14 / 20". */
+  rosterAthleteNos: number[];
+  /** The League's run check-ins. */
+  remoteCheckIns: CheckInFacts[];
   remoteCaptures: RemoteTimeCapture[];
   remoteLeagueRace: RemoteLeagueRace | null;
   /** Undefined when the page couldn't read it; the phone's copy is used. */
@@ -102,6 +111,15 @@ export function TimeCapture({
   const [pendingUndo, setPendingUndo] = useState<LocalTimeCapture | null>(null);
   const startedAtMsRef = useRef<number | null>(null);
   const { closed } = useHeatClosed(leagueId, runHeat, remoteHeatClosed);
+  const { checkIns } = useCheckIns(leagueId, remoteCheckIns);
+  // A League that doesn't use the Call room shows no count at all.
+  const checkedIn =
+    checkIns.length === 0
+      ? null
+      : checkIns.filter(
+          (c) =>
+            c.runHeat === runHeat && rosterAthleteNos.includes(c.athleteNo),
+        ).length;
 
   // Load Dexie rows first (unsynced local state wins on conflict with the
   // server snapshot passed down from the page — same id, local is either
@@ -294,6 +312,9 @@ export function TimeCapture({
           overRoster={overRoster}
           className="mt-2"
         />
+        {checkedIn !== null && (
+          <CheckedInCount checkedIn={checkedIn} rosterSize={rosterSize} />
+        )}
       </div>
 
       {locked && <HeatClosedNotice />}

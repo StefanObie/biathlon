@@ -55,8 +55,12 @@ async function TimerHeatSection({
     { data: entries, error: entriesError },
     { data: captures },
     { data: leagueRace, error: leagueRaceError },
+    { data: checkIns, error: checkInsError },
   ] = await Promise.all([
-    supabase.from("entry").select("run_heat").eq("league_id", leagueIdNum),
+    supabase
+      .from("entry")
+      .select("athlete_no, run_heat")
+      .eq("league_id", leagueIdNum),
     supabase
       .from("time_capture")
       .select(
@@ -71,11 +75,15 @@ async function TimerHeatSection({
       .eq("league_id", leagueIdNum)
       .eq("run_heat", runHeatNum)
       .maybeSingle(),
+    // Shown as advice beside the finished count; never limits a capture.
+    supabase
+      .from("call_room_check_in")
+      .select("athlete_no, run_heat")
+      .eq("league_id", leagueIdNum),
   ]);
 
-  if (entriesError) {
-    return <p className="text-sm text-destructive">{entriesError.message}</p>;
-  }
+  const error = entriesError ?? checkInsError;
+  if (error) return <p className="text-sm text-destructive">{error.message}</p>;
 
   const heats = [...new Set((entries ?? []).map((e) => e.run_heat))];
   const rosterSize = heatRosterSize(
@@ -99,6 +107,13 @@ async function TimerHeatSection({
       modes={heatModes(access)}
       heats={heats}
       rosterSize={rosterSize}
+      rosterAthleteNos={(entries ?? [])
+        .filter((e) => e.run_heat === runHeatNum)
+        .map((e) => e.athlete_no)}
+      remoteCheckIns={(checkIns ?? []).map((c) => ({
+        athleteNo: c.athlete_no,
+        runHeat: c.run_heat,
+      }))}
       remoteCaptures={captures ?? []}
       remoteLeagueRace={
         leagueRace

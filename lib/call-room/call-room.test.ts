@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   callRoomState,
+  captureCheckIns,
   checkIn,
   checkInMessage,
   needsConfirm,
@@ -129,5 +130,54 @@ describe("callRoomState", () => {
     expect(state.checkedIn).toBe(1);
     expect(state.rosterSize).toBe(2);
     expect(state.fromOtherHeats).toBe(1);
+  });
+});
+
+describe("captureCheckIns", () => {
+  it("counts the rostered athletes checked in here over the roster size", () => {
+    const state = captureCheckIns(
+      1,
+      entries,
+      [
+        { athleteNo: 123, runHeat: 1 },
+        { athleteNo: 200, runHeat: 2 },
+      ],
+      [],
+    );
+    expect(state.checkedIn).toBe(1);
+    expect(state.rosterSize).toBe(2);
+  });
+
+  it("marks everyone checked in here, including from other heats", () => {
+    const state = captureCheckIns(
+      1,
+      entries,
+      [
+        { athleteNo: 123, runHeat: 1 },
+        { athleteNo: 200, runHeat: 1 },
+        { athleteNo: 124, runHeat: 2 },
+      ],
+      [],
+    );
+    expect([...state.checkedInHere].sort()).toEqual([123, 200]);
+  });
+
+  it("lists who is checked in here but hasn't finished", () => {
+    const state = captureCheckIns(
+      1,
+      entries,
+      [
+        { athleteNo: 123, runHeat: 1 },
+        { athleteNo: 124, runHeat: 1 },
+      ],
+      [123],
+    );
+    expect(state.notFinished.map((e) => e.athleteNo)).toEqual([124]);
+  });
+
+  it("never lists a finisher who was not checked in", () => {
+    const state = captureCheckIns(1, entries, [], [123, 124]);
+    expect(state.notFinished).toEqual([]);
+    expect(state.checkedIn).toBe(0);
   });
 });

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ulid } from "ulid";
+import { CheckIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,9 @@ import {
 } from "@/lib/scan/position";
 import { QrScanner } from "@/components/capture/qr-scanner";
 import { FinishedCount } from "@/components/capture/finished-count";
+import { CheckedInCount } from "@/components/call-room/checked-in-count";
+import { useCheckIns } from "@/components/call-room/use-check-ins";
+import { captureCheckIns, type CheckInFacts } from "@/lib/call-room/call-room";
 import { OperatorNotes } from "@/components/capture/operator-notes";
 import { HeatBanner } from "@/components/capture/heat-banner";
 import { HeatClosedNotice } from "@/components/capture/heat-closed-notice";
@@ -77,6 +81,7 @@ export function PositionCapture({
   leagueRoster,
   athletes,
   remoteCaptures,
+  remoteCheckIns,
   remoteHeatClosed,
 }: {
   organizationId: number;
@@ -89,6 +94,8 @@ export function PositionCapture({
   /** Every athlete of the Organization, so any of them can be captured. */
   athletes: OrganizationAthlete[];
   remoteCaptures: RemoteCapture[];
+  /** The League's run check-ins, shown as advice: they never limit a capture. */
+  remoteCheckIns: CheckInFacts[];
   /** Undefined when the page couldn't read it; the phone's copy is used. */
   remoteHeatClosed: HeatClosed | undefined;
 }) {
@@ -106,6 +113,7 @@ export function PositionCapture({
   // instead of the next one.
   const [armedSkip, setArmedSkip] = useState<LocalPositionCapture | null>(null);
   const { closed } = useHeatClosed(leagueId, runHeat, remoteHeatClosed);
+  const { checkIns } = useCheckIns(leagueId, remoteCheckIns);
   const camera = useCameraSleep();
 
   // Names for the captured list, including athletes not on the Start list.
@@ -164,6 +172,14 @@ export function PositionCapture({
   const rosterSize = heatRosterSize(
     leagueRoster.map((a) => a.runHeat),
     runHeat,
+  );
+  // A League that doesn't use the Call room shows none of it.
+  const usesCallRoom = checkIns.length > 0;
+  const callRoom = captureCheckIns(
+    runHeat,
+    leagueRoster,
+    checkIns,
+    allCaptures.flatMap((c) => (c.athlete_no === null ? [] : [c.athlete_no])),
   );
   const { finished, overRoster, locked } = captureScreenState({
     captures,
@@ -396,23 +412,37 @@ export function PositionCapture({
       </div>
 
       <div className="w-full max-w-sm">
-        <FinishedCount
-          finished={finished}
-          rosterSize={rosterSize}
-          overRoster={overRoster}
-          className="mb-2"
-        />
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <FinishedCount
+            finished={finished}
+            rosterSize={rosterSize}
+            overRoster={overRoster}
+          />
+          {usesCallRoom && (
+            <CheckedInCount
+              checkedIn={callRoom.checkedIn}
+              rosterSize={rosterSize}
+            />
+          )}
+        </div>
         <ul className="flex flex-col gap-1">
           {allCaptures.map((c) => (
             <li
               key={c.id}
               className="flex items-center justify-between rounded-md border border-input px-3 py-2 text-sm"
             >
-              <span className="tabular-nums">
+              <span className="flex items-center gap-2 tabular-nums">
                 #{c.position}{" "}
                 {c.athlete_no
                   ? `${c.athlete_no} ${nameByNo.get(c.athlete_no) ?? ""}`
                   : "skip"}
+                {c.athlete_no !== null &&
+                  callRoom.checkedInHere.has(c.athlete_no) && (
+                    <CheckIcon
+                      className="h-4 w-4 text-green-600"
+                      aria-label="Checked in"
+                    />
+                  )}
               </span>
               <RowActionButton
                 action={positionRowAction(captures, c)}
@@ -429,6 +459,24 @@ export function PositionCapture({
           )}
         </ul>
       </div>
+
+      {usesCallRoom && callRoom.notFinished.length > 0 && (
+        <div className="w-full max-w-sm">
+          <p className="mb-2 text-sm font-medium text-muted-foreground">
+            Checked in, not finished ({callRoom.notFinished.length})
+          </p>
+          <ul className="flex flex-wrap gap-1">
+            {callRoom.notFinished.map((a) => (
+              <li
+                key={a.athleteNo}
+                className="rounded-md border border-input px-2 py-1 text-sm tabular-nums"
+              >
+                #{a.athleteNo} {a.fullName}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <OperatorNotes
         leagueId={leagueId}

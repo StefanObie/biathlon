@@ -140,3 +140,35 @@ export function callRoomState(
     fromOtherHeats: [...here].filter((no) => !rostered.has(no)).length,
   };
 }
+
+export interface CaptureCheckIns {
+  /** Athletes Checked in at this heat, rostered here or not. */
+  checkedInHere: Set<number>;
+  /** Rostered athletes Checked in at this heat, for "Checked in 14 / 20". */
+  checkedIn: number;
+  rosterSize: number;
+  /** Checked in at this heat but not yet finished, by athlete number. */
+  notFinished: CallRoomEntry[];
+}
+
+/**
+ * What the Capture screens show of the Call room: who is Checked in at the
+ * heat, and who of them hasn't finished. Advice only, like every check-in:
+ * an athlete who was Not checked in is still captured as usual.
+ */
+export function captureCheckIns(
+  runHeat: number,
+  entries: readonly CallRoomEntry[],
+  checkIns: readonly CheckInFacts[],
+  finishedAthleteNos: Iterable<number>,
+): CaptureCheckIns {
+  const { checkedIn, rosterSize } = callRoomState(runHeat, entries, checkIns);
+  const checkedInHere = new Set(
+    checkIns.filter((c) => c.runHeat === runHeat).map((c) => c.athleteNo),
+  );
+  const finished = new Set(finishedAthleteNos);
+  const notFinished = entries
+    .filter((e) => checkedInHere.has(e.athleteNo) && !finished.has(e.athleteNo))
+    .sort((a, b) => a.athleteNo - b.athleteNo);
+  return { checkedInHere, checkedIn, rosterSize, notFinished };
+}
