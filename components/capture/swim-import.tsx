@@ -76,6 +76,7 @@ import {
 import {
   autoSavePlan,
   carryOverReview,
+  type Review,
   type SavedSwimResult,
 } from "@/lib/swim/auto-save";
 
@@ -151,10 +152,12 @@ type Polling = PollingStatus & {
   /** The file as last read by a poll or a save, so an unchanged one is skipped. */
   lastRead: LastRead;
   /**
-   * Rows the Official removed from the Drive review they last saved. A
-   * poll neither saves nor holds them, so a removed test heat stays out.
+   * What the Official did to the Drive review they last saved: the rows
+   * they removed and the rows they edited. A poll neither saves nor holds
+   * a removed row, so a removed test heat stays out, and an edited row
+   * keeps their edit, so a swim they reassigned isn't held again.
    */
-  removedRows: ResolvedSwimRow[];
+  savedReview: Review;
 };
 
 /** What a re-import would do to a row that is already saved (Q7). */
@@ -178,7 +181,7 @@ export function SwimImport({
   /**
    * Rows the Official took out of this review, such as a test heat swum
    * before the session. They're never saved, and a fresh fetch or upload
-   * brings them back. Polls keep them out (see Polling.removedRows).
+   * brings them back. Polls keep them out (see Polling.savedReview).
    */
   const [removed, setRemoved] = useState<ReadonlySet<string>>(new Set());
   const [parseError, setParseError] = useState<string | null>(null);
@@ -384,7 +387,10 @@ export function SwimImport({
           lastCheckedAt: prev?.lastCheckedAt ?? drive.fetchedAt,
           lastChange: drive.modifiedTime,
           autoSaved: prev?.autoSaved ?? 0,
-          removedRows: rows.filter((row) => removed.has(row.localId)),
+          savedReview: {
+            rows: rows.filter((row) => row.edited || removed.has(row.localId)),
+            removed,
+          },
         }));
       }
       setStage({ name: "idle" });
@@ -494,17 +500,12 @@ export function SwimImport({
 
   /**
    * A polled file's review, keeping the Official's work on an open one, or
-   * else the rows they removed from the last Drive review they saved.
+   * else on the last Drive review they saved.
    */
   const rebuiltReview = (next: ResolvedSwimRow[]) => {
-    const removedRows = polling?.removedRows ?? [];
+    const empty: Review = { rows: [], removed: new Set() };
     return carryOverReview(
-      openDriveReview()
-        ? { rows, removed }
-        : {
-            rows: removedRows,
-            removed: new Set(removedRows.map((row) => row.localId)),
-          },
+      openDriveReview() ? { rows, removed } : (polling?.savedReview ?? empty),
       next,
     );
   };
