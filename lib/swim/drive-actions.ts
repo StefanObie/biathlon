@@ -18,8 +18,10 @@ import {
   findLeagueFolder,
   leagueFolderName,
   pickResultsFile,
+  type DriveFile,
   type DriveItem,
 } from "@/lib/swim/drive-folder";
+import type { DriveOrigin } from "@/lib/swim/actions";
 
 export type FetchSwimResultsState =
   | {
@@ -43,6 +45,13 @@ export type FetchProblem = Exclude<
   { status: "fetched" }
 >;
 
+/** A poll (#77) also learns when the file hasn't changed since last read. */
+export type PollSwimResultsState =
+  FetchSwimResultsState | { status: "unchanged" };
+
+/** The Swim results file as it was last read. */
+export type LastRead = Pick<DriveOrigin, "fileId" | "modifiedTime">;
+
 /**
  * Reads the League's Swim results file from Drive (#71), for the review
  * table to resolve exactly as it does an uploaded file. Nothing is saved:
@@ -55,46 +64,84 @@ export type FetchProblem = Exclude<
 export async function fetchSwimResultsFile(
   league: LeagueRef,
 ): Promise<FetchSwimResultsState> {
+  try {
+    const leagueFolder = await findLeagueFolderFor(league);
+    if ("status" in leagueFolder) return leagueFolder;
+    return await readResultsFile(
+      leagueFolder,
+      pickResultsFile(await listFiles(leagueFolder.id)),
+    );
+  } catch (error) {
+    return driveFailure(error);
+  }
+}
+
+/**
+ * Fetches the Swim results file for a poll (#77): as a fetch does, but the
+ * file isn't downloaded when it's the one last read and Drive says it
+ * hasn't been modified since.
+ */
+export async function pollSwimResultsFile(
+  league: LeagueRef,
+  lastRead: LastRead,
+): Promise<PollSwimResultsState> {
+  try {
+    const leagueFolder = await findLeagueFolderFor(league);
+    if ("status" in leagueFolder) return leagueFolder;
+    const file = pickResultsFile(await listFiles(leagueFolder.id));
+    if (
+      file?.id === lastRead.fileId &&
+      file.modifiedTime === lastRead.modifiedTime
+    ) {
+      return { status: "unchanged" };
+    }
+    return await readResultsFile(leagueFolder, file);
+  } catch (error) {
+    return driveFailure(error);
+  }
+}
+
+/**
+ * The League folder, found by name or remembered. Not finding it is a
+ * problem for the Official; a Drive failure is thrown.
+ */
+async function findLeagueFolderFor(
+  league: LeagueRef,
+): Promise<DriveItem | FetchProblem> {
   const context = await swimFolderContext(league);
   if ("status" in context) return context;
   const { supabase, swimFolderId, leagueName, leagueDate } = context;
 
-  try {
-    const { data: remembered } = await supabase
-      .from("league_folder")
-      .select("drive_folder_id")
-      .eq("league_id", league.leagueId)
-      .maybeSingle();
+  const { data: remembered } = await supabase
+    .from("league_folder")
+    .select("drive_folder_id")
+    .eq("league_id", league.leagueId)
+    .maybeSingle();
 
-    let leagueFolder: DriveItem | null = null;
-    if (remembered) {
-      const info = await folderInfo(remembered.drive_folder_id).catch(
-        () => null,
-      );
-      // A folder moved out of, or never in, the Swim folder is forgotten
-      // and found again by name.
-      if (info?.parents.includes(swimFolderId)) {
-        leagueFolder = { id: remembered.drive_folder_id, name: info.name };
-      }
+  let leagueFolder: DriveItem | null = null;
+  if (remembered) {
+    const info = await folderInfo(remembered.drive_folder_id).catch(() => null);
+    // A folder moved out of, or never in, the Swim folder is forgotten
+    // and found again by name.
+    if (info?.parents.includes(swimFolderId)) {
+      leagueFolder = { id: remembered.drive_folder_id, name: info.name };
     }
-
-    if (!leagueFolder) {
-      const folders = await listFolders(swimFolderId);
-      leagueFolder = findLeagueFolder(folders, leagueName, leagueDate);
-      if (!leagueFolder) {
-        return {
-          status: "pick-folder",
-          expectedName: leagueFolderName(leagueName, leagueDate),
-          folders: folders.sort((a, b) => a.name.localeCompare(b.name)),
-        };
-      }
-      await rememberLeagueFolder(supabase, league.leagueId, leagueFolder.id);
-    }
-
-    return await readResultsFile(leagueFolder);
-  } catch (error) {
-    return driveFailure(error);
   }
+
+  if (!leagueFolder) {
+    const folders = await listFolders(swimFolderId);
+    leagueFolder = findLeagueFolder(folders, leagueName, leagueDate);
+    if (!leagueFolder) {
+      return {
+        status: "pick-folder",
+        expectedName: leagueFolderName(leagueName, leagueDate),
+        folders: folders.sort((a, b) => a.name.localeCompare(b.name)),
+      };
+    }
+    await rememberLeagueFolder(supabase, league.leagueId, leagueFolder.id);
+  }
+
+  return leagueFolder;
 }
 
 /**
@@ -119,7 +166,10 @@ export async function chooseLeagueFolder(
       };
     }
     await rememberLeagueFolder(supabase, league.leagueId, folder.id);
-    return await readResultsFile(folder);
+    return await readResultsFile(
+      folder,
+      pickResultsFile(await listFiles(folder.id)),
+    );
   } catch (error) {
     return driveFailure(error);
   }
@@ -250,8 +300,8 @@ async function rememberLeagueFolder(
 
 async function readResultsFile(
   leagueFolder: DriveItem,
+  file: DriveFile | null,
 ): Promise<FetchSwimResultsState> {
-  const file = pickResultsFile(await listFiles(leagueFolder.id));
   if (!file) return { status: "no-file", leagueFolder };
   const text = await downloadText(file.id);
   return {

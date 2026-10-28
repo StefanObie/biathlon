@@ -15,18 +15,41 @@ import {
 } from "@/components/ui/select";
 import type { FetchProblem } from "@/lib/swim/drive-actions";
 
+/** Polling the Swim results file after a save from Drive (#77). Times are ISO. */
+export interface PollingStatus {
+  until: string;
+  lastCheckedAt: string;
+  /** When Drive last saw the file modified. */
+  lastChange: string;
+  /** Rows saved automatically since polling started. */
+  autoSaved: number;
+}
+
+/** "18:42" in the viewer's time zone. */
+function clockTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 /**
  * Fetching the Swim results file from the Organization's Swim folder (#71):
  * the button, and whatever the last fetch needs from the Official next.
  */
 export function SwimDriveFetch({
   state,
+  polling,
+  onStopPolling,
   isFetching,
   onFetch,
   onChooseFolder,
 }: {
   /** The last fetch that didn't produce a file, or null before any. */
   state: FetchProblem | null;
+  /** Null when not polling. */
+  polling: PollingStatus | null;
+  onStopPolling: () => void;
   isFetching: boolean;
   onFetch: () => void;
   onChooseFolder: (folderId: string) => void;
@@ -38,10 +61,24 @@ export function SwimDriveFetch({
       <div className="flex flex-col gap-1">
         <p className="font-medium">Fetch from Drive</p>
         <p className="text-sm text-muted-foreground">
-          Reads the newest swim results file in this league&apos;s folder.
-          Nothing is saved until you confirm.
+          {polling
+            ? `Checking for new results every 5 minutes until ${clockTime(polling.until)}. New and changed times that match the start list are saved automatically; anything else waits for you below.`
+            : "Reads the newest swim results file in this league's folder. Nothing is saved until you confirm."}
         </p>
       </div>
+
+      {polling && (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm tabular-nums">
+            Last checked {clockTime(polling.lastCheckedAt)} · last change{" "}
+            {clockTime(polling.lastChange)} · {polling.autoSaved}{" "}
+            {polling.autoSaved === 1 ? "row" : "rows"} saved automatically
+          </p>
+          <Button variant="outline" size="sm" onClick={onStopPolling}>
+            Stop polling
+          </Button>
+        </div>
+      )}
 
       {state?.status === "no-swim-folder" && (
         <p className="text-sm text-muted-foreground">
