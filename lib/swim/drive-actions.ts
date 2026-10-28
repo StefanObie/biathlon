@@ -17,11 +17,11 @@ import {
   driveFolderId,
   findLeagueFolder,
   leagueFolderName,
-  pickResultsFile,
-  type DriveFile,
+  resultsFileCandidates,
   type DriveItem,
 } from "@/lib/swim/drive-folder";
 import type { DriveOrigin } from "@/lib/swim/actions";
+import { parseSwimResults } from "@/lib/swim/parse-results";
 
 export type FetchSwimResultsState =
   | {
@@ -35,7 +35,7 @@ export type FetchSwimResultsState =
   | { status: "no-swim-folder" }
   /** No League folder has the League's name: an Official picks one. */
   | { status: "pick-folder"; expectedName: string; folders: DriveItem[] }
-  /** The League folder has no .txt yet. */
+  /** The League folder has no .txt with results in it yet. */
   | { status: "no-file"; leagueFolder: DriveItem }
   | { status: "error"; message: string };
 
@@ -67,10 +67,7 @@ export async function fetchSwimResultsFile(
   try {
     const leagueFolder = await findLeagueFolderFor(league);
     if ("status" in leagueFolder) return leagueFolder;
-    return await readResultsFile(
-      leagueFolder,
-      pickResultsFile(await listFiles(leagueFolder.id)),
-    );
+    return await readResultsFile(leagueFolder);
   } catch (error) {
     return driveFailure(error);
   }
@@ -88,14 +85,7 @@ export async function pollSwimResultsFile(
   try {
     const leagueFolder = await findLeagueFolderFor(league);
     if ("status" in leagueFolder) return leagueFolder;
-    const file = pickResultsFile(await listFiles(leagueFolder.id));
-    if (
-      file?.id === lastRead.fileId &&
-      file.modifiedTime === lastRead.modifiedTime
-    ) {
-      return { status: "unchanged" };
-    }
-    return await readResultsFile(leagueFolder, file);
+    return await readResultsFile(leagueFolder, lastRead);
   } catch (error) {
     return driveFailure(error);
   }
@@ -166,10 +156,7 @@ export async function chooseLeagueFolder(
       };
     }
     await rememberLeagueFolder(supabase, league.leagueId, folder.id);
-    return await readResultsFile(
-      folder,
-      pickResultsFile(await listFiles(folder.id)),
-    );
+    return await readResultsFile(folder);
   } catch (error) {
     return driveFailure(error);
   }
@@ -298,23 +285,44 @@ async function rememberLeagueFolder(
   if (error) console.error("swim: remember league folder", error);
 }
 
+/**
+ * The newest .txt in the League folder that has result blocks, skipping
+ * the empty stubs Time Drops leaves when its console starts. For a poll,
+ * reaching the file last read unmodified means nothing has changed.
+ */
 async function readResultsFile(
   leagueFolder: DriveItem,
-  file: DriveFile | null,
-): Promise<FetchSwimResultsState> {
-  if (!file) return { status: "no-file", leagueFolder };
-  const text = await downloadText(file.id);
-  return {
-    status: "fetched",
-    leagueFolder: { id: leagueFolder.id, name: leagueFolder.name },
-    file: {
-      id: file.id,
-      name: file.name,
-      modifiedTime: file.modifiedTime,
-      text,
-    },
-    fetchedAt: new Date().toISOString(),
-  };
+): Promise<FetchSwimResultsState>;
+async function readResultsFile(
+  leagueFolder: DriveItem,
+  lastRead: LastRead,
+): Promise<PollSwimResultsState>;
+async function readResultsFile(
+  leagueFolder: DriveItem,
+  lastRead?: LastRead,
+): Promise<PollSwimResultsState> {
+  for (const file of resultsFileCandidates(await listFiles(leagueFolder.id))) {
+    if (
+      file.id === lastRead?.fileId &&
+      file.modifiedTime === lastRead.modifiedTime
+    ) {
+      return { status: "unchanged" };
+    }
+    const text = await downloadText(file.id);
+    if (parseSwimResults(text).length === 0) continue;
+    return {
+      status: "fetched",
+      leagueFolder: { id: leagueFolder.id, name: leagueFolder.name },
+      file: {
+        id: file.id,
+        name: file.name,
+        modifiedTime: file.modifiedTime,
+        text,
+      },
+      fetchedAt: new Date().toISOString(),
+    };
+  }
+  return { status: "no-file", leagueFolder };
 }
 
 function driveFailure(error: unknown): { status: "error"; message: string } {

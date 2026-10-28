@@ -4,7 +4,7 @@ import {
   driveFolderId,
   findLeagueFolder,
   leagueFolderName,
-  pickResultsFile,
+  resultsFileCandidates,
 } from "@/lib/swim/drive-folder";
 
 describe("leagueFolderName", () => {
@@ -56,39 +56,42 @@ describe("findLeagueFolder", () => {
   });
 });
 
-describe("pickResultsFile", () => {
+describe("resultsFileCandidates", () => {
   const file = (name: string, modifiedTime: string) => ({
     id: name,
     name,
     modifiedTime,
   });
 
-  it("takes the only .txt", () => {
+  it("takes only .txt files", () => {
     expect(
-      pickResultsFile([
+      resultsFileCandidates([
         file("heat-1-times.csv", "2026-10-06T18:00:00Z"),
         file(
           "2026-10-06-League-3-Session-1-results.txt",
           "2026-10-06T17:00:00Z",
         ),
-      ])?.name,
-    ).toBe("2026-10-06-League-3-Session-1-results.txt");
+      ]).map((f) => f.name),
+    ).toEqual(["2026-10-06-League-3-Session-1-results.txt"]);
   });
 
-  it("takes the most recently modified .txt when there are several", () => {
+  it("puts the most recently modified .txt first", () => {
+    // Time Drops leaves a stub "--results.txt" each time its console
+    // starts, so the newest .txt isn't always the results: the caller
+    // reads them in this order until one has result blocks.
     expect(
-      pickResultsFile([
+      resultsFileCandidates([
         file("old.txt", "2026-10-06T17:00:00Z"),
         file("new.TXT", "2026-10-06T19:00:00Z"),
         file("middle.txt", "2026-10-06T18:00:00Z"),
-      ])?.name,
-    ).toBe("new.TXT");
+      ]).map((f) => f.name),
+    ).toEqual(["new.TXT", "middle.txt", "old.txt"]);
   });
 
   it("finds nothing when there is no .txt", () => {
     expect(
-      pickResultsFile([file("heat-1.csv", "2026-10-06T17:00:00Z")]),
-    ).toBeNull();
+      resultsFileCandidates([file("heat-1.csv", "2026-10-06T17:00:00Z")]),
+    ).toEqual([]);
   });
 });
 
