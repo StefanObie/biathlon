@@ -1,19 +1,20 @@
 -- The Medals screen (#76): league_medals and medal_presentation.
 --
 -- Organization 961 runs Private League 961 with heat 1 (Closed) and heat 2
--- (open). Its team has an Official and a Placer. Organization 962 has one
+-- (open). It has an Admin, and its team has an Official and a Placer. Organization 962 has one
 -- Admin.
 
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(14);
+select plan(15);
 
 -- Fixtures, written as the table owner so RLS doesn't apply.
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000000f1', 'official@medals.test'),
   ('00000000-0000-0000-0000-0000000000d1', 'placer@medals.test'),
+  ('00000000-0000-0000-0000-00000000000a', 'admin@medals.test'),
   ('00000000-0000-0000-0000-00000000000b', 'other-admin@medals.test');
 
 insert into organization (id, name) overriding system value values
@@ -23,6 +24,7 @@ insert into organization (id, name) overriding system value values
 insert into organization_member (organization_id, user_id, is_admin) values
   (961, '00000000-0000-0000-0000-0000000000f1', false),
   (961, '00000000-0000-0000-0000-0000000000d1', false),
+  (961, '00000000-0000-0000-0000-00000000000a', true),
   (962, '00000000-0000-0000-0000-00000000000b', true);
 
 insert into league (id, name, league_date, season, organization_id, visibility, results_slug)
@@ -82,21 +84,31 @@ select ok(
 );
 
 select lives_ok(
-  $$ insert into medal_presentation (league_id, gender, age_group_code, podium)
-     values (961, 'M', 'U13', '[{"athlete_no": 1, "medal_place": 1}]') $$,
+  $$ insert into medal_presentation (league_id, gender, age_group_code, podium, presented_by, presented_at)
+     values (961, 'M', 'U13', '[{"athlete_no": 1, "medal_place": 1}]',
+       '00000000-0000-0000-0000-0000000000d1', '2000-01-01') $$,
   'an Official marks a group''s medals presented'
 );
 select is(
-  (select presented_by from medal_presentation where league_id = 961),
-  '00000000-0000-0000-0000-0000000000f1'::uuid,
-  'the mark records who presented'
+  (select (presented_by, presented_at = now()) from medal_presentation where league_id = 961),
+  ('00000000-0000-0000-0000-0000000000f1'::uuid, true),
+  'the database stamps who presented and when, whatever the client sent'
 );
+
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-00000000000a", "role": "authenticated", "email": "admin@medals.test"}';
+
 select lives_ok(
   $$ update medal_presentation
-     set podium = '[{"athlete_no": 2, "medal_place": 1}]', presented_at = now()
+     set podium = '[{"athlete_no": 2, "medal_place": 1}]'
      where league_id = 961 and gender = 'M' and age_group_code = 'U13' $$,
-  'an Official marks a group again'
+  'an Admin marks a group again'
 );
+select is(
+  (select presented_by from medal_presentation where league_id = 961),
+  '00000000-0000-0000-0000-00000000000a'::uuid,
+  'marking again restamps who presented'
+);
+
 select throws_ok(
   $$ insert into medal_presentation (league_id, gender, age_group_code, podium)
      values (961, 'M', 'U15', '{"athlete_no": 1}') $$,
