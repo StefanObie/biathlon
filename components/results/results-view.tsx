@@ -13,12 +13,13 @@ import { cn } from "@/lib/utils";
 const KEY = "results-breakdown";
 
 // localStorage can throw or be empty (private windows, blocked site data), so
-// the page renders correctly, with the breakdown off, without it.
+// the page renders correctly, with the breakdown on, without it. It stays
+// on unless the viewer has turned it off.
 function readBreakdown(): boolean {
   try {
-    return localStorage.getItem(KEY) === "1";
+    return localStorage.getItem(KEY) !== "0";
   } catch {
-    return false;
+    return true;
   }
 }
 
