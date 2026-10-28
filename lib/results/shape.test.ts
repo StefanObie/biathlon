@@ -148,6 +148,48 @@ describe("shapeResults — who is shown and ranked", () => {
     });
   });
 
+  it("gives athletes with one time a provisional rank by the points they have", () => {
+    const [group] = shapeResults(
+      [
+        athlete("Ann", null, "01:14.00"),
+        athlete("Both", "02:47.00", "01:13.00"),
+        athlete("Zed", "02:40.00", null),
+        athlete("Mia", "02:46.00", null),
+      ],
+      table,
+      50,
+    );
+    expect(
+      group.unranked.map((a) => [a.provisional_rank, a.full_name, a.rank]),
+    ).toEqual([
+      [1, "Zed", null],
+      [2, "Mia", null],
+      [3, "Ann", null],
+    ]);
+    expect(group.ranked[0].provisional_rank).toBeNull();
+  });
+
+  it("shares a provisional rank on equal points and orders the tie by name", () => {
+    const [group] = shapeResults(
+      [
+        athlete("Swimmer", null, "01:13.00"),
+        athlete("Runner", "02:47.00", null),
+        athlete("Fast", "02:40.00", null),
+        athlete("Slow", null, "01:20.00"),
+      ],
+      table,
+      50,
+    );
+    expect(
+      group.unranked.map((a) => [a.provisional_rank, a.full_name]),
+    ).toEqual([
+      [1, "Fast"],
+      [2, "Runner"],
+      [2, "Swimmer"],
+      [4, "Slow"],
+    ]);
+  });
+
   it("leaves out an athlete with neither time", () => {
     const groups = shapeResults([athlete("No show", null, null)], table, 50);
     expect(groups).toEqual([]);
@@ -178,6 +220,7 @@ describe("shapeResults — Unclassified", () => {
     expect(unclassified.unranked).toEqual([
       {
         rank: null,
+        provisional_rank: null,
         full_name: "Stray",
         run_time: "02:45.00",
         swim_time: "01:13.00",

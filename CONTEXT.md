@@ -172,6 +172,10 @@ The Timer screen and the Position screen together. They do not include reconcili
 An athlete's score from a run and a swim: 1000 at the age group's base time, plus or minus a rate for every second faster or slower, per gender and age group. The run and swim components are shown separately and the total adds whichever exist. Swim Points include the Short course adjustment. Age bonus points are not included, so Points are not official SA Biathlon points.
 _Avoid_: Score (when you mean one component)
 
+**Provisional rank**:
+The rank of an athlete who has only a run time or only a swim time, among the others in their group who also have one time, by the Points they have so far. It is shown below the ranked athletes with an asterisk (`*1`, `*2`, …) so it isn't read as a position, and it is never a Medal place.
+_Avoid_: Partial rank, interim rank
+
 **Unclassified**:
 The group on a League's results for athletes whose age group and gender have no row in the points table. They show their times but no Points and no rank.
 

@@ -22,6 +22,11 @@ export interface ResultsPointsRow extends PointsRow {
 export interface ShapedAthlete {
   /** Shared ranks (1, 2, 2, 4). Null when the athlete is not ranked. */
   rank: number | null;
+  /**
+   * An athlete with one time, ranked among the others with one time by the
+   * points they have (*1, *2, …). Null for a ranked or Unclassified athlete.
+   */
+  provisional_rank: number | null;
   full_name: string;
   run_time: string | null;
   swim_time: string | null;
@@ -38,7 +43,10 @@ export interface ResultsGroup {
   age_group_label: string | null;
   /** Athletes with both times, best first. */
   ranked: ShapedAthlete[];
-  /** Athletes with one time, or who the points table can't score. */
+  /**
+   * Athletes with one time, provisionally ranked by the points they have,
+   * then those the points table can't score, by name.
+   */
   unranked: ShapedAthlete[];
 }
 
@@ -52,6 +60,25 @@ const tieKey = (points: number) => Math.round(points * 1e6);
 
 const byName = (a: ShapedAthlete, b: ShapedAthlete) =>
   a.full_name.localeCompare(b.full_name);
+
+/** Best total first, and a tie by name. */
+const byPoints = (a: ShapedAthlete, b: ShapedAthlete) =>
+  tieKey(b.total_points ?? 0) - tieKey(a.total_points ?? 0) || byName(a, b);
+
+/** Shared ranks (1, 2, 2, 4) for athletes already in points order. */
+function sharedRanks(athletes: ShapedAthlete[]): number[] {
+  const ranks: number[] = [];
+  athletes.forEach((a, i) => {
+    const previous = athletes[i - 1];
+    ranks.push(
+      previous &&
+        tieKey(previous.total_points ?? 0) === tieKey(a.total_points ?? 0)
+        ? ranks[i - 1]
+        : i + 1,
+    );
+  });
+  return ranks;
+}
 
 /**
  * Groups published results by age group and gender and ranks each group by
@@ -106,6 +133,7 @@ export function shapeResults(
     };
     group.all.push({
       rank: null,
+      provisional_rank: null,
       full_name: a.full_name,
       run_time: a.run_time,
       swim_time: a.swim_time,
@@ -126,27 +154,27 @@ export function shapeResults(
             a.run_time !== null &&
             a.swim_time !== null,
         )
-        .sort(
-          (a, b) =>
-            tieKey(b.total_points ?? 0) - tieKey(a.total_points ?? 0) ||
-            byName(a, b),
-        );
-      ranked.forEach((a, i) => {
-        const previous = ranked[i - 1];
-        a.rank =
-          previous &&
-          tieKey(previous.total_points ?? 0) === tieKey(a.total_points ?? 0)
-            ? previous.rank
-            : i + 1;
+        .sort(byPoints);
+      sharedRanks(ranked).forEach((rank, i) => {
+        ranked[i].rank = rank;
       });
-      const unranked = all.filter((a) => !ranked.includes(a)).sort(byName);
+      const unranked = all.filter((a) => !ranked.includes(a));
+      const provisional = unranked
+        .filter((a) => a.total_points !== null)
+        .sort(byPoints);
+      sharedRanks(provisional).forEach((rank, i) => {
+        provisional[i].provisional_rank = rank;
+      });
+      const unscored = unranked
+        .filter((a) => a.total_points === null)
+        .sort(byName);
       return {
         title,
         gender,
         age_group_code,
         age_group_label,
         ranked,
-        unranked,
+        unranked: [...provisional, ...unscored],
       };
     });
 }
