@@ -4,6 +4,8 @@ export type Gender = "M" | "F";
 
 /** An athlete's published times, as league_results returns them. */
 export interface ResultsAthleteRow {
+  /** Only for Officials: the public results never return it. */
+  athlete_no?: number;
   full_name: string;
   gender: Gender;
   age_group_code: string;
@@ -27,6 +29,7 @@ export interface ShapedAthlete {
    * points they have (*1, *2, …). Null for a ranked or Unclassified athlete.
    */
   provisional_rank: number | null;
+  athlete_no?: number;
   full_name: string;
   run_time: string | null;
   swim_time: string | null;
@@ -134,6 +137,7 @@ export function shapeResults(
     group.all.push({
       rank: null,
       provisional_rank: null,
+      athlete_no: a.athlete_no,
       full_name: a.full_name,
       run_time: a.run_time,
       swim_time: a.swim_time,

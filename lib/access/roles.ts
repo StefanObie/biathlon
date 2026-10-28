@@ -34,6 +34,7 @@ export type LeagueScreen =
   | "position"
   | "call-room"
   | "reconcile"
+  | "medals"
   | "swim"
   | "export"
   | "team"
@@ -47,6 +48,7 @@ const REQUIRED: Record<LeagueScreen, LeagueRole | "admin"> = {
   position: "placer",
   "call-room": "caller",
   reconcile: "official",
+  medals: "official",
   swim: "official",
   export: "official",
   team: "admin",
@@ -77,17 +79,20 @@ export function heatModes(access: LeagueAccess): HeatMode[] {
   );
 }
 
+export type RaceDayScreen = HeatMode | "medals";
+
 /** The screens used on the day of the race, in the order the League home
  * shows them. */
-export const RACE_DAY_SCREENS: readonly HeatMode[] = [
+export const RACE_DAY_SCREENS: readonly RaceDayScreen[] = [
   "position",
   "call-room",
   "timer",
   "reconcile",
+  "medals",
 ];
 
 /** The Race day screens a Member can use. */
-export function raceDayScreens(access: LeagueAccess): HeatMode[] {
+export function raceDayScreens(access: LeagueAccess): RaceDayScreen[] {
   return RACE_DAY_SCREENS.filter((screen) => canUse(access, screen));
 }
 

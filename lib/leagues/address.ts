@@ -11,6 +11,7 @@ export type HeatScreenAddress =
 
 export type LeagueScreenAddress =
   | HeatScreenAddress
+  | "medals"
   | "start-list"
   | "swim"
   | "export"
@@ -27,6 +28,7 @@ const PATH: Record<LeagueScreenAddress, string> = {
   "call-room-swim": "/call-room/swim",
   timer: "/timer",
   reconcile: "/reconcile",
+  medals: "/medals",
   settings: "/settings",
   "start-list": "/settings/start-list",
   swim: "/settings/swim",
