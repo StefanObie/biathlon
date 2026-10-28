@@ -48,3 +48,5 @@ next-env.d.ts
 /.playwright-cli/
 
 NOTES.md
+scripts/afk-watch.sh
+docs/user_manual.pdf
