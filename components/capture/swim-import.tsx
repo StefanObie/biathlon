@@ -1,6 +1,14 @@
 "use client";
 
-import { Fragment, useMemo, useRef, useState, useTransition } from "react";
+import {
+  Fragment,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { RotateCcwIcon, UploadIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -34,7 +42,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { SwimDriveFetch } from "@/components/capture/swim-drive-fetch";
+import {
+  SwimDriveFetch,
+  type PollingStatus,
+} from "@/components/capture/swim-drive-fetch";
 import {
   AthleteCombobox,
   type AthleteOption,
@@ -48,20 +59,32 @@ import {
   type RosterEntry,
   type SwimRowState,
 } from "@/lib/swim/resolve";
-import { saveSwimResults, type DriveOrigin } from "@/lib/swim/actions";
+import {
+  autoSaveSwimResults,
+  saveSwimResults,
+  type DriveOrigin,
+  type SwimResultInput,
+} from "@/lib/swim/actions";
 import {
   chooseLeagueFolder,
   fetchSwimResultsFile,
+  pollSwimResultsFile,
   type FetchProblem,
   type FetchSwimResultsState,
+  type LastRead,
 } from "@/lib/swim/drive-actions";
+import {
+  autoSavePlan,
+  carryOverReview,
+  type SavedSwimResult,
+} from "@/lib/swim/auto-save";
 
-export interface ExistingSwimResult {
-  athlete_no: number;
-  swim_time: string | null;
-  status: string;
-  source: string;
-}
+export type ExistingSwimResult = SavedSwimResult;
+
+/** How often a poll reads the Swim results file (#77). */
+const POLL_INTERVAL_MS = 5 * 60 * 1000;
+/** How long polling runs after a save from Drive starts or restarts it. */
+const POLL_WINDOW_MS = 2 * 60 * 60 * 1000;
 
 const TIME_PATTERN = /^\d{2}:\d{2}\.\d{2}$/;
 
@@ -102,6 +125,33 @@ function shortTime(iso: string): string {
   });
 }
 
+function toInput(row: ResolvedSwimRow): SwimResultInput {
+  return {
+    athleteNo: row.athleteNo as number,
+    eventNo: row.raw.eventNo,
+    heat: row.raw.heat,
+    lane: row.raw.lane,
+    distanceM: row.raw.distanceM,
+    swimTime: row.status === "ok" ? row.time : null,
+    place: row.raw.place,
+    status: row.status,
+    sourceLine: row.raw.sourceLine,
+    needsReview: row.state === "needs-review",
+    edited: row.edited,
+  };
+}
+
+const lastReadOf = (drive: DriveOrigin): LastRead => ({
+  fileId: drive.fileId,
+  modifiedTime: drive.modifiedTime,
+});
+
+/** Polling after an Official approved a save from Drive (#77). */
+type Polling = PollingStatus & {
+  /** The file as last read by a poll or a save, so an unchanged one is skipped. */
+  lastRead: LastRead;
+};
+
 /** What a re-import would do to a row that is already saved (Q7). */
 type Change = "new" | "updated" | "unchanged" | "overrides-manual";
 
@@ -133,6 +183,7 @@ export function SwimImport({
   const [driveState, setDriveState] = useState<FetchProblem | null>(null);
   const [isFetching, startFetching] = useTransition();
   const [confirmRefetch, setConfirmRefetch] = useState(false);
+  const [polling, setPolling] = useState<Polling | null>(null);
 
   const athleteOptions: AthleteOption[] = useMemo(
     () =>
@@ -305,19 +356,7 @@ export function SwimImport({
       const result = await saveSwimResults(
         { organizationId, leagueId },
         stage.name === "review" ? stage.fileName : "",
-        savableRows.map((row) => ({
-          athleteNo: row.athleteNo as number,
-          eventNo: row.raw.eventNo,
-          heat: row.raw.heat,
-          lane: row.raw.lane,
-          distanceM: row.raw.distanceM,
-          swimTime: row.status === "ok" ? row.time : null,
-          place: row.raw.place,
-          status: row.status,
-          sourceLine: row.raw.sourceLine,
-          needsReview: row.state === "needs-review",
-          edited: row.edited,
-        })),
+        savableRows.map(toInput),
         {
           created: counts.created,
           updated: counts.updated,
@@ -331,10 +370,174 @@ export function SwimImport({
         return;
       }
       setSaved(result.saved ?? 0);
+      // Saving from Drive approves polling it, and restarts its window.
+      const drive = stage.name === "review" ? stage.drive : undefined;
+      if (drive) {
+        setPolling((prev) => ({
+          until: new Date(Date.now() + POLL_WINDOW_MS).toISOString(),
+          lastRead: lastReadOf(drive),
+          lastCheckedAt: prev?.lastCheckedAt ?? drive.fetchedAt,
+          lastChange: drive.modifiedTime,
+          autoSaved: prev?.autoSaved ?? 0,
+        }));
+      }
       setStage({ name: "idle" });
       setRows([]);
     });
   }
+
+  /**
+   * One poll: reads the file if it changed, saves its clean rows, and puts
+   * the rows it held into the review for the Official. A failure is shown
+   * in the Drive panel and the next tick tries again.
+   */
+  const poll = useEffectEvent(async () => {
+    if (!polling || isSaving || isFetching) return;
+
+    const result = await pollSwimResultsFile(
+      { organizationId, leagueId },
+      polling.lastRead,
+    );
+    const checkedAt = new Date().toISOString();
+    const markChecked = () =>
+      setPolling((prev) =>
+        prev ? { ...prev, lastCheckedAt: checkedAt } : prev,
+      );
+
+    if (result.status === "unchanged") {
+      setDriveState(null);
+      markChecked();
+      return;
+    }
+    if (result.status !== "fetched") {
+      setDriveState(result);
+      markChecked();
+      return;
+    }
+
+    const next = resolveSwimRows(parseSwimResults(result.file.text), roster);
+    if (next.length === 0) {
+      setDriveState({
+        status: "error",
+        message:
+          "No result blocks found in the Swim results file on Drive. It's checked again on the next poll.",
+      });
+      markChecked();
+      return;
+    }
+
+    const drive: FetchedFrom = {
+      fileId: result.file.id,
+      modifiedTime: result.file.modifiedTime,
+      leagueFolder: result.leagueFolder.name,
+      fetchedAt: result.fetchedAt,
+    };
+    const plan = planPoll(next);
+    if (!plan) return;
+    let autoSaved = 0;
+    let heldCount = plan.held.length;
+    if (plan.autoSave.length > 0) {
+      const saveResult = await autoSaveSwimResults(
+        { organizationId, leagueId },
+        result.file.name,
+        plan.autoSave.map(toInput),
+        drive,
+      );
+      if (saveResult.fatalError) {
+        setDriveState({ status: "error", message: saveResult.fatalError });
+        markChecked();
+        return;
+      }
+      autoSaved = saveResult.saved ?? 0;
+      heldCount += saveResult.held ?? 0;
+    }
+
+    setDriveState(null);
+    setPolling((prev) =>
+      prev
+        ? {
+            ...prev,
+            lastRead: lastReadOf(drive),
+            lastCheckedAt: checkedAt,
+            lastChange: drive.modifiedTime,
+            autoSaved: prev.autoSaved + autoSaved,
+          }
+        : prev,
+    );
+
+    showPolled(next, heldCount, result.file.name, drive);
+  });
+
+  /**
+   * What a poll saves, read against the saved results and the review as
+   * they are once the file is in, not as they were when the poll began. A
+   * row the Official removed from a Drive review isn't saved, and nothing
+   * is if they stopped polling or are saving.
+   */
+  const planPoll = useEffectEvent((next: ResolvedSwimRow[]) => {
+    if (!polling || isSaving) return null;
+    const review = rebuiltReview(next);
+    return autoSavePlan(
+      review.rows.filter((row) => !review.removed.has(row.localId)),
+      existing,
+    );
+  });
+
+  const openDriveReview = () => stage.name === "review" && !!stage.drive;
+
+  /** A polled file's review, keeping the Official's work on an open one. */
+  const rebuiltReview = (next: ResolvedSwimRow[]) =>
+    carryOverReview(
+      openDriveReview() ? { rows, removed } : { rows: [], removed: new Set() },
+      next,
+    );
+
+  /**
+   * Puts a polled file into the review when it held rows for the Official,
+   * or when a Drive review is already open, keeping their edits to it. A
+   * review of an uploaded file is the Official's, and is left alone.
+   */
+  const showPolled = useEffectEvent(
+    (
+      next: ResolvedSwimRow[],
+      heldCount: number,
+      fileName: string,
+      drive: FetchedFrom,
+    ) => {
+      if (stage.name === "review" && !stage.drive) return;
+      if (!openDriveReview() && heldCount === 0) return;
+      const review = rebuiltReview(next);
+      setRows(review.rows);
+      setRemoved(review.removed);
+      setSaved(null);
+      setStage({ name: "review", fileName, drive });
+    },
+  );
+
+  // Polling ends with its window, not at the first tick after it.
+  const pollUntil = polling?.until;
+  useEffect(() => {
+    if (!pollUntil) return;
+    const timer = setTimeout(
+      () => setPolling(null),
+      Date.parse(pollUntil) - Date.now(),
+    );
+    return () => clearTimeout(timer);
+  }, [pollUntil]);
+
+  const isPolling = polling !== null;
+  useEffect(() => {
+    if (!isPolling) return;
+    let inFlight = false;
+    const timer = setInterval(() => {
+      if (inFlight) return;
+      inFlight = true;
+      void poll().finally(() => {
+        inFlight = false;
+      });
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [isPolling]);
 
   /** Fetches, first asking to discard any unsaved edits to the review. */
   const requestFetch = () =>
@@ -343,6 +546,8 @@ export function SwimImport({
   const drivePanel = (
     <SwimDriveFetch
       state={driveState}
+      polling={polling}
+      onStopPolling={() => setPolling(null)}
       isFetching={isFetching}
       onFetch={requestFetch}
       onChooseFolder={(folderId) =>
@@ -382,7 +587,7 @@ export function SwimImport({
       <Header leagueName={leagueName} existingCount={existing.length} />
 
       {/* A fetch that failed keeps the review it would have replaced. */}
-      {driveState && drivePanel}
+      {(driveState || polling) && drivePanel}
 
       <div className="flex flex-col gap-2 rounded-md border border-input p-3 text-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
