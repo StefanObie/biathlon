@@ -60,13 +60,15 @@ export function findLeagueFolder<T extends DriveItem>(
   return matches.length === 1 ? matches[0] : null;
 }
 
-/** The newest .txt in a League folder, or null when it has none. */
-export function pickResultsFile<T extends DriveFile>(files: T[]): T | null {
-  const txt = files.filter((f) => /\.txt$/i.test(f.name));
-  if (txt.length === 0) return null;
-  return txt.reduce((newest, f) =>
-    Date.parse(f.modifiedTime) > Date.parse(newest.modifiedTime) ? f : newest,
-  );
+/**
+ * A League folder's .txt files, newest first. The newest isn't always the
+ * Swim results file: Time Drops leaves a stub .txt with no results each
+ * time its console starts, so the caller reads them in turn.
+ */
+export function resultsFileCandidates<T extends DriveFile>(files: T[]): T[] {
+  return files
+    .filter((f) => /\.txt$/i.test(f.name))
+    .sort((a, b) => Date.parse(b.modifiedTime) - Date.parse(a.modifiedTime));
 }
 
 const FOLDER_ID = /^[A-Za-z0-9_-]+$/;
