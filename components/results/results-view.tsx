@@ -206,16 +206,26 @@ function AthleteRow({
   return (
     <li className="px-3 py-2">
       <div className="flex items-baseline gap-3">
-        <span className="w-6 shrink-0 text-sm text-muted-foreground tabular-nums">
-          {athlete.rank ?? ""}
-        </span>
+        {athlete.provisional_rank !== null ? (
+          <span
+            className="w-7 shrink-0 text-xs text-muted-foreground/70 tabular-nums"
+            title="Provisional: only one time so far"
+            aria-label={`Provisional rank ${athlete.provisional_rank}`}
+          >
+            *{athlete.provisional_rank}
+          </span>
+        ) : (
+          <span className="w-7 shrink-0 text-sm text-muted-foreground tabular-nums">
+            {athlete.rank ?? ""}
+          </span>
+        )}
         <span className="min-w-0 flex-1 truncate">{athlete.full_name}</span>
         <span className="font-medium tabular-nums">
           {points(athlete.total_points)}
         </span>
       </div>
       {breakdown && (
-        <dl className="mt-0.5 grid grid-cols-[auto_1fr_auto] gap-x-3 pl-9 text-xs text-muted-foreground tabular-nums">
+        <dl className="mt-0.5 grid grid-cols-[auto_1fr_auto] gap-x-3 pl-10 text-xs text-muted-foreground tabular-nums">
           <dt>Run</dt>
           <dd>{athlete.run_time ?? "—"}</dd>
           <dd>{points(athlete.run_points)}</dd>
