@@ -58,6 +58,10 @@ const GENDER_TITLE: Record<Gender, string> = {
   M: "Boys/Men",
 };
 
+/** A classified group's title, e.g. "Boys/Men · Under 15". */
+export const groupTitle = (gender: Gender, ageGroupLabel: string) =>
+  `${GENDER_TITLE[gender]} · ${ageGroupLabel}`;
+
 // Points are multiples of 0.02, so this only hides floating-point noise.
 const tieKey = (points: number) => Math.round(points * 1e6);
 
@@ -123,9 +127,7 @@ export function shapeResults(
       ? `${row.gender}/${row.age_group_code}`
       : `unclassified/${a.gender}`;
     const group = grouped.get(key) ?? {
-      title: row
-        ? `${GENDER_TITLE[row.gender]} · ${row.age_group_label}`
-        : "Unclassified",
+      title: row ? groupTitle(row.gender, row.age_group_label) : "Unclassified",
       gender: a.gender,
       age_group_code: row ? row.age_group_code : null,
       age_group_label: row ? row.age_group_label : null,

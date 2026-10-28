@@ -2300,11 +2300,29 @@ create table medal_presentation (
   -- [{ "athlete_no": 12, "medal_place": 1 }, ...]
   podium jsonb not null check (jsonb_typeof(podium) = 'array'),
   presented_at timestamptz not null default now(),
-  presented_by uuid default auth.uid(),
+  presented_by uuid,
   primary key (league_id, gender, age_group_code)
 );
 
 alter table medal_presentation enable row level security;
+
+-- The time and the Member are the database's, whatever the client sent, and
+-- marking a group again restamps both.
+create function private.stamp_medal_presentation()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.presented_at := now();
+  new.presented_by := (select auth.uid());
+  return new;
+end;
+$$;
+
+create trigger medal_presentation_stamp
+  before insert or update on medal_presentation
+  for each row execute function private.stamp_medal_presentation();
 
 create policy "Officials can read their leagues' medal presentations"
   on medal_presentation for select

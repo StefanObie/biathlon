@@ -168,4 +168,20 @@ describe("medalBoard — Medals presented", () => {
     ]);
     expect(group.presentation).toEqual({ state: "not-presented" });
   });
+
+  it("still shows a presented group whose athletes all lost their times, as changed", () => {
+    const groups = medalBoard([athlete(1, null, null)], table, 50, [
+      boys([{ athlete_no: 1, medal_place: 1 }]),
+    ]);
+    expect(groups).toEqual([
+      {
+        title: "Boys/Men · Under 15",
+        gender: "M",
+        age_group_code: "U15",
+        podium: [],
+        missing: 1,
+        presentation: { state: "changed", presented_at: presentedAt },
+      },
+    ]);
+  });
 });

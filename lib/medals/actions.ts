@@ -16,7 +16,8 @@ const NOT_OFFICIAL = "Only an Official of the League can do this.";
 
 /**
  * Marks a group's medals as presented, saving the podium the Official saw,
- * which is the one they handed out. Marking a group again replaces it. RLS
+ * which is the one they handed out. Marking a group again replaces it, and
+ * the database stamps who marked it and when. RLS
  * only lets an Official write, so a write that changes nothing means the
  * caller isn't one.
  */
@@ -37,7 +38,6 @@ export async function markMedalsPresented(
         athlete_no,
         medal_place,
       })),
-      presented_at: new Date().toISOString(),
     })
     .select("league_id");
   if (error) {
@@ -55,13 +55,16 @@ export async function clearMedalsPresented(
   ageGroupCode: string,
 ): Promise<MedalsResult> {
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("medal_presentation")
     .delete()
     .eq("league_id", ref.leagueId)
     .eq("gender", gender)
-    .eq("age_group_code", ageGroupCode);
+    .eq("age_group_code", ageGroupCode)
+    .select("league_id");
   if (error) return { error: error.message };
+  // RLS hides the row from anyone but an Official, so nothing is deleted.
+  if (data.length === 0) return { error: NOT_OFFICIAL };
   revalidatePath(leagueAddress(ref, "medals"));
   return {};
 }
