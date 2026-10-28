@@ -119,7 +119,7 @@ To record that an athlete has reported to the Call room for a heat. An athlete i
 _Avoid_: Present, absent, called, missing (as a state)
 
 **Race day screens**:
-The screens used while a League is running: Position, Call room, Timer and Reconcile. They are the League's home.
+The screens used while a League is running: Position, Call room, Timer, Reconcile and Medals. They are the League's home.
 _Avoid_: Capture screens (which exclude Call room and Reconcile)
 
 **League settings**:
@@ -175,6 +175,18 @@ _Avoid_: Score (when you mean one component)
 **Provisional rank**:
 The rank of an athlete who has only a run time or only a swim time, among the others in their group who also have one time, by the Points they have so far. It is shown below the ranked athletes with an asterisk (`*1`, `*2`, …) so it isn't read as a position, and it is never a Medal place.
 _Avoid_: Partial rank, interim rank
+
+**Medal place**:
+Gold, Silver or Bronze, given in each gender and age group to the athletes with both a run and a swim time, by Points. Ties don't skip places, so ranks 1, 2, 2, 4 are Gold, Silver, Silver, Bronze and all three medals are always given. The results page keeps its 1, 2, 2, 4 ranks. Unclassified athletes and athletes with a Provisional rank never get one.
+_Avoid_: Podium position, rank (when you mean the medal)
+
+**Medals presented**:
+An Official's mark that a group's medals have been handed out, saved with each athlete's Medal place at that moment. When the group's podium later differs (a heat was reopened, a swim time corrected or added), the Medals screen says the podium has changed until an Official marks it again or clears the mark. It is never shown on the public results.
+_Avoid_: Awarded, ceremony done
+
+**Medals screen**:
+The Race day screen where an Official sees each group's current podium, how many of its athletes are still missing a time, and whether its Medals are presented. It doesn't update live; the Official refreshes it.
+_Avoid_: Podium page, awards
 
 **Unclassified**:
 The group on a League's results for athletes whose age group and gender have no row in the points table. They show their times but no Points and no rank.

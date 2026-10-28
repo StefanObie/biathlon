@@ -2,29 +2,38 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { hasSettings, raceDayScreens, type HeatMode } from "@/lib/access/roles";
+import {
+  hasSettings,
+  raceDayScreens,
+  type RaceDayScreen,
+} from "@/lib/access/roles";
 import { getLeagueAccess } from "@/lib/access/league-access";
 import { leagueAddress } from "@/lib/leagues/address";
 import { NoAccess } from "@/components/leagues/no-access";
 
-const RACE_DAY: Record<HeatMode, { title: string; description: string }> = {
-  position: {
-    title: "Position",
-    description: "Table capture — track finish order by athlete number.",
-  },
-  "call-room": {
-    title: "Call room",
-    description: "Check in the athletes of each heat before it runs.",
-  },
-  timer: {
-    title: "Timer",
-    description: "Finish-line timer — one button per finisher.",
-  },
-  reconcile: {
-    title: "Reconcile",
-    description: "Match positions to times, fix gaps, save results.",
-  },
-};
+const RACE_DAY: Record<RaceDayScreen, { title: string; description: string }> =
+  {
+    position: {
+      title: "Position",
+      description: "Table capture — track finish order by athlete number.",
+    },
+    "call-room": {
+      title: "Call room",
+      description: "Check in the athletes of each heat before it runs.",
+    },
+    timer: {
+      title: "Timer",
+      description: "Finish-line timer — one button per finisher.",
+    },
+    reconcile: {
+      title: "Reconcile",
+      description: "Match positions to times, fix gaps, save results.",
+    },
+    medals: {
+      title: "Medals",
+      description: "Each group's podium, and whether its medals are presented.",
+    },
+  };
 
 export default function LeagueIndexPage({
   params,

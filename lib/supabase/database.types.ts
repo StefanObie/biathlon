@@ -410,6 +410,41 @@ export type Database = {
           },
         ];
       };
+      medal_presentation: {
+        Row: {
+          age_group_code: string;
+          gender: Database["public"]["Enums"]["gender"];
+          league_id: number;
+          podium: NonNullable<Json>;
+          presented_at: string;
+          presented_by: string | null;
+        };
+        Insert: {
+          age_group_code: string;
+          gender: Database["public"]["Enums"]["gender"];
+          league_id: number;
+          podium: NonNullable<Json>;
+          presented_at?: string;
+          presented_by?: string | null;
+        };
+        Update: {
+          age_group_code?: string;
+          gender?: Database["public"]["Enums"]["gender"];
+          league_id?: number;
+          podium?: NonNullable<Json>;
+          presented_at?: string;
+          presented_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "medal_presentation_league_id_fkey";
+            columns: ["league_id"];
+            isOneToOne: false;
+            referencedRelation: "league";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       operator_note: {
         Row: {
           anchor: number;
@@ -934,6 +969,7 @@ export type Database = {
           athlete_no: number;
         }[];
       };
+      league_medals: { Args: { target_league_id: number }; Returns: Json };
       league_results: { Args: { slug: string }; Returns: Json };
       my_pending_invitations: {
         Args: Record<PropertyKey, never>;

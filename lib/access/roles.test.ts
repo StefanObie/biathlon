@@ -24,6 +24,7 @@ const LEAGUE_SCREENS = [
   "position",
   "call-room",
   "reconcile",
+  "medals",
   "swim",
   "export",
 ] as const;
@@ -163,6 +164,7 @@ describe("League home and Settings hub", () => {
       "call-room",
       "timer",
       "reconcile",
+      "medals",
     ]);
     expect(groupsOf(official)).toEqual([
       ["Before the race", ["start-list"]],
@@ -177,6 +179,7 @@ describe("League home and Settings hub", () => {
       "call-room",
       "timer",
       "reconcile",
+      "medals",
     ]);
     expect(groupsOf(admin)).toEqual([
       ["Before the race", ["start-list", "team", "results"]],
