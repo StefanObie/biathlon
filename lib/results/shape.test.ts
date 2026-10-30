@@ -226,6 +226,7 @@ describe("shapeResults — Unclassified", () => {
         swim_time: "01:13.00",
         run_points: null,
         swim_points: null,
+        bonus_points: null,
         total_points: null,
       },
     ]);
@@ -238,6 +239,108 @@ describe("shapeResults — Unclassified", () => {
       50,
     );
     expect(groups).toEqual([]);
+  });
+});
+
+describe("shapeResults — age bonus", () => {
+  it("adds the bonus once to the total and shows it as its own value", () => {
+    const [group] = shapeResults(
+      [athlete("A", "02:45.00", "01:13.00", { bonus_points: 30 })],
+      table,
+      50,
+    );
+    expect(group.ranked[0]).toMatchObject({
+      run_points: 1004,
+      swim_points: 1000,
+      bonus_points: 30,
+      total_points: 2034,
+    });
+  });
+
+  it("shows a bonus of 0 for an athlete with both times and no bonus", () => {
+    const [group] = shapeResults(
+      [athlete("A", "02:45.00", "01:13.00", { bonus_points: 0 })],
+      table,
+      50,
+    );
+    expect(group.ranked[0]).toMatchObject({
+      bonus_points: 0,
+      total_points: 2004,
+    });
+  });
+
+  it("can change the order and ranks within a group", () => {
+    const [group] = shapeResults(
+      [
+        athlete("Faster", "02:45.00", "01:13.00", { bonus_points: 0 }), // 2004
+        athlete("Older", "02:47.00", "01:13.00", { bonus_points: 10 }), // 2010
+        athlete("Level", "02:47.00", "01:13.00", { bonus_points: 4 }), // 2004
+      ],
+      table,
+      50,
+    );
+    expect(group.ranked.map((a) => [a.rank, a.full_name])).toEqual([
+      [1, "Older"],
+      [2, "Faster"],
+      [2, "Level"],
+    ]);
+  });
+
+  it("leaves an athlete with one time without a bonus", () => {
+    const [group] = shapeResults(
+      [
+        athlete("Runner", "02:45.00", null, { bonus_points: 30 }),
+        athlete("Swimmer", null, "01:13.00", { bonus_points: 30 }),
+      ],
+      table,
+      50,
+    );
+    expect(group.unranked[0]).toMatchObject({
+      full_name: "Runner",
+      run_points: 1004,
+      bonus_points: null,
+      total_points: 1004,
+    });
+    expect(group.unranked[1]).toMatchObject({
+      full_name: "Swimmer",
+      swim_points: 1000,
+      bonus_points: null,
+      total_points: 1000,
+    });
+  });
+
+  it("gives an Unclassified athlete no bonus and no total", () => {
+    const groups = shapeResults(
+      [
+        athlete("Stray", "02:45.00", "01:13.00", {
+          age_group_code: "M80",
+          bonus_points: 30,
+        }),
+      ],
+      table,
+      50,
+    );
+    expect(groups[0].unranked[0]).toMatchObject({
+      bonus_points: null,
+      total_points: null,
+    });
+  });
+
+  it("keeps Provisional ranks by the points so far, whatever the bonus", () => {
+    const [group] = shapeResults(
+      [
+        athlete("Fast", "02:45.00", null, { bonus_points: 0 }),
+        athlete("Older", "02:47.00", null, { bonus_points: 100 }),
+      ],
+      table,
+      50,
+    );
+    expect(
+      group.unranked.map((a) => [a.provisional_rank, a.full_name]),
+    ).toEqual([
+      [1, "Fast"],
+      [2, "Older"],
+    ]);
   });
 });
 

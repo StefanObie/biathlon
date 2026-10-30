@@ -55,8 +55,16 @@ select (select id from organization where name = 'Gauteng North Biathlon'), athl
   (125, 'Johan Steyn', 'M'),
   (126, 'Anne le Roux', 'F'),
   (127, 'Willem Brink', 'M'),
-  (128, 'Sarah Adams', 'F')
+  (128, 'Sarah Adams', 'F'),
+  (129, 'Kobus Viljoen', 'M')
 ) as v (athlete_no, full_name, gender);
+
+-- Estimated birth years for the age bonus on League 2 (ADR 0007). 129 has none,
+-- so a bonus of 0, and 124 is young for Masters, so also 0.
+update athlete set birth_year = v.birth_year
+from (values (121, 1990), (123, 1979), (124, 1988), (125, 1970), (126, 1975)) as v (athlete_no, birth_year)
+where athlete.athlete_no = v.athlete_no
+  and athlete.organization_id = (select id from organization where name = 'Gauteng North Biathlon');
 
 -- The token columns are empty strings, not null: GoTrue fails to load a user
 -- whose token columns are null.
@@ -231,7 +239,9 @@ insert into position_capture (id, league_id, run_heat, position, athlete_no, dev
 -- tie (101 and 103), a run-only athlete (109), a swim-only athlete (111),
 -- no-shows (110, 128) and an athlete in heat 3 with no published time yet
 -- (122), none of whom are listed, and an athlete whose age group is not in
--- the points table (127, M80: Unclassified).
+-- the points table (127, M80: Unclassified). Masters show the age bonus: 123's
+-- bonus puts 123 ahead of 129, who is faster but has no birth year, and 121 has
+-- a birth year but only a swim, so no bonus.
 insert into league (id, name, league_date, season, organization_id) overriding system value
 select 2, 'Results Demo', '2026-09-26', 2026, id
 from organization where name = 'Gauteng North Biathlon';
@@ -261,12 +271,13 @@ insert into entry (league_id, athlete_no, run_heat, swim_heat, swim_lane, age_gr
   (2, 120, 2, 3, 4, 'JNR'),
   (2, 121, 3, 3, 5, 'SEN'),
   (2, 122, 3, 3, 6, 'SEN'),
-  (2, 123, 3, 3, 7, 'M40'),
-  (2, 124, 3, 3, 8, 'M40'),
-  (2, 125, 3, 4, 1, 'M50'),
-  (2, 126, 3, 4, 2, 'M50'),
+  (2, 123, 2, 3, 7, 'M40'),
+  (2, 124, 2, 3, 8, 'M40'),
+  (2, 125, 2, 4, 1, 'M50'),
+  (2, 126, 2, 4, 2, 'M50'),
   (2, 127, 3, 4, 3, 'M80'),
-  (2, 128, 3, 4, 4, 'SN');
+  (2, 128, 3, 4, 4, 'SN'),
+  (2, 129, 2, 4, 5, 'M40');
 
 insert into league_race (league_id, run_heat, started_at, device_id, closed_at, closed_by) values
   (2, 1, '2026-09-26T09:00:00+02:00', 'seed-timer', '2026-09-26T09:40:00+02:00', 'seed-official'),
@@ -291,7 +302,12 @@ insert into run_result (league_id, athlete_no, run_heat, run_time, status, sourc
   (2, 117, 2, '02:38.00', 'ok', 'seed'),
   (2, 118, 2, '02:59.72', 'ok', 'seed'),
   (2, 119, 2, '02:23.15', 'ok', 'seed'),
-  (2, 120, 2, '03:08.49', 'ok', 'seed');
+  (2, 120, 2, '03:08.49', 'ok', 'seed'),
+  (2, 123, 2, '02:44.00', 'ok', 'seed'),
+  (2, 124, 2, '03:05.00', 'ok', 'seed'),
+  (2, 125, 2, '02:50.00', 'ok', 'seed'),
+  (2, 126, 2, '03:15.00', 'ok', 'seed'),
+  (2, 129, 2, '02:42.00', 'ok', 'seed');
 
 insert into swim_result (league_id, athlete_no, event_no, heat, lane, swim_time, status, source) values
   (2, 101, 1, 1, 1, '00:33.11', 'ok', 'seed'),
@@ -317,4 +333,5 @@ insert into swim_result (league_id, athlete_no, event_no, heat, lane, swim_time,
   (2, 124, 3, 3, 8, '01:27.04', 'ok', 'seed'),
   (2, 125, 4, 4, 1, '01:25.25', 'ok', 'seed'),
   (2, 126, 4, 4, 2, '01:33.03', 'ok', 'seed'),
-  (2, 127, 4, 4, 3, '00:49.65', 'ok', 'seed');
+  (2, 127, 4, 4, 3, '00:49.65', 'ok', 'seed'),
+  (2, 129, 4, 4, 5, '01:19.00', 'ok', 'seed');

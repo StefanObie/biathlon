@@ -386,7 +386,8 @@ points_table (effective_from, gender, age_group_code,
               age_group_label, sort_order, age_from, age_to,
               run_distance_m, run_base_time, run_points_per_second,
               swim_distance_m, swim_base_time, swim_points_per_second,
-              bonus_points_per_year,           -- stored, not applied — see 6.3
+              bonus_points_per_year,           -- see 6.3
+              season_year,                     -- the season the row applies to
               primary key (effective_from, gender, age_group_code))
 ```
 
@@ -398,9 +399,13 @@ points_table (effective_from, gender, age_group_code,
 
 Confirmed limits: ≤1,000 athletes/league, one session/league, ≤20/heat (validated against real 90-row sample, §2 Finding 7). Because there's only ever one session per league, `run_heat`/`swim_heat` stay as plain integers on `entry` — no separate `session` or `heat` table. `heat_id` referenced below is the pair `(league_id, run_heat)`.
 
-### 6.3 Masters bonus points — deferred, not implemented
+### 6.3 Age bonus points
 
-The PDF's "bonus points per year over base" needs exact age (birth year), unavailable in the source data. Points engine (Phase 4) computes run + swim components only, **omits the bonus term**, and both the results screen and PDF export carry: _"Points shown exclude age-related bonus points and are not official SA Biathlon points."_ Affects Seniors (28+) upward only. `bonus_points_per_year` remains in `points_table`, unused, so nothing needs restructuring if birth year becomes available later.
+The PDF's "bonus points per year over base" means years above the bottom of the age band, at the end of the season year. Affects Seniors (28+) upward only: every younger age group's rate is 0.
+
+`bonus = max(0, (season_year − birth_year − age_from) × bonus_points_per_year)`, calculated in one database function (`private.age_bonus_points`). `age_from` comes from the age group on the athlete's League entry. `season_year` comes from the `points_table` row that applies on the League's date, not `league.season`, which is typed by hand. A missing birth year gives 0, and an Unclassified athlete has no bonus.
+
+`athlete.birth_year` is estimated (ADR 0007), and `league_results` returns `bonus_points` but never `birth_year`. `shapeResults` adds the bonus once to the total, only for an athlete with both a run and a swim time, and shows it as its own value. Run and swim Points never include it, so Provisional ranks don't change. The results screen carries: _"Points include age bonus points based on recorded ages and are not official SA Biathlon points."_
 
 ### 6.4 Time storage
 
@@ -452,7 +457,7 @@ Justifies §5.7/§3: `time_capture`/`position_capture` rows are constructed and 
 | **1** | Timer app, scanning app, reconciliation, manual edit                                                                                                                           | 3–4 wks | Shadow-run against paper process for one full event before relying on it                                                                                                                                           |
 | **2** | Swim import, exception queue, merge, XML export                                                                                                                                | 2 wks   | Parser built against real files as fixtures (§2, §4.6)                                                                                                                                                             |
 | **3** | Hardening: audit log, error monitoring, dry run                                                                                                                                | 1 wk    |                                                                                                                                                                                                                    |
-| **4** | Points engine + public results (in-app)                                                                                                                                        | later   | Deferred; bonus points out of scope (§6.3); schema ready                                                                                                                                                           |
+| **4** | Points engine + public results (in-app)                                                                                                                                        | later   | Deferred; age bonus points in §6.3; schema ready                                                                                                                                                                   |
 
 ---
 

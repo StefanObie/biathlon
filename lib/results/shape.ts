@@ -11,6 +11,8 @@ export interface ResultsAthleteRow {
   age_group_code: string;
   run_time: string | null;
   swim_time: string | null;
+  /** The age bonus the database calculated. Absent counts as 0. */
+  bonus_points?: number | null;
 }
 
 /** A row of the points table that applies to the League. */
@@ -35,6 +37,11 @@ export interface ShapedAthlete {
   swim_time: string | null;
   run_points: number | null;
   swim_points: number | null;
+  /**
+   * The age bonus, which is part of total_points. Null unless the athlete has
+   * both times and the points table can score them.
+   */
+  bonus_points: number | null;
   total_points: number | null;
 }
 
@@ -93,7 +100,8 @@ function sharedRanks(athletes: ShapedAthlete[]): number[] {
  * athlete with one time is shown but not ranked, since one component is not
  * comparable with a full total. An athlete the points table has no row for is
  * shown in an Unclassified group, with times and no points. Swim points are
- * scored for the League's Pool length.
+ * scored for the League's Pool length. The age bonus is added once to the
+ * total of an athlete with both times, and never to run or swim points.
  */
 export function shapeResults(
   athletes: ResultsAthleteRow[],
@@ -123,6 +131,10 @@ export function shapeResults(
     const points = row
       ? computePoints(a.run_time, a.swim_time, row, poolLength)
       : { run: null, swim: null, total: null };
+    const bonus =
+      row && a.run_time !== null && a.swim_time !== null
+        ? (a.bonus_points ?? 0)
+        : null;
     const key = row
       ? `${row.gender}/${row.age_group_code}`
       : `unclassified/${a.gender}`;
@@ -145,7 +157,8 @@ export function shapeResults(
       swim_time: a.swim_time,
       run_points: points.run,
       swim_points: points.swim,
-      total_points: points.total,
+      bonus_points: bonus,
+      total_points: points.total === null ? null : points.total + (bonus ?? 0),
     });
     grouped.set(key, group);
   }

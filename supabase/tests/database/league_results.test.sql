@@ -1,12 +1,13 @@
 -- League Visibility, the Results slug and anonymous results (#28).
 --
 -- Organization A (Admin, Official) runs Leagues 951-956 with heats 1 (Closed)
--- and 2 (open, or reopened). Organization B has one Admin.
+-- and 2 (open, or reopened). Organization B has one Admin. League 956 is the
+-- age bonus League, with a hand-typed season that doesn't match its table.
 
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(41);
+select plan(53);
 
 -- Fixtures, written as the table owner so RLS doesn't apply.
 
@@ -45,7 +46,8 @@ insert into league (id, name, league_date, season, organization_id, visibility, 
 overriding system value values
   (953, 'Protected One', '2027-02-01', 2027, 951, 'protected', 'Abcdefghijklmnopqrstuv_-XYZ', 50),
   (954, 'Private One', '2027-02-08', 2027, 951, 'private', null, 25),
-  (955, 'Org B League', '2027-02-15', 2027, 952, 'public', 'org-b-league', 25);
+  (955, 'Org B League', '2027-02-15', 2027, 952, 'public', 'org-b-league', 25),
+  (956, 'Bonus League', '2026-09-01', 1999, 951, 'public', 'bonus-league', 50);
 
 insert into athlete (organization_id, athlete_no, full_name, gender) values
   (951, 1, 'Closed Athlete', 'M'),
@@ -53,12 +55,23 @@ insert into athlete (organization_id, athlete_no, full_name, gender) values
   (951, 3, 'No Show', 'M'),
   (951, 4, 'Disqualified Swimmer', 'F');
 
+-- Birth years stay on the athlete; the 2027 table has M40 at 5 and SEN at 3
+-- points a year, and U13 at 0.
+insert into athlete (organization_id, athlete_no, full_name, gender, birth_year) values
+  (951, 11, 'Master Example', 'M', 1981),
+  (951, 12, 'Master Band Bottom', 'M', 1987),
+  (951, 13, 'Master Too Young', 'M', 1995),
+  (951, 14, 'Master No Age', 'M', null),
+  (951, 15, 'Senior Example', 'M', 1989),
+  (951, 16, 'Junior With Age', 'M', 1960),
+  (951, 17, 'Unclassified Age', 'M', 1950);
+
 insert into points_table (
   effective_from, gender, age_group_code, age_group_label, sort_order, age_from, age_to,
   run_distance_m, run_base_time, run_points_per_second,
   swim_distance_m, swim_base_time, swim_points_per_second, bonus_points_per_year,
-  short_course_seconds_per_turn
-) values ('1900-01-01', 'M', 'TST', 'Test', 1, 0, 99, 1000, '05:00.00', 1, 100, '01:00.00', 1, 0, 0.8)
+  short_course_seconds_per_turn, season_year
+) values ('1900-01-01', 'M', 'TST', 'Test', 1, 0, 99, 1000, '05:00.00', 1, 100, '01:00.00', 1, 0, 0.8, 1900)
 on conflict do nothing;
 
 -- A later season's table must not rescore a League that came before it.
@@ -66,29 +79,45 @@ insert into points_table (
   effective_from, gender, age_group_code, age_group_label, sort_order, age_from, age_to,
   run_distance_m, run_base_time, run_points_per_second,
   swim_distance_m, swim_base_time, swim_points_per_second, bonus_points_per_year,
-  short_course_seconds_per_turn
-) values ('2028-01-01', 'M', 'TST', 'Test 2028', 1, 0, 99, 1000, '05:00.00', 1, 100, '01:00.00', 1, 0, 0.8);
+  short_course_seconds_per_turn, season_year
+) values ('2028-01-01', 'M', 'TST', 'Test 2028', 1, 0, 99, 1000, '05:00.00', 1, 100, '01:00.00', 1, 0, 0.8, 2028);
 
 insert into entry (league_id, athlete_no, run_heat, swim_heat, swim_lane, age_group_code) values
   (951, 1, 1, 1, 1, 'U13'),
   (951, 2, 2, 1, 2, 'U13'),
   (953, 1, 1, 1, 1, 'U13'),
   (951, 3, 1, 2, 1, 'U13'),
-  (951, 4, 2, 2, 2, 'U13');
+  (951, 4, 2, 2, 2, 'U13'),
+  (956, 11, 1, 1, 1, 'M40'),
+  (956, 12, 1, 1, 2, 'M40'),
+  (956, 13, 1, 1, 3, 'M40'),
+  (956, 14, 1, 1, 4, 'M40'),
+  (956, 15, 1, 1, 5, 'SEN'),
+  (956, 16, 1, 1, 6, 'U13'),
+  (956, 17, 1, 1, 7, 'NOPE');
 
 insert into league_race (league_id, run_heat, started_at, device_id, closed_at, closed_by) values
   (951, 1, now(), 'dev', now(), 'official'),
   (951, 2, now(), 'dev', null, null),
   (953, 1, now(), 'dev', now(), 'official'),
-  (954, 1, now(), 'dev', now(), 'official');
+  (954, 1, now(), 'dev', now(), 'official'),
+  (956, 1, now(), 'dev', now(), 'official');
 
 insert into run_result (league_id, athlete_no, run_heat, run_time, source) values
   (951, 1, 1, '03:00.00', 'reconcile'),
-  (951, 2, 2, '03:12.34', 'reconcile');
+  (951, 2, 2, '03:12.34', 'reconcile'),
+  (956, 11, 1, '03:00.00', 'reconcile'),
+  (956, 12, 1, '03:00.00', 'reconcile'),
+  (956, 13, 1, '03:00.00', 'reconcile'),
+  (956, 14, 1, '03:00.00', 'reconcile'),
+  (956, 15, 1, '03:00.00', 'reconcile'),
+  (956, 16, 1, '03:00.00', 'reconcile'),
+  (956, 17, 1, '03:00.00', 'reconcile');
 insert into swim_result (league_id, athlete_no, event_no, heat, lane, swim_time, status, source) values
   (951, 2, 1, 1, 2, '00:40.00', 'ok', 'import'),
   (951, 3, 1, 2, 1, null, 'dns', 'import'),
-  (951, 4, 1, 2, 2, '00:39.00', 'dq', 'import');
+  (951, 4, 1, 2, 2, '00:39.00', 'dq', 'import'),
+  (956, 11, 1, 1, 1, '01:20.00', 'ok', 'import');
 
 insert into time_capture (id, league_id, run_heat, seq, elapsed_time, device_id, captured_at) values
   ('tc-open', 951, 2, 1, '05:00.00', 'dev', now());
@@ -220,6 +249,78 @@ select is(
   '0.8',
   'Public: the 2027 season adds 0.8 s per extra turn in a 25 m pool'
 );
+
+-- The age bonus: max(0, (season_year - birth_year - age_from) * rate).
+select is(
+  (select col_description('public.athlete'::regclass, attnum) ilike '%estimated%'
+   from pg_attribute
+   where attrelid = 'public.athlete'::regclass and attname = 'birth_year'),
+  true,
+  'athlete.birth_year is described in the schema as estimated'
+);
+select is(
+  (select count(*)::int from jsonb_array_elements(public.league_results('bonus-league') -> 'athletes')),
+  7,
+  'Bonus: every athlete with a time is returned'
+);
+select is(
+  (select a ->> 'bonus_points' from jsonb_array_elements(public.league_results('bonus-league') -> 'athletes') a
+   where a ->> 'full_name' = 'Master Example'),
+  '30',
+  'Bonus: (2027 - 1981 - 40) * 5, from season_year and not the League''s hand-typed season'
+);
+select is(
+  (select a ->> 'bonus_points' from jsonb_array_elements(public.league_results('bonus-league') -> 'athletes') a
+   where a ->> 'full_name' = 'Master Band Bottom'),
+  '0',
+  'Bonus: the bottom of the age band gives 0'
+);
+select is(
+  (select a ->> 'bonus_points' from jsonb_array_elements(public.league_results('bonus-league') -> 'athletes') a
+   where a ->> 'full_name' = 'Master Too Young'),
+  '0',
+  'Bonus: an athlete younger than their entry''s age band floors at 0'
+);
+select is(
+  (select a ->> 'bonus_points' from jsonb_array_elements(public.league_results('bonus-league') -> 'athletes') a
+   where a ->> 'full_name' = 'Master No Age'),
+  '0',
+  'Bonus: a missing birth year gives 0'
+);
+select is(
+  (select a ->> 'bonus_points' from jsonb_array_elements(public.league_results('bonus-league') -> 'athletes') a
+   where a ->> 'full_name' = 'Senior Example'),
+  '30',
+  'Bonus: uses the age_from and rate of the age group on the entry, (2027 - 1989 - 28) * 3'
+);
+select is(
+  (select a ->> 'bonus_points' from jsonb_array_elements(public.league_results('bonus-league') -> 'athletes') a
+   where a ->> 'full_name' = 'Junior With Age'),
+  '0',
+  'Bonus: the entry''s age group decides the rate, however old the athlete is'
+);
+select is(
+  (select a ->> 'bonus_points' from jsonb_array_elements(public.league_results('bonus-league') -> 'athletes') a
+   where a ->> 'full_name' = 'Unclassified Age'),
+  null,
+  'Bonus: an Unclassified athlete has none'
+);
+select is(
+  (select public.league_results('bonus-league')::text like '%birth_year%'),
+  false,
+  'Bonus: the anonymous response never has the key birth_year'
+);
+select is(
+  (select public.league_results('bonus-league')::text like '%1981%'),
+  false,
+  'Bonus: the anonymous response never has a birth year value'
+);
+select throws_ok(
+  $$ select private.age_bonus_points(2027, 1981, 40, 5) $$,
+  '42501', null,
+  'anon: can''t call the bonus function directly'
+);
+
 select is(
   (select public.league_results('Abcdefghijklmnopqrstuv_-XYZ') ->> 'visibility'),
   'protected',

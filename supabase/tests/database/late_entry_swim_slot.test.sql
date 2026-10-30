@@ -23,8 +23,8 @@ insert into points_table (
   effective_from, gender, age_group_code, age_group_label, sort_order, age_from, age_to,
   run_distance_m, run_base_time, run_points_per_second,
   swim_distance_m, swim_base_time, swim_points_per_second, bonus_points_per_year,
-  short_course_seconds_per_turn
-) values ('1900-01-01', 'M', 'TST', 'Test', 1, 0, 99, 1000, '05:00.00', 1, 100, '01:00.00', 1, 0, 0.8)
+  short_course_seconds_per_turn, season_year
+) values ('1900-01-01', 'M', 'TST', 'Test', 1, 0, 99, 1000, '05:00.00', 1, 100, '01:00.00', 1, 0, 0.8, 1900)
 on conflict do nothing;
 
 select lives_ok(
