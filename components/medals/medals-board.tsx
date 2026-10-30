@@ -148,6 +148,16 @@ function MedalGroupCard({
         </p>
       )}
 
+      {group.athletes_missing_age.length > 0 && (
+        <p className="text-sm text-amber-700 dark:text-amber-400">
+          No age for{" "}
+          {group.athletes_missing_age
+            .map((a) => `${a.full_name} #${a.athlete_no}`)
+            .join(", ")}
+          : no age bonus is counted
+        </p>
+      )}
+
       {presentation.state === "changed" && (
         <p className="text-sm font-medium text-destructive">
           Podium changed since medals were presented

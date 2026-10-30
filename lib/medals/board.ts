@@ -14,6 +14,8 @@ export type MedalPlace = 1 | 2 | 3;
 /** An athlete's published times, with the athlete number Officials see. */
 export interface MedalAthleteRow extends ResultsAthleteRow {
   athlete_no: number;
+  /** In an age group with a bonus, and no birth year to calculate it from. */
+  missing_age: boolean;
 }
 
 export interface PodiumAthlete {
@@ -22,6 +24,9 @@ export interface PodiumAthlete {
   full_name: string;
   total_points: number;
 }
+
+/** An athlete with no age, so no age bonus is counted for them. */
+export type MissingAgeAthlete = Pick<PodiumAthlete, "athlete_no" | "full_name">;
 
 /** One athlete's Medal place, as saved when the medals were presented. */
 export interface SavedMedal {
@@ -48,6 +53,8 @@ export interface MedalGroup {
   podium: PodiumAthlete[];
   /** Athletes entered in the group without both times, no-shows included. */
   missing: number;
+  /** Athletes entered in the group whose bonus can't be calculated. */
+  athletes_missing_age: MissingAgeAthlete[];
   /** "changed" when the podium is no longer the one presented. */
   presentation: PresentationState;
 }
@@ -100,9 +107,10 @@ function presentationState(
  * Each group's podium, in the results page's group order, with how many of
  * its athletes still miss a time and whether its medals are presented. The
  * groups and points come from shapeResults, so the podium can't disagree with
- * the results page. Unclassified athletes get no medals, so their groups are
- * left out. A presented group that no longer has any results stays on the
- * board, at the end, so its changed podium can be seen and its mark cleared.
+ * the results page. A missing age only warns: the athlete keeps their Medal
+ * place. Unclassified athletes get no medals, so their groups are left out. A
+ * presented group that no longer has any results stays on the board, at the
+ * end, so its changed podium can be seen and its mark cleared.
  */
 export function medalBoard(
   athletes: MedalAthleteRow[],
@@ -111,10 +119,18 @@ export function medalBoard(
   presentations: MedalPresentation[],
 ): MedalGroup[] {
   const missing = new Map<string, number>();
+  const missingAges = new Map<string, MissingAgeAthlete[]>();
   for (const a of athletes) {
-    if (a.run_time !== null && a.swim_time !== null) continue;
     const key = groupKey(a);
-    missing.set(key, (missing.get(key) ?? 0) + 1);
+    if (a.missing_age) {
+      missingAges.set(key, [
+        ...(missingAges.get(key) ?? []),
+        { athlete_no: a.athlete_no, full_name: a.full_name },
+      ]);
+    }
+    if (a.run_time === null || a.swim_time === null) {
+      missing.set(key, (missing.get(key) ?? 0) + 1);
+    }
   }
   const saved = new Map(presentations.map((p) => [groupKey(p), p]));
 
@@ -131,6 +147,7 @@ export function medalBoard(
           age_group_code,
           podium,
           missing: missing.get(key) ?? 0,
+          athletes_missing_age: missingAges.get(key) ?? [],
           presentation: presentationState(saved.get(key), podium),
         },
       ];
@@ -148,6 +165,7 @@ export function medalBoard(
         age_group_code: p.age_group_code,
         podium: [],
         missing: missing.get(groupKey(p)) ?? 0,
+        athletes_missing_age: missingAges.get(groupKey(p)) ?? [],
         presentation: presentationState(p, []),
       };
     });

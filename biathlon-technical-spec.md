@@ -405,7 +405,7 @@ The PDF's "bonus points per year over base" means years above the bottom of the 
 
 `bonus = max(0, (season_year − birth_year − age_from) × bonus_points_per_year)`, calculated in one database function (`private.age_bonus_points`). `age_from` comes from the age group on the athlete's League entry. `season_year` comes from the `points_table` row that applies on the League's date, not `league.season`, which is typed by hand. A missing birth year gives 0, and an Unclassified athlete has no bonus.
 
-`athlete.birth_year` is estimated (ADR 0007), and `league_results` returns `bonus_points` but never `birth_year`. `shapeResults` adds the bonus once to the total, only for an athlete with both a run and a swim time, and shows it as its own value. Run and swim Points never include it, so Provisional ranks don't change. The results screen carries: _"Points include age bonus points based on recorded ages and are not official SA Biathlon points."_
+`athlete.birth_year` is estimated (ADR 0007), and `league_results` and `league_medals` return `bonus_points` but never `birth_year`. `league_medals` also flags an athlete with no birth year in an age group with a bonus rate above 0, so the Medals screen can warn. A missing age blocks nothing: the athlete is still ranked and can still get a Medal place. `shapeResults` adds the bonus once to the total, only for an athlete with both a run and a swim time, and shows it as its own value. Run and swim Points never include it, so Provisional ranks don't change. The results screen carries: _"Points include age bonus points based on recorded ages and are not official SA Biathlon points."_
 
 ### 6.4 Time storage
 

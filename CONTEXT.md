@@ -181,11 +181,11 @@ Gold, Silver or Bronze, given in each gender and age group to the athletes with 
 _Avoid_: Podium position, rank (when you mean the medal)
 
 **Medals presented**:
-An Official's mark that a group's medals have been handed out, saved with each athlete's Medal place at that moment. When the group's podium later differs (a heat was reopened, a swim time corrected or added), the Medals screen says the podium has changed until an Official marks it again or clears the mark. It is never shown on the public results.
+An Official's mark that a group's medals have been handed out, saved with each athlete's Medal place at that moment. When the group's podium later differs (a heat was reopened, a swim time corrected or added, an age bonus changed the order), the Medals screen says the podium has changed until an Official marks it again or clears the mark. It is never shown on the public results.
 _Avoid_: Awarded, ceremony done
 
 **Medals screen**:
-The Race day screen where an Official sees each group's current podium, how many of its athletes are still missing a time, and whether its Medals are presented. It doesn't update live; the Official refreshes it.
+The Race day screen where an Official sees each group's current podium, how many of its athletes are still missing a time, which of its athletes have no age in an age group with a bonus, and whether its Medals are presented. A missing age only warns: the athlete is still ranked and can still get a Medal place. It doesn't update live; the Official refreshes it.
 _Avoid_: Podium page, awards
 
 **Unclassified**:
