@@ -96,6 +96,21 @@ export function raceDayScreens(access: LeagueAccess): RaceDayScreen[] {
   return RACE_DAY_SCREENS.filter((screen) => canUse(access, screen));
 }
 
+export type HomeTile = RaceDayScreen | "call-room-swim";
+
+/** The League's destinations a Member can use, in the order the League home
+ * and the sidebar show them. The Call room is one screen to the access rules
+ * but two destinations: its run and swim sides. */
+export function homeTiles(access: LeagueAccess): HomeTile[] {
+  const callRoom: HomeTile[] = canUse(access, "call-room")
+    ? ["call-room", "call-room-swim"]
+    : [];
+  return [
+    ...callRoom,
+    ...raceDayScreens(access).filter((screen) => screen !== "call-room"),
+  ];
+}
+
 export type SettingsScreen =
   "start-list" | "team" | "results" | "swim" | "export";
 
@@ -106,8 +121,10 @@ export interface SettingsGroup {
 
 /** The League settings hub's groups, in display order. */
 export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
-  { title: "Before the race", screens: ["start-list", "team", "results"] },
-  { title: "After the race", screens: ["swim", "export"] },
+  { title: "Setup", screens: ["team", "results"] },
+  { title: "Before", screens: ["start-list"] },
+  { title: "During", screens: ["swim"] },
+  { title: "After", screens: ["export"] },
 ];
 
 /** The settings groups a Member can use, each with only the screens they can

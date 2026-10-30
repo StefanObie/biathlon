@@ -1,35 +1,13 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ChevronRightIcon } from "lucide-react";
 
-import { settingsGroups, type SettingsScreen } from "@/lib/access/roles";
+import { settingsGroups } from "@/lib/access/roles";
 import { getLeagueAccess } from "@/lib/access/league-access";
 import { leagueAddress } from "@/lib/leagues/address";
+import { SETTINGS_TITLE } from "@/lib/leagues/settings-screens";
 import { NoAccess } from "@/components/leagues/no-access";
-
-const SETTINGS: Record<SettingsScreen, { title: string; description: string }> =
-  {
-    "start-list": {
-      title: "Start list",
-      description: "Import entries, view the roster, download bib QR codes.",
-    },
-    team: {
-      title: "League team",
-      description: "Choose who works on this league, and in which Roles.",
-    },
-    results: {
-      title: "Visibility",
-      description: "Choose who can see this league's published results.",
-    },
-    swim: {
-      title: "Swim import",
-      description: "Upload the swim results file, review, and save times.",
-    },
-    export: {
-      title: "Export",
-      description: "Review combined swim and run times, download the XML.",
-    },
-  };
 
 export default function LeagueSettingsPage({
   params,
@@ -62,21 +40,25 @@ async function SettingsHub({
   const league = { organizationId: organizationIdNum, leagueId: leagueIdNum };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex max-w-[720px] flex-col gap-6">
+      <h2 className="text-lg font-medium">League settings</h2>
       {groups.map((group) => (
-        <section key={group.title} className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold">{group.title}</h2>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <section key={group.title} className="flex flex-col gap-2">
+          <h3 className="text-sm font-medium text-muted-foreground">
+            {group.title}
+          </h3>
+          <div className="divide-y rounded-lg border">
             {group.screens.map((screen) => (
               <Link
                 key={screen}
                 href={leagueAddress(league, screen)}
-                className="flex flex-col gap-1 rounded-md border border-input p-4 hover:bg-accent"
+                className="flex min-h-14 items-center justify-between gap-3 px-4 font-medium first:rounded-t-lg last:rounded-b-lg hover:bg-accent active:bg-accent"
               >
-                <span className="font-semibold">{SETTINGS[screen].title}</span>
-                <span className="text-sm text-muted-foreground">
-                  {SETTINGS[screen].description}
-                </span>
+                {SETTINGS_TITLE[screen]}
+                <ChevronRightIcon
+                  className="size-4 shrink-0 text-muted-foreground"
+                  aria-hidden
+                />
               </Link>
             ))}
           </div>

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { canUse } from "@/lib/access/roles";
 import { getLeagueAccess } from "@/lib/access/league-access";
+import { AddTeamMember } from "@/components/leagues/add-team-member";
 import { NoAccess } from "@/components/leagues/no-access";
 import { TeamRoles } from "@/components/organizations/team-roles";
 import { teamRows } from "@/lib/organizations/team-rows";
@@ -39,7 +40,7 @@ async function LeagueTeamSection({
   const supabase = await createClient();
   const { data: league } = await supabase
     .from("league")
-    .select("organization_id")
+    .select("organization_id, name")
     .eq("id", leagueIdNum)
     .single();
   if (!league) return <NoAccess />;
@@ -57,9 +58,23 @@ async function LeagueTeamSection({
     return <p className="text-sm text-destructive">{error.message}</p>;
   }
 
+  const ref = { organizationId: organizationIdNum, leagueId: leagueIdNum };
+  const rows = teamRows(members ?? [], team ?? []);
+  const setRole = setTeamRole.bind(null, ref);
+
   return (
     <TeamRoles
-      title="Team"
+      title="League team"
+      action={
+        <AddTeamMember
+          organizationId={organizationIdNum}
+          league={{ id: leagueIdNum, name: league.name }}
+          candidates={rows
+            .filter((row) => !row.isAdmin && row.roles.length === 0)
+            .map(({ userId, email }) => ({ userId, email }))}
+          setRole={setRole}
+        />
+      }
       description={
         <>
           Only the Members on this league&apos;s team, and the
@@ -68,15 +83,9 @@ async function LeagueTeamSection({
           Position screen, and Callers the Call room screen.
         </>
       }
-      rows={teamRows(members ?? [], team ?? [])}
-      setRole={setTeamRole.bind(null, {
-        organizationId: organizationIdNum,
-        leagueId: leagueIdNum,
-      })}
-      remove={removeFromTeam.bind(null, {
-        organizationId: organizationIdNum,
-        leagueId: leagueIdNum,
-      })}
+      rows={rows.filter((row) => row.isAdmin || row.roles.length > 0)}
+      setRole={setRole}
+      remove={removeFromTeam.bind(null, ref)}
     />
   );
 }

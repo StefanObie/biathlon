@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { leagueAddress } from "@/lib/leagues/address";
 import { splitLeagues } from "@/lib/leagues/split";
+import { leagueToday } from "@/lib/leagues/today";
 import { ROLE_LABEL } from "@/lib/access/roles";
 import {
   removeFromDefaultTeam,
@@ -144,8 +145,7 @@ async function LeaguesTab({
     return <p className="text-sm text-destructive">{error.message}</p>;
   }
 
-  const today = new Date().toISOString().slice(0, 10);
-  const { upcoming, past } = splitLeagues(leagues ?? [], today);
+  const { upcoming, past } = splitLeagues(leagues ?? [], leagueToday());
 
   return (
     <div className="flex flex-col gap-6">

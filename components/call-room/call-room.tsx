@@ -46,6 +46,7 @@ export function CallRoom({
   runHeat,
   modes,
   heats,
+  swimHeats,
   entries: remoteEntries,
   athletes,
   remoteCheckIns,
@@ -57,6 +58,8 @@ export function CallRoom({
   /** The heat screens this Member can switch to. */
   modes: HeatMode[];
   heats: number[];
+  /** The swim side's heats, to switch to from the heat drawer. */
+  swimHeats: number[];
   /** The whole League's entries, so another heat's athlete is recognised. */
   entries: CallRoomEntry[];
   /** Every athlete of the Organization, so one not on the Start list can be added. */
@@ -380,6 +383,7 @@ export function CallRoom({
         modes={modes}
         runHeat={runHeat}
         heats={heats}
+        otherCallRoomHeats={swimHeats}
       />
     </div>
   );

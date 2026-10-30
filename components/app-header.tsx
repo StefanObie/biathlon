@@ -1,28 +1,39 @@
 import { cookies } from "next/headers";
 
-import { AppHeaderNav } from "@/components/app-header-nav";
+import { AppNavigation } from "@/components/app-navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
   ORGANIZATION_COOKIE,
   rememberedOrganizationId,
+  resolveLanding,
 } from "@/lib/organizations/landing";
+import { leagueToday } from "@/lib/leagues/today";
 
-/** Loads what the header switchers list, for the signed-in user. */
+/** Loads what the fixed navigation lists, for the signed-in user. */
 export async function AppHeader() {
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
-  const userId = claims?.claims.sub;
+  const userId = claims?.claims.sub ?? "";
   const email = claims?.claims.email;
 
-  const [{ data: memberships }, { data: leagues }, cookieStore] =
-    await Promise.all([
-      supabase
-        .from("organization_member")
-        .select("is_admin, organization(id, name)")
-        .eq("user_id", userId ?? ""),
-      supabase.from("league").select("id, name, league_date, organization_id"),
-      cookies(),
-    ]);
+  const [
+    { data: memberships },
+    { data: leagues },
+    { data: team },
+    cookieStore,
+  ] = await Promise.all([
+    supabase
+      .from("organization_member")
+      .select("is_admin, organization(id, name)")
+      .eq("user_id", userId),
+    supabase.from("league").select("id, name, league_date, organization_id"),
+    supabase
+      .from("league_team_member")
+      .select("league_id, role")
+      .eq("user_id", userId)
+      .is("ended_at", null),
+    cookies(),
+  ]);
 
   const organizations = (memberships ?? [])
     .map((m) => ({
@@ -32,8 +43,14 @@ export async function AppHeader() {
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
+  // The remembered Organization, or a Member's only one.
+  const landing = resolveLanding(
+    organizations.map((o) => o.id),
+    rememberedOrganizationId(cookieStore.get(ORGANIZATION_COOKIE)?.value),
+  );
+
   return (
-    <AppHeaderNav
+    <AppNavigation
       organizations={organizations}
       leagues={(leagues ?? []).map((l) => ({
         id: l.id,
@@ -41,9 +58,9 @@ export async function AppHeader() {
         leagueDate: l.league_date,
         organizationId: l.organization_id,
       }))}
-      remembered={rememberedOrganizationId(
-        cookieStore.get(ORGANIZATION_COOKIE)?.value,
-      )}
+      team={(team ?? []).map((t) => ({ leagueId: t.league_id, role: t.role }))}
+      remembered={landing === "picker" ? null : landing}
+      today={leagueToday()}
       email={typeof email === "string" ? email : null}
     />
   );

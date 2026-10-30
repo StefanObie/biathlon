@@ -51,7 +51,7 @@ async function Results({ params }: { params: Promise<{ slug: string }> }) {
   );
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4">
       <div>
         <p className="text-sm text-muted-foreground">
           {results.organization_name}
@@ -71,6 +71,6 @@ async function Results({ params }: { params: Promise<{ slug: string }> }) {
         Points shown exclude age-related bonus points and are not official SA
         Biathlon points.
       </p>
-    </main>
+    </div>
   );
 }
