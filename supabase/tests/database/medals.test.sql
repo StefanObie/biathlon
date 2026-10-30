@@ -7,7 +7,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(15);
+select plan(19);
 
 -- Fixtures, written as the table owner so RLS doesn't apply.
 
@@ -40,10 +40,21 @@ insert into athlete (organization_id, athlete_no, full_name, gender) values
   (961, 2, 'Open Heat', 'M'),
   (961, 3, 'No Show', 'M');
 
+-- The 2027 table has M40 at 5 and SEN at 3 points a year, and U13 at 0.
+insert into athlete (organization_id, athlete_no, full_name, gender, birth_year) values
+  (961, 4, 'Master Example', 'M', 1981),
+  (961, 5, 'Master No Age', 'M', null),
+  (961, 6, 'Senior No Age', 'M', null),
+  (961, 7, 'Unclassified No Age', 'M', null);
+
 insert into entry (league_id, athlete_no, run_heat, swim_heat, swim_lane, age_group_code) values
   (961, 1, 1, 1, 1, 'U13'),
   (961, 2, 2, 1, 2, 'U13'),
-  (961, 3, 1, 1, 3, 'U13');
+  (961, 3, 1, 1, 3, 'U13'),
+  (961, 4, 1, 1, 4, 'M40'),
+  (961, 5, 1, 1, 5, 'M40'),
+  (961, 6, 1, 1, 6, 'SEN'),
+  (961, 7, 1, 1, 7, 'NOPE');
 
 insert into league_race (league_id, run_heat, started_at, device_id, closed_at, closed_by) values
   (961, 1, now(), 'dev', now(), 'official'),
@@ -67,11 +78,38 @@ select is(
   (select jsonb_agg(a order by a ->> 'athlete_no')
    from jsonb_array_elements(public.league_medals(961) -> 'athletes') a),
   '[
-    {"athlete_no": 1, "full_name": "Both Times", "gender": "M", "age_group_code": "U13", "run_time": "03:00.00", "swim_time": "00:40.00"},
-    {"athlete_no": 2, "full_name": "Open Heat", "gender": "M", "age_group_code": "U13", "run_time": null, "swim_time": "00:41.00"},
-    {"athlete_no": 3, "full_name": "No Show", "gender": "M", "age_group_code": "U13", "run_time": null, "swim_time": null}
+    {"athlete_no": 1, "full_name": "Both Times", "gender": "M", "age_group_code": "U13", "run_time": "03:00.00", "swim_time": "00:40.00", "bonus_points": 0, "missing_age": false},
+    {"athlete_no": 2, "full_name": "Open Heat", "gender": "M", "age_group_code": "U13", "run_time": null, "swim_time": "00:41.00", "bonus_points": 0, "missing_age": false},
+    {"athlete_no": 3, "full_name": "No Show", "gender": "M", "age_group_code": "U13", "run_time": null, "swim_time": null, "bonus_points": 0, "missing_age": false},
+    {"athlete_no": 4, "full_name": "Master Example", "gender": "M", "age_group_code": "M40", "run_time": null, "swim_time": null, "bonus_points": 30, "missing_age": false},
+    {"athlete_no": 5, "full_name": "Master No Age", "gender": "M", "age_group_code": "M40", "run_time": null, "swim_time": null, "bonus_points": 0, "missing_age": true},
+    {"athlete_no": 6, "full_name": "Senior No Age", "gender": "M", "age_group_code": "SEN", "run_time": null, "swim_time": null, "bonus_points": 0, "missing_age": true},
+    {"athlete_no": 7, "full_name": "Unclassified No Age", "gender": "M", "age_group_code": "NOPE", "run_time": null, "swim_time": null, "bonus_points": null, "missing_age": false}
   ]'::jsonb,
-  'an Official sees every entered athlete with only their published times, even in a Private League'
+  'an Official sees every entered athlete with their published times, age bonus and missing age flag, even in a Private League'
+);
+select is(
+  (select a ->> 'bonus_points' from jsonb_array_elements(public.league_medals(961) -> 'athletes') a
+   where a ->> 'full_name' = 'Master Example')::numeric,
+  30::numeric,
+  'Bonus: league_medals gets (2027 - 1981 - 40) * 5 from the shared function'
+);
+select is(
+  (select jsonb_agg(a ->> 'full_name' order by a ->> 'athlete_no')
+   from jsonb_array_elements(public.league_medals(961) -> 'athletes') a
+   where (a ->> 'missing_age')::boolean),
+  '["Master No Age", "Senior No Age"]'::jsonb,
+  'Missing age: only athletes with no birth year in a group with a bonus rate above 0'
+);
+select is(
+  (select public.league_medals(961)::text like '%birth_year%'),
+  false,
+  'Birth years: the key is never returned'
+);
+select is(
+  (select public.league_medals(961)::text like '%1981%'),
+  false,
+  'Birth years: the value is never returned'
 );
 select is(
   (public.league_medals(961) ->> 'pool_length_m')::int,

@@ -37,6 +37,7 @@ function athlete(
     age_group_code: "U15",
     run_time,
     swim_time,
+    missing_age: false,
     ...over,
   };
 }
@@ -65,6 +66,127 @@ describe("medalBoard — Medal places", () => {
       [2, 2],
       [2, 3],
       [3, 4],
+    ]);
+  });
+});
+
+describe("medalBoard — age bonus", () => {
+  it("includes the bonus in the podium's Points and Medal places", () => {
+    const [group] = medalBoard(
+      [
+        athlete(1, "02:46.00", "01:13.00", { bonus_points: 0 }),
+        athlete(2, "02:47.00", "01:13.00", { bonus_points: 30 }),
+      ],
+      table,
+      50,
+      [],
+    );
+
+    expect(group.podium).toEqual([
+      {
+        medal_place: 1,
+        athlete_no: 2,
+        full_name: "Athlete 2",
+        total_points: 2030,
+      },
+      {
+        medal_place: 2,
+        athlete_no: 1,
+        full_name: "Athlete 1",
+        total_points: 2002,
+      },
+    ]);
+  });
+
+  it("shows the podium changed when the bonus moves a presented group's order", () => {
+    const [group] = medalBoard(
+      [
+        athlete(1, "02:46.00", "01:13.00", { bonus_points: 0 }),
+        athlete(2, "02:47.00", "01:13.00", { bonus_points: 30 }),
+      ],
+      table,
+      50,
+      [
+        {
+          gender: "M",
+          age_group_code: "U15",
+          podium: [
+            { athlete_no: 1, medal_place: 1 },
+            { athlete_no: 2, medal_place: 2 },
+          ],
+          presented_at: "2027-01-10T10:00:00Z",
+        },
+      ],
+    );
+
+    expect(group.presentation.state).toBe("changed");
+  });
+});
+
+describe("medalBoard — athletes with no age", () => {
+  it("names the athletes the database reports as having no age", () => {
+    const [group] = medalBoard(
+      [
+        athlete(1, "02:40.00", "01:10.00"),
+        athlete(2, "02:50.00", "01:14.00", { missing_age: true }),
+      ],
+      table,
+      50,
+      [],
+    );
+
+    expect(group.athletes_missing_age).toEqual([
+      { athlete_no: 2, full_name: "Athlete 2" },
+    ]);
+  });
+
+  it("has no one to name in a group where the database reports no missing age", () => {
+    const [group] = medalBoard(
+      [athlete(1, "02:40.00", "01:10.00")],
+      table,
+      50,
+      [],
+    );
+
+    expect(group.athletes_missing_age).toEqual([]);
+  });
+
+  it("blocks nothing: an athlete with no age still gets a Medal place", () => {
+    const [group] = medalBoard(
+      [
+        athlete(1, "02:40.00", "01:10.00", { missing_age: true }),
+        athlete(2, "02:50.00", "01:14.00"),
+      ],
+      table,
+      50,
+      [],
+    );
+
+    expect(places(group)).toEqual([
+      [1, 1],
+      [2, 2],
+    ]);
+  });
+
+  it("only names athletes in their own group", () => {
+    const groups = medalBoard(
+      [
+        athlete(1, "02:40.00", "01:10.00", { missing_age: true }),
+        athlete(2, "02:40.00", "01:10.00", { gender: "F" }),
+      ],
+      table,
+      50,
+      [],
+    );
+
+    expect(
+      groups.map((g) => [
+        g.gender,
+        g.athletes_missing_age.map((a) => a.athlete_no),
+      ]),
+    ).toEqual([
+      ["F", []],
+      ["M", [1]],
     ]);
   });
 });
@@ -180,6 +302,7 @@ describe("medalBoard — Medals presented", () => {
         age_group_code: "U15",
         podium: [],
         missing: 1,
+        athletes_missing_age: [],
         presentation: { state: "changed", presented_at: presentedAt },
       },
     ]);
