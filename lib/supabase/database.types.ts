@@ -1000,6 +1000,10 @@ export type Database = {
         Args: { member_user_id: string; org_id: number };
         Returns: undefined;
       };
+      save_athlete_ages: {
+        Args: { ages: Json; org_id: number; year_taken: number };
+        Returns: number;
+      };
       save_reconciliation: {
         Args: {
           reconciliation: Json;
