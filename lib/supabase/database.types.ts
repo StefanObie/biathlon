@@ -958,6 +958,10 @@ export type Database = {
         };
         Returns: undefined;
       };
+      correct_athlete_age: {
+        Args: { age: number; org_id: number; target_athlete_no: number };
+        Returns: number[];
+      };
       create_organization: { Args: { org_name: string }; Returns: number };
       featured_league: {
         Args: Record<PropertyKey, never>;

@@ -9,6 +9,7 @@ import type { ResultsAthleteRow, ResultsPointsRow } from "./shape";
 
 /** What league_results (supabase/schemas/core.sql) returns. */
 export interface LeagueResults {
+  league_id: number;
   name: string;
   organization_name: string;
   league_date: string;
@@ -28,12 +29,18 @@ export function resultsTag(slug: string): string {
   return `results:${slug}`;
 }
 
+/** The same page's cache tag by League, for whoever can't know the slug. */
+export function leagueResultsTag(leagueId: number): string {
+  return `results-league:${leagueId}`;
+}
+
 /**
  * A League's published results by slug, or null when no Public or Protected
  * League has that slug. Read with no session at all, as a spectator would,
  * so nothing here can see more than the anonymous function returns. Cached
- * until a heat is closed or reopened, or the League's Visibility or slug
- * changes (see lib/results/actions.ts); the hour is only a safety net.
+ * until a heat is closed or reopened, the League's Visibility or slug
+ * changes (see lib/results/actions.ts), or an entered athlete's age is
+ * corrected (see lib/leagues/actions.ts); the hour is only a safety net.
  */
 export async function getLeagueResults(
   slug: string,
@@ -51,5 +58,7 @@ export async function getLeagueResults(
   // A failed read is not "no such League": throwing keeps it out of the
   // cache and shows the error page instead of a cached not-found.
   if (error) throw new Error(error.message);
-  return data as LeagueResults | null;
+  const results = data as LeagueResults | null;
+  if (results) cacheTag(leagueResultsTag(results.league_id));
+  return results;
 }

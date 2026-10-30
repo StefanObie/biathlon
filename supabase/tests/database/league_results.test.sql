@@ -7,7 +7,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(53);
+select plan(54);
 
 -- Fixtures, written as the table owner so RLS doesn't apply.
 
@@ -224,6 +224,11 @@ select is(
    where p ->> 'gender' = 'F' and p ->> 'age_group_code' = 'U13'),
   '10',
   'Public: U/13 swims score 10 points a second'
+);
+select is(
+  (select public.league_results('crossland-gnb-league-1') ->> 'league_id')::integer,
+  951,
+  'the results name their League, for refreshing its cached page'
 );
 select is(
   (select public.league_results('crossland-gnb-league-1') ->> 'pool_length_m'),

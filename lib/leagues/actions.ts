@@ -12,9 +12,10 @@ import {
   decideLateEntry,
   type LateEntryDecision,
 } from "@/lib/leagues/late-entry";
-import { resultsTag } from "@/lib/results/query";
+import { leagueResultsTag, resultsTag } from "@/lib/results/query";
 import { defaultSlug } from "@/lib/results/slug";
 import { isPoolLength } from "@/lib/results/points";
+import { leagueToday } from "@/lib/leagues/today";
 
 export interface CreateLeagueState {
   error?: string;
@@ -164,6 +165,85 @@ export async function saveStartList(
 
   revalidatePath(leagueAddress(league, "start-list"));
   return { saved: parsed.length };
+}
+
+export type AthleteAgeLookup =
+  { fullName: string; age: number | null } | { error: string };
+
+/**
+ * Looks up an Athlete number while the Official types it into the Correct age
+ * dialog, so they can see who they're correcting and the age on record.
+ */
+export async function lookUpAthleteAge(
+  league: LeagueRef,
+  athleteNo: number,
+): Promise<AthleteAgeLookup> {
+  if (!Number.isInteger(athleteNo) || athleteNo <= 0) {
+    return { error: "Athlete number must be a positive whole number." };
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("athlete")
+    .select("full_name, birth_year")
+    .eq("organization_id", league.organizationId)
+    .eq("athlete_no", athleteNo)
+    .maybeSingle();
+  if (error)
+    return { error: `Failed to check athlete number: ${error.message}` };
+  if (!data) {
+    return {
+      error: `Athlete ${athleteNo} is not an athlete of this organization`,
+    };
+  }
+  const thisYear = Number(leagueToday().slice(0, 4));
+  return {
+    fullName: data.full_name,
+    age: data.birth_year === null ? null : thisYear - data.birth_year,
+  };
+}
+
+export interface CorrectAthleteAgeState {
+  error?: string;
+  saved?: boolean;
+}
+
+/**
+ * Corrects one athlete's age. correct_athlete_age checks the Role and the
+ * range, stores the birth year and writes the audit row, then says which
+ * Leagues' cached results to refresh so the new bonus shows straight away.
+ */
+export async function correctAthleteAge(
+  league: LeagueRef,
+  _prevState: CorrectAthleteAgeState,
+  formData: FormData,
+): Promise<CorrectAthleteAgeState> {
+  const athleteNo = Number(formData.get("athleteNo"));
+  const age = Number(formData.get("age"));
+
+  if (!Number.isInteger(athleteNo) || athleteNo <= 0) {
+    return { error: "Athlete number must be a positive whole number." };
+  }
+  if (!Number.isInteger(age)) {
+    return { error: "Age must be a whole number." };
+  }
+
+  const supabase = await createClient();
+  const { data: leagueIds, error } = await supabase.rpc("correct_athlete_age", {
+    org_id: league.organizationId,
+    target_athlete_no: athleteNo,
+    age,
+  });
+  if (error) {
+    return {
+      error:
+        error.code === "42501"
+          ? "Only an Official of the organization can correct an age."
+          : error.message,
+    };
+  }
+
+  for (const leagueId of leagueIds) updateTag(leagueResultsTag(leagueId));
+  return { saved: true };
 }
 
 export type LateEntryLookup =
