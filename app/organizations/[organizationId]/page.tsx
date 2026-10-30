@@ -18,12 +18,13 @@ import { InviteForm } from "@/components/invitations/invite-form";
 import { PendingInvitations } from "@/components/invitations/pending-invitations";
 import { NewLeagueButton } from "@/components/leagues/new-league-button";
 import { MembersList } from "@/components/members/members-list";
+import { AgeUpload } from "@/components/organizations/age-upload";
 import { SwimFolderForm } from "@/components/organizations/swim-folder-form";
 import { TeamRoles } from "@/components/organizations/team-roles";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-type Tab = "leagues" | "members" | "team" | "swim";
+type Tab = "leagues" | "members" | "team" | "swim" | "ages";
 
 type Params = Promise<{ organizationId: string }>;
 type SearchParams = Promise<{ tab?: string | string[] }>;
@@ -76,7 +77,10 @@ async function OrganizationSection({
   const requested = Array.isArray(tabParam) ? tabParam[0] : tabParam;
   const tab: Tab =
     isAdmin &&
-    (requested === "members" || requested === "team" || requested === "swim")
+    (requested === "members" ||
+      requested === "team" ||
+      requested === "swim" ||
+      requested === "ages")
       ? requested
       : "leagues";
 
@@ -87,6 +91,7 @@ async function OrganizationSection({
           { id: "members" as const, label: "Members" },
           { id: "team" as const, label: "Default team" },
           { id: "swim" as const, label: "Swim folder" },
+          { id: "ages" as const, label: "Ages" },
         ]
       : []),
   ];
@@ -125,6 +130,7 @@ async function OrganizationSection({
       )}
       {tab === "team" && <TeamTab organizationId={organizationIdNum} />}
       {tab === "swim" && <SwimTab organizationId={organizationIdNum} />}
+      {tab === "ages" && <AgeUpload organizationId={organizationIdNum} />}
     </div>
   );
 }
