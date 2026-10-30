@@ -24,10 +24,14 @@ const selectClass =
 
 export function InviteForm({
   organizationId,
-  leagues,
+  leagues = [],
+  league,
 }: {
   organizationId: number;
-  leagues: { id: number; name: string }[];
+  leagues?: { id: number; name: string }[];
+  /** Invites to this League's team only: the Role is required, and there's
+   * no team to choose. */
+  league?: { id: number; name: string };
 }) {
   const [state, formAction, pending] = useActionState(
     sendInvitation.bind(null, organizationId),
@@ -42,9 +46,19 @@ export function InviteForm({
           <Input id="email" name="email" type="email" required />
         </Field>
         <Field>
-          <FieldLabel htmlFor="role">Role (optional)</FieldLabel>
-          <select id="role" name="role" className={selectClass} defaultValue="">
-            <option value="">No role</option>
+          <FieldLabel htmlFor="role">
+            {league ? "Role" : "Role (optional)"}
+          </FieldLabel>
+          <select
+            id="role"
+            name="role"
+            className={selectClass}
+            defaultValue=""
+            required={league !== undefined}
+          >
+            <option value="" disabled={league !== undefined}>
+              {league ? "Choose a role" : "No role"}
+            </option>
             {LEAGUE_ROLES.map((role) => (
               <option key={role} value={role}>
                 {ROLE_LABEL[role]}
@@ -52,26 +66,30 @@ export function InviteForm({
             ))}
           </select>
         </Field>
-        <Field>
-          <FieldLabel htmlFor="team">On</FieldLabel>
-          <select
-            id="team"
-            name="team"
-            className={selectClass}
-            defaultValue="default"
-          >
-            <option value="default">Default team</option>
-            {leagues.map((league) => (
-              <option key={league.id} value={league.id}>
-                {league.name}
-              </option>
-            ))}
-          </select>
-          <FieldDescription>
-            Only used when you choose a role. They can&apos;t be invited as an
-            Admin.
-          </FieldDescription>
-        </Field>
+        {league ? (
+          <input type="hidden" name="team" value={league.id} />
+        ) : (
+          <Field>
+            <FieldLabel htmlFor="team">On</FieldLabel>
+            <select
+              id="team"
+              name="team"
+              className={selectClass}
+              defaultValue="default"
+            >
+              <option value="default">Default team</option>
+              {leagues.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+            <FieldDescription>
+              Only used when you choose a role. They can&apos;t be invited as an
+              Admin.
+            </FieldDescription>
+          </Field>
+        )}
         {state.error && (
           <Field data-invalid>
             <FieldError>{state.error}</FieldError>

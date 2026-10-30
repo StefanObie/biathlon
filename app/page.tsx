@@ -1,8 +1,9 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { cookies } from "next/headers";
+import { ArrowRightIcon } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/logo";
 import { createClient } from "@/lib/supabase/server";
 import {
   ORGANIZATION_COOKIE,
@@ -13,16 +14,17 @@ import { getFeaturedLeague } from "@/lib/results/featured";
 
 export default function Home() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center">
-      <div className="flex flex-col gap-8 w-full max-w-2xl p-5 items-center text-center">
-        <h1 className="text-3xl font-bold">Crossland Biathlon</h1>
-        <Suspense>
-          <FeaturedLeagueCard />
-        </Suspense>
-        <Suspense fallback={<div className="h-9" />}>
-          <CallToAction />
-        </Suspense>
-      </div>
+    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center px-6 pb-8 pt-16 text-center">
+      <Logo size={72} preload />
+      <h1 className="mt-4 text-[28px] font-medium leading-tight tracking-tight">
+        Crossland Biathlon
+      </h1>
+      <Suspense>
+        <FeaturedLeagueCard />
+      </Suspense>
+      <Suspense fallback={<div className="mt-6 h-5" />}>
+        <HostingLine />
+      </Suspense>
     </main>
   );
 }
@@ -39,29 +41,41 @@ async function FeaturedLeagueCard() {
   return (
     <Link
       href={`/results/${league.results_slug}`}
-      className="w-full rounded-lg border p-5 text-left transition-colors hover:bg-accent"
+      className="mt-8 flex w-full items-center gap-3 rounded-lg border p-4 text-left transition-colors hover:bg-accent active:bg-accent"
     >
-      <p className="text-sm text-muted-foreground">Latest results</p>
-      <p className="text-sm text-muted-foreground">
-        {league.organization_name}
-      </p>
-      <p className="text-xl font-semibold">{league.name}</p>
-      <p className="text-sm text-muted-foreground">{date}</p>
+      <span className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="text-sm font-medium">
+          {league.is_today ? "Today" : "Latest results"}
+        </span>
+        <span className="text-xl font-medium leading-snug">{league.name}</span>
+        <span className="text-sm text-muted-foreground">
+          {league.organization_name}
+        </span>
+        <span className="text-sm text-muted-foreground">{date}</span>
+      </span>
+      <ArrowRightIcon className="size-5 shrink-0" aria-hidden />
     </Link>
   );
 }
 
-// Sign in for visitors; for a Member, open their Organization through the
+// Signing in is only for someone hosting a race, so it stays out of the way of
+// people here for results; a Member opens their Organization through the
 // Organization landing.
-async function CallToAction() {
+async function HostingLine() {
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
   const userId = claims?.claims.sub;
   if (!userId) {
     return (
-      <Button asChild>
-        <Link href="/auth/login">Sign in</Link>
-      </Button>
+      <p className="mt-6 text-sm text-muted-foreground">
+        Hosting your own race?{" "}
+        <Link
+          href="/auth/login"
+          className="font-medium text-foreground underline underline-offset-4"
+        >
+          Sign in
+        </Link>
+      </p>
     );
   }
 
@@ -80,10 +94,13 @@ async function CallToAction() {
   const organization = organizations.find((o) => o.id === landing);
 
   return (
-    <Button asChild>
-      <Link href="/organizations">
+    <p className="mt-6 text-sm">
+      <Link
+        href="/organizations"
+        className="font-medium underline underline-offset-4"
+      >
         {organization ? `Open ${organization.name}` : "Open my Organizations"}
       </Link>
-    </Button>
+    </p>
   );
 }

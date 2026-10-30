@@ -5,6 +5,7 @@ import {
   canUse,
   hasRole,
   heatModes,
+  homeTiles,
   raceDayScreens,
   settingsGroups,
   ROLE_LABEL,
@@ -167,8 +168,9 @@ describe("League home and Settings hub", () => {
       "medals",
     ]);
     expect(groupsOf(official)).toEqual([
-      ["Before the race", ["start-list"]],
-      ["After the race", ["swim", "export"]],
+      ["Before", ["start-list"]],
+      ["During", ["swim"]],
+      ["After", ["export"]],
     ]);
     expect(hasSettings(official)).toBe(true);
   });
@@ -182,14 +184,30 @@ describe("League home and Settings hub", () => {
       "medals",
     ]);
     expect(groupsOf(admin)).toEqual([
-      ["Before the race", ["start-list", "team", "results"]],
-      ["After the race", ["swim", "export"]],
+      ["Setup", ["team", "results"]],
+      ["Before", ["start-list"]],
+      ["During", ["swim"]],
+      ["After", ["export"]],
     ]);
     expect(hasSettings(admin)).toBe(true);
   });
 
   it("shows someone with no Role nothing", () => {
     expect(raceDayScreens(none)).toEqual([]);
+    expect(homeTiles(none)).toEqual([]);
     expect(hasSettings(none)).toBe(false);
+  });
+
+  it("splits the Call room into its run and swim destinations", () => {
+    expect(homeTiles(caller)).toEqual(["call-room", "call-room-swim"]);
+    expect(homeTiles(timekeeper)).toEqual(["timer"]);
+    expect(homeTiles(official)).toEqual([
+      "call-room",
+      "call-room-swim",
+      "position",
+      "timer",
+      "reconcile",
+      "medals",
+    ]);
   });
 });

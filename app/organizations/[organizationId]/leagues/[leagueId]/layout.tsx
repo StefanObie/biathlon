@@ -1,7 +1,11 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { SettingsIcon } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+import { hasSettings } from "@/lib/access/roles";
+import { getLeagueAccess } from "@/lib/access/league-access";
 import { createClient } from "@/lib/supabase/server";
 import { leagueAddress } from "@/lib/leagues/address";
 
@@ -46,22 +50,36 @@ async function LeagueHeader({
   if (!league) return null;
   if (league.organization_id !== organizationIdNum) notFound();
 
+  const ref = { organizationId: organizationIdNum, leagueId: leagueIdNum };
+  const access = await getLeagueAccess(organizationIdNum, leagueIdNum);
+
   return (
-    <div>
-      <h1 className="text-2xl font-bold">
-        <Link
-          href={leagueAddress({
-            organizationId: organizationIdNum,
-            leagueId: leagueIdNum,
-          })}
-          className="hover:underline"
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <h1 className="text-[22px] font-medium leading-tight">
+          <Link href={leagueAddress(ref)} className="hover:underline">
+            {league.name}
+          </Link>
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {league.league_date} · Season {league.season}
+        </p>
+      </div>
+      {access && hasSettings(access) && (
+        <Button
+          asChild
+          variant="ghost"
+          size="icon"
+          className="-mr-2 -mt-2 size-11 shrink-0 [&_svg]:size-5"
         >
-          {league.name}
-        </Link>
-      </h1>
-      <p className="text-sm text-muted-foreground">
-        {league.league_date} · Season {league.season}
-      </p>
+          <Link
+            href={leagueAddress(ref, "settings")}
+            aria-label="League settings"
+          >
+            <SettingsIcon aria-hidden />
+          </Link>
+        </Button>
+      )}
     </div>
   );
 }

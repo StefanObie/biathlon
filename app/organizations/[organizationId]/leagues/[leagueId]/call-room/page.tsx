@@ -1,11 +1,11 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { canUse } from "@/lib/access/roles";
 import { getLeagueAccess } from "@/lib/access/league-access";
 import { leagueAddress } from "@/lib/leagues/address";
+import { HeatGrid } from "@/components/call-room/heat-grid";
 import { NoAccess } from "@/components/leagues/no-access";
 
 export default function CallRoomHeatPickerPage({
@@ -40,7 +40,7 @@ async function HeatList({
   const supabase = await createClient();
   const { data: entries, error } = await supabase
     .from("entry")
-    .select("run_heat, swim_heat")
+    .select("run_heat")
     .eq("league_id", leagueIdNum)
     .order("run_heat");
 
@@ -50,64 +50,20 @@ async function HeatList({
 
   const league = { organizationId: organizationIdNum, leagueId: leagueIdNum };
   const heats = [...new Set((entries ?? []).map((e) => e.run_heat))];
-  const swimHeats = [
-    ...new Set(
-      (entries ?? []).flatMap((e) =>
-        e.swim_heat === null ? [] : [e.swim_heat],
-      ),
-    ),
-  ].sort((a, b) => a - b);
-
-  if (heats.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        No run heats found — import a start list first.
-      </p>
-    );
-  }
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-lg font-semibold">Call room</h1>
-      <HeatGrid
-        title="Run heats"
-        heats={heats}
-        href={(heat) => leagueAddress(league, "call-room", heat)}
-      />
-      {swimHeats.length > 0 && (
+      <h2 className="text-lg font-medium">Run call room</h2>
+      {heats.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No run heats found — import a start list first.
+        </p>
+      ) : (
         <HeatGrid
-          title="Swim heats"
-          heats={swimHeats}
-          href={(heat) => leagueAddress(league, "call-room-swim", heat)}
+          heats={heats}
+          href={(heat) => leagueAddress(league, "call-room", heat)}
         />
       )}
     </div>
-  );
-}
-
-function HeatGrid({
-  title,
-  heats,
-  href,
-}: {
-  title: string;
-  heats: number[];
-  href: (heat: number) => string;
-}) {
-  return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-lg font-semibold">{title}</h2>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {heats.map((heat) => (
-          <Link
-            key={heat}
-            href={href(heat)}
-            className="flex h-20 items-center justify-center rounded-md border border-input text-2xl font-bold tabular-nums hover:bg-accent"
-          >
-            {heat}
-          </Link>
-        ))}
-      </div>
-    </section>
   );
 }

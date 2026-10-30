@@ -56,7 +56,7 @@ async function SwimCallRoomHeatSection({
     // Whole league, so a number belonging to another swim heat is recognised.
     supabase
       .from("entry")
-      .select("athlete_no, swim_heat, swim_lane, athlete(full_name)")
+      .select("athlete_no, run_heat, swim_heat, swim_lane, athlete(full_name)")
       .eq("league_id", leagueIdNum),
     supabase
       .from("swim_call_room_check_in")
@@ -95,6 +95,7 @@ async function SwimCallRoomHeatSection({
       swimHeat={swimHeatNum}
       modes={heatModes(access)}
       swimHeats={swimHeats}
+      runHeats={[...new Set((leagueEntries ?? []).map((e) => e.run_heat))]}
       entries={entries}
       remoteCheckIns={(checkIns ?? []).map((c) => ({
         athleteNo: c.athlete_no,

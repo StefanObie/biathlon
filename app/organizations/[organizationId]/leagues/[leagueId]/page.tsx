@@ -2,38 +2,12 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import {
-  hasSettings,
-  raceDayScreens,
-  type RaceDayScreen,
-} from "@/lib/access/roles";
+import { homeTiles } from "@/lib/access/roles";
 import { getLeagueAccess } from "@/lib/access/league-access";
 import { leagueAddress } from "@/lib/leagues/address";
+import { SCREEN_LABEL } from "@/lib/navigation/navigation";
 import { NoAccess } from "@/components/leagues/no-access";
-
-const RACE_DAY: Record<RaceDayScreen, { title: string; description: string }> =
-  {
-    position: {
-      title: "Position",
-      description: "Table capture — track finish order by athlete number.",
-    },
-    "call-room": {
-      title: "Call room",
-      description: "Check in the athletes of each heat before it runs.",
-    },
-    timer: {
-      title: "Timer",
-      description: "Finish-line timer — one button per finisher.",
-    },
-    reconcile: {
-      title: "Reconcile",
-      description: "Match positions to times, fix gaps, save results.",
-    },
-    medals: {
-      title: "Medals",
-      description: "Each group's podium, and whether its medals are presented.",
-    },
-  };
+import { SCREEN_ICON } from "@/components/leagues/screen-icons";
 
 export default function LeagueIndexPage({
   params,
@@ -65,34 +39,22 @@ async function LeagueNav({
   const league = { organizationId: organizationIdNum, leagueId: leagueIdNum };
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {raceDayScreens(access).map((screen) => (
+    <div className="grid max-w-[720px] grid-cols-2 gap-3">
+      {homeTiles(access).map((screen) => {
+        const Icon = SCREEN_ICON[screen];
+        return (
           <Link
             key={screen}
             href={leagueAddress(league, screen)}
-            className="flex min-h-24 flex-col justify-center gap-1 rounded-md border border-input p-5 hover:bg-accent"
+            className="flex min-h-[88px] min-w-0 flex-col justify-center gap-2 rounded-md border border-input p-4 hover:bg-accent active:bg-accent lg:min-h-20"
           >
-            <span className="text-lg font-semibold">
-              {RACE_DAY[screen].title}
-            </span>
-            <span className="text-sm text-muted-foreground">
-              {RACE_DAY[screen].description}
+            <Icon className="size-5 shrink-0" aria-hidden />
+            <span className="font-medium leading-tight">
+              {SCREEN_LABEL[screen]}
             </span>
           </Link>
-        ))}
-        {hasSettings(access) && (
-          <Link
-            href={leagueAddress(league, "settings")}
-            className="flex min-h-24 flex-col justify-center gap-1 rounded-md border border-input p-5 hover:bg-accent"
-          >
-            <span className="text-lg font-semibold">Settings</span>
-            <span className="text-sm text-muted-foreground">
-              Athletes, heats, visibility, and export.
-            </span>
-          </Link>
-        )}
-      </div>
+        );
+      })}
     </div>
   );
 }

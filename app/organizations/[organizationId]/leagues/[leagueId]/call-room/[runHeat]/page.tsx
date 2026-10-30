@@ -60,7 +60,7 @@ async function CallRoomHeatSection({
     // Whole league, so a number belonging to another heat is recognised.
     supabase
       .from("entry")
-      .select("athlete_no, run_heat, athlete(full_name)")
+      .select("athlete_no, run_heat, swim_heat, athlete(full_name)")
       .eq("league_id", leagueIdNum),
     supabase
       .from("call_room_check_in")
@@ -105,6 +105,13 @@ async function CallRoomHeatSection({
       runHeat={runHeatNum}
       modes={heatModes(access)}
       heats={heats}
+      swimHeats={[
+        ...new Set(
+          (leagueEntries ?? []).flatMap((e) =>
+            e.swim_heat === null ? [] : [e.swim_heat],
+          ),
+        ),
+      ]}
       entries={entries}
       athletes={organizationAthletes}
       remoteCheckIns={(checkIns ?? []).map((c) => ({

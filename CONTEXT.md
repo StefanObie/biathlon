@@ -70,7 +70,7 @@ The unguessable link that shows a Protected League's results. An Admin can regen
 _Avoid_: Share link, secret URL
 
 **Featured league**:
-The Public League with the latest date on or before today, across all Organizations, shown on the home page with a link to its results. When no League qualifies, nothing is featured.
+The Public League with the latest date on or before today, across all Organizations, shown on the home page with a link to its results. So the League hosted today is featured when there is one, labelled "Today"; otherwise the most recent one is, labelled "Latest results". When no League qualifies, nothing is featured.
 _Avoid_: Current league, latest league
 
 ### Race structure
