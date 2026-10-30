@@ -6,6 +6,7 @@ import { UploadIcon } from "lucide-react";
 import { leagueAddress } from "@/lib/leagues/address";
 import { saveStartList } from "@/lib/leagues/actions";
 import { AddLateEntryForm } from "@/components/leagues/add-late-entry-form";
+import { CorrectAgeForm } from "@/components/leagues/correct-age-form";
 import { parseUploadedEntryFile } from "@/lib/import/parse-file";
 import {
   parseEntryRows,
@@ -233,7 +234,7 @@ function CommittedTable({
         <p className="text-sm text-muted-foreground">
           {entries.length} athletes
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <Button asChild variant="outline">
             <a
               href={leagueAddress({ organizationId, leagueId }, "bibs-pdf")}
@@ -247,6 +248,7 @@ function CommittedTable({
             organizationId={organizationId}
             leagueId={leagueId}
           />
+          <CorrectAgeForm organizationId={organizationId} leagueId={leagueId} />
           <Button variant="outline" onClick={() => inputRef.current?.click()}>
             Import new data
           </Button>

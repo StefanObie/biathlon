@@ -457,6 +457,12 @@ create policy "Officials can delete athletes"
   to authenticated
   using (private.has_org_role(organization_id, 'official'));
 
+-- public.correct_athlete_age is the only way anyone signed in can write
+-- birth_year, so every change has an audit row.
+revoke insert, update on athlete from anon, authenticated;
+grant insert (organization_id, athlete_no, full_name, gender) on athlete to authenticated;
+grant update (organization_id, athlete_no, full_name, gender) on athlete to authenticated;
+
 create policy "Members can read their organizations"
   on organization for select
   to authenticated
@@ -2085,6 +2091,7 @@ security definer
 set search_path = ''
 as $$
   select jsonb_build_object(
+    'league_id', l.id,
     'name', l.name,
     'organization_name', o.name,
     'league_date', l.league_date,
@@ -2126,6 +2133,65 @@ $$;
 
 revoke execute on function public.league_results(text) from public;
 grant execute on function public.league_results(text) to anon, authenticated;
+
+-- An Official corrects one athlete's age (#81).
+-- Stores the age as the current year minus the age, like the estimate from an
+-- age file (ADR 0007). Returns the Leagues the athlete is entered in, whose
+-- cached results need refreshing. Their ids, not their slugs: an Official may
+-- not be on those Leagues, and a Protected League's slug is its secret.
+create function public.correct_athlete_age(org_id integer, target_athlete_no integer, age integer)
+returns integer[]
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  previous integer;
+  corrected integer;
+begin
+  if not private.has_org_role(org_id, 'official') then
+    raise exception 'Only an Official of the Organization can correct an age'
+      using errcode = '42501';
+  end if;
+  if age is null or age not between 5 and 100 then
+    raise exception 'Age must be between 5 and 100.' using errcode = '22023';
+  end if;
+
+  select a.birth_year into previous
+  from public.athlete a
+  where a.organization_id = org_id and a.athlete_no = target_athlete_no
+  for update;
+  if not found then
+    raise exception 'Athlete % is not an athlete of this organization', target_athlete_no
+      using errcode = '22023';
+  end if;
+
+  corrected := extract(year from now() at time zone 'Africa/Johannesburg')::integer - age;
+
+  update public.athlete
+  set birth_year = corrected
+  where organization_id = org_id and athlete_no = target_athlete_no;
+
+  insert into public.audit_log (organization_id, actor, entity, action, before, after)
+  values (
+    org_id,
+    coalesce((select auth.jwt() ->> 'email'), 'unknown'),
+    'athlete',
+    'athlete.age-corrected',
+    jsonb_build_object('athlete_no', target_athlete_no, 'birth_year', previous),
+    jsonb_build_object('athlete_no', target_athlete_no, 'birth_year', corrected, 'age', age)
+  );
+
+  return array(
+    select e.league_id from public.entry e
+    where e.organization_id = org_id and e.athlete_no = target_athlete_no
+    order by e.league_id
+  );
+end;
+$$;
+
+revoke execute on function public.correct_athlete_age(integer, integer, integer) from public, anon;
+grant execute on function public.correct_athlete_age(integer, integer, integer) to authenticated;
 
 -- Sets the Pool length a League's swim session was held in (#70). An Official
 -- of the League sets it while importing swim times, but RLS only lets an
