@@ -233,6 +233,12 @@ function AthleteRow({
           <dt>Swim</dt>
           <dd>{athlete.swim_time ?? "—"}</dd>
           <dd>{points(athlete.swim_points)}</dd>
+          {athlete.bonus_points !== null && (
+            <>
+              <dt>Bonus</dt>
+              <dd className="col-start-3">{points(athlete.bonus_points)}</dd>
+            </>
+          )}
         </dl>
       )}
     </li>

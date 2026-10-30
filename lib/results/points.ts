@@ -60,10 +60,10 @@ function shortCourseSeconds(row: PointsRow, poolLength: PoolLength): number {
 
 /**
  * An athlete's points for a run and a swim (Age Group & Points Table PDF).
- * Bonus points for age are not included: they need a birth year, which we
- * don't have. A missing time leaves that component empty, and the total is
- * the sum of whichever components exist. A swim in a 25 m pool loses the
- * Short course adjustment.
+ * A missing time leaves that component empty, and the total is the sum of
+ * whichever components exist. A swim in a 25 m pool loses the Short course
+ * adjustment. The age bonus is not a component: the database calculates it
+ * and shapeResults adds it to the total of an athlete with both times.
  */
 export function computePoints(
   runTime: string | null,

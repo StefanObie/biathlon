@@ -39,8 +39,12 @@ create table athlete (
   athlete_no integer not null,
   full_name text not null,
   gender gender not null,
+  birth_year integer,
   primary key (organization_id, athlete_no)
 );
+
+comment on column athlete.birth_year is
+  'Estimated, not exact: the year ages were taken minus the age given, so the age at the end of a season year may be a year out (ADR 0007).';
 
 alter table athlete enable row level security;
 
@@ -410,11 +414,14 @@ create table points_table (
   swim_distance_m integer not null,
   swim_base_time text not null,
   swim_points_per_second numeric not null,
-  -- Stored, not applied — see spec §6.3 (masters bonus deferred).
+  -- See private.age_bonus_points and spec §6.3.
   bonus_points_per_year numeric not null,
   -- The Short course adjustment (#70): seconds added to a swim in a 25 m pool
   -- for each turn beyond the ones it makes in a 50 m pool.
   short_course_seconds_per_turn numeric not null,
+  -- The season the row applies to, which the age bonus counts age up to. Not
+  -- league.season, which is typed by hand and may not match the table.
+  season_year integer not null,
   primary key (effective_from, gender, age_group_code)
 );
 
@@ -1943,10 +1950,33 @@ alter table league
     )
   );
 
+-- The age bonus (#78): points for each year an athlete is above the bottom of
+-- their age band at the end of the season year, never below 0. A missing birth
+-- year gives 0. The one place the formula lives.
+create function private.age_bonus_points(
+  season_year integer,
+  birth_year integer,
+  age_from integer,
+  bonus_points_per_year numeric
+)
+returns numeric
+language sql
+immutable
+set search_path = ''
+as $$
+  select greatest(
+    0,
+    coalesce((season_year - birth_year - age_from) * bonus_points_per_year, 0)
+  );
+$$;
+
 -- Every athlete entered in a League with their published times: a run time
 -- once its heat is Closed (ADR 0001), a swim time whenever it is recorded and
 -- ok. Shared by the public results and the Medals screen, so the two can't
--- disagree. Athletes with no time at all are included; callers decide.
+-- disagree. Athletes with no time at all are included; callers decide. The age
+-- bonus comes from the points table row that applies on the League's date, for
+-- the age group on the entry, so an Unclassified athlete has a null bonus.
+-- birth_year is never returned.
 create function private.published_times(target_league_id integer)
 returns table (
   athlete_no integer,
@@ -1954,14 +1984,15 @@ returns table (
   gender public.gender,
   age_group_code text,
   run_time text,
-  swim_time text
+  swim_time text,
+  bonus_points numeric
 )
 language sql
 stable
 set search_path = ''
 as $$
   select e.athlete_no, a.full_name, a.gender, e.age_group_code,
-    run.run_time, swim.swim_time
+    run.run_time, swim.swim_time, bonus.bonus_points
   from public.entry e
   join public.athlete a
     on a.organization_id = e.organization_id and a.athlete_no = e.athlete_no
@@ -1986,6 +2017,19 @@ as $$
       and sr.status = 'ok'
       and sr.swim_time is not null
   ) swim on true
+  left join lateral (
+    select private.age_bonus_points(
+      p.season_year, a.birth_year, p.age_from, p.bonus_points_per_year
+    ) as bonus_points
+    from public.points_table p
+    join public.league l on l.id = e.league_id
+    where p.gender = a.gender
+      and p.age_group_code = e.age_group_code
+      and p.effective_from = (
+        select max(p2.effective_from) from public.points_table p2
+        where p2.effective_from <= l.league_date
+      )
+  ) bonus on true
   where e.league_id = target_league_id;
 $$;
 
@@ -2021,13 +2065,14 @@ as $$
   ), '[]'::jsonb);
 $$;
 
+revoke execute on function private.age_bonus_points(integer, integer, integer, numeric) from public, anon, authenticated;
 revoke execute on function private.published_times(integer) from public, anon, authenticated;
 revoke execute on function private.league_points_table(integer) from public, anon, authenticated;
 
 -- Published results for anyone: the heat counts and, per athlete, the times
 -- that are published, with the points table that applies on the League's
--- date. Athlete numbers are not returned, and an athlete with no time at all
--- is left out: they did not show up.
+-- date, and the age bonus. Athlete numbers and birth years are not returned,
+-- and an athlete with no time at all is left out: they did not show up.
 create function public.league_results(slug text)
 returns jsonb
 language sql
@@ -2060,7 +2105,8 @@ as $$
           'gender', t.gender,
           'age_group_code', t.age_group_code,
           'run_time', t.run_time,
-          'swim_time', t.swim_time
+          'swim_time', t.swim_time,
+          'bonus_points', t.bonus_points
         )
         order by t.full_name, t.athlete_no
       )

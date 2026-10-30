@@ -37,18 +37,21 @@ export type Database = {
       athlete: {
         Row: {
           athlete_no: number;
+          birth_year: number | null;
           full_name: string;
           gender: Database["public"]["Enums"]["gender"];
           organization_id: number;
         };
         Insert: {
           athlete_no: number;
+          birth_year?: number | null;
           full_name: string;
           gender: Database["public"]["Enums"]["gender"];
           organization_id: number;
         };
         Update: {
           athlete_no?: number;
+          birth_year?: number | null;
           full_name?: string;
           gender?: Database["public"]["Enums"]["gender"];
           organization_id?: number;
@@ -542,6 +545,7 @@ export type Database = {
           run_base_time: string;
           run_distance_m: number;
           run_points_per_second: number;
+          season_year: number;
           short_course_seconds_per_turn: number;
           sort_order: number;
           swim_base_time: string;
@@ -559,6 +563,7 @@ export type Database = {
           run_base_time: string;
           run_distance_m: number;
           run_points_per_second: number;
+          season_year: number;
           short_course_seconds_per_turn: number;
           sort_order: number;
           swim_base_time: string;
@@ -576,6 +581,7 @@ export type Database = {
           run_base_time?: string;
           run_distance_m?: number;
           run_points_per_second?: number;
+          season_year?: number;
           short_course_seconds_per_turn?: number;
           sort_order?: number;
           swim_base_time?: string;

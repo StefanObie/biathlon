@@ -68,8 +68,8 @@ async function Results({ params }: { params: Promise<{ slug: string }> }) {
       <ResultsView groups={groups} />
 
       <p className="text-xs text-muted-foreground">
-        Points shown exclude age-related bonus points and are not official SA
-        Biathlon points.
+        Points include age bonus points based on recorded ages and are not
+        official SA Biathlon points.
       </p>
     </div>
   );
