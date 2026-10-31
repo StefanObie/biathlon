@@ -40,7 +40,8 @@ export function leagueResultsTag(leagueId: number): string {
  * so nothing here can see more than the anonymous function returns. Cached
  * until a heat is closed or reopened, the League's Visibility or slug
  * changes (see lib/results/actions.ts), or an entered athlete's age is
- * corrected (see lib/leagues/actions.ts); the hour is only a safety net.
+ * corrected or given on a Late entry (see lib/leagues/actions.ts); the hour is
+ * only a safety net.
  */
 export async function getLeagueResults(
   slug: string,

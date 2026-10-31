@@ -10,6 +10,7 @@ import { parseAgeGroup } from "@/lib/import/age-group";
 import {
   alreadyOnStartListMessage,
   decideLateEntry,
+  parseLateEntryAge,
   type LateEntryDecision,
 } from "@/lib/leagues/late-entry";
 import { leagueResultsTag, resultsTag } from "@/lib/results/query";
@@ -247,12 +248,13 @@ export async function correctAthleteAge(
 }
 
 export type LateEntryLookup =
-  { decision: LateEntryDecision } | { error: string };
+  { decision: LateEntryDecision; hasBirthYear: boolean } | { error: string };
 
 /**
  * What adding this Athlete number as a Late entry means, read fresh from the
- * database: the athlete, their latest age group in the Organization, and
- * whether they are already on this League's Start list.
+ * database: the athlete, their latest age group in the Organization, whether
+ * they already have a birth year, and whether they are already on this
+ * League's Start list.
  */
 async function loadLateEntryDecision(
   supabase: ServerClient,
@@ -267,7 +269,7 @@ async function loadLateEntryDecision(
   ] = await Promise.all([
     supabase
       .from("athlete")
-      .select("athlete_no, full_name, gender")
+      .select("athlete_no, full_name, gender, birth_year")
       .eq("organization_id", organizationId)
       .eq("athlete_no", athleteNo),
     supabase.rpc("latest_age_groups", {
@@ -302,6 +304,7 @@ async function loadLateEntryDecision(
         runHeat: p.run_heat,
       })),
     ),
+    hasBirthYear: (athletes ?? []).some((a) => a.birth_year !== null),
   };
 }
 
@@ -345,7 +348,9 @@ function optionalPositiveInt(value: FormDataEntryValue | null): number | null {
  * Start list after the import, whether new or one who has raced for it
  * before. A known athlete keeps their stored name and gender. The swim slot
  * may stay empty. The entry is inserted, never upserted, so an athlete
- * already on the Start list is refused rather than moved between heats.
+ * already on the Start list is refused rather than moved between heats. An age,
+ * if given, is saved once the athlete is entered; set_late_entry_age leaves an
+ * existing birth year alone and says which Leagues' cached results to refresh.
  */
 export async function addLateEntry(
   league: LeagueRef,
@@ -359,6 +364,7 @@ export async function addLateEntry(
   const runHeat = Number(formData.get("runHeat"));
   const swimHeat = optionalPositiveInt(formData.get("swimHeat"));
   const swimLane = optionalPositiveInt(formData.get("swimLane"));
+  const parsedAge = parseLateEntryAge(formData.get("age"));
 
   if (!Number.isInteger(athleteNo) || athleteNo <= 0) {
     return { error: "Athlete number must be a positive whole number." };
@@ -367,6 +373,7 @@ export async function addLateEntry(
   if (!ageGroup) {
     return { error: "Choose an age group." };
   }
+  if ("error" in parsedAge) return parsedAge;
   if (!Number.isInteger(runHeat) || runHeat <= 0) {
     return { error: "Run heat must be a positive whole number." };
   }
@@ -440,6 +447,24 @@ export async function addLateEntry(
   }
 
   revalidatePath(leagueAddress(league, "start-list"));
+
+  if (parsedAge.age !== null) {
+    const { data: leagueIds, error: ageError } = await supabase.rpc(
+      "set_late_entry_age",
+      {
+        target_league_id: leagueId,
+        target_athlete_no: athleteNo,
+        age: parsedAge.age,
+      },
+    );
+    if (ageError) {
+      return {
+        error: `#${athleteNo} is on the Start list, but their age wasn't saved (${ageError.message}). Use Correct age to add it.`,
+      };
+    }
+    for (const id of leagueIds) updateTag(leagueResultsTag(id));
+  }
+
   return { saved: true };
 }
 

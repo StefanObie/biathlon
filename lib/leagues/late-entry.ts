@@ -1,4 +1,5 @@
 import { ageGroupLabel, type Gender } from "@/lib/import/age-group";
+import { MAX_AGE, MIN_AGE } from "@/lib/import/age-file";
 
 /**
  * An athlete of the Organization, with the age group of their latest entry
@@ -62,4 +63,22 @@ export function alreadyOnStartListMessage(
   runHeat: number,
 ): string {
   return `#${athleteNo} is already on the Start list in heat ${runHeat}`;
+}
+
+/**
+ * The optional age on the Late entry form: null when it's left blank. Checked
+ * before anything is saved, so a bad age can't leave an entry without one.
+ */
+export function parseLateEntryAge(
+  value: FormDataEntryValue | null,
+): { age: number | null } | { error: string } {
+  const text = String(value ?? "").trim();
+  if (text === "") return { age: null };
+  const age = Number(text);
+  if (!Number.isInteger(age) || age < MIN_AGE || age > MAX_AGE) {
+    return {
+      error: `Age must be a whole number between ${MIN_AGE} and ${MAX_AGE}.`,
+    };
+  }
+  return { age };
 }

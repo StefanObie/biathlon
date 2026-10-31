@@ -1022,6 +1022,14 @@ export type Database = {
         };
         Returns: string;
       };
+      set_late_entry_age: {
+        Args: {
+          age: number;
+          target_athlete_no: number;
+          target_league_id: number;
+        };
+        Returns: number[];
+      };
       set_member_admin: {
         Args: { make_admin: boolean; member_user_id: string; org_id: number };
         Returns: undefined;

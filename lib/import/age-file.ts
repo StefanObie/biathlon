@@ -32,9 +32,12 @@ export interface ParsedAgeFile {
   warnings: AgeFileWarning[];
 }
 
-/** The same range correct_athlete_age and save_athlete_ages accept. */
-const MIN_AGE = 5;
-const MAX_AGE = 100;
+/**
+ * The same range correct_athlete_age, save_athlete_ages and set_late_entry_age
+ * accept.
+ */
+export const MIN_AGE = 5;
+export const MAX_AGE = 100;
 
 // Columns are `# Athlete Sex Age Province Group`. Names and groups both hold
 // spaces, so the number comes off the front and the rest off the back: the

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { decideLateEntry, type OrganizationAthlete } from "./late-entry";
+import {
+  decideLateEntry,
+  parseLateEntryAge,
+  type OrganizationAthlete,
+} from "./late-entry";
 
 const athletes: OrganizationAthlete[] = [
   {
@@ -68,4 +72,27 @@ describe("decideLateEntry", () => {
       runHeat: 1,
     });
   });
+});
+
+describe("parseLateEntryAge", () => {
+  it("is no age for a blank field, so the Late entry still saves", () => {
+    expect(parseLateEntryAge("")).toEqual({ age: null });
+    expect(parseLateEntryAge("   ")).toEqual({ age: null });
+    expect(parseLateEntryAge(null)).toEqual({ age: null });
+  });
+
+  it("reads a plausible age, up to and including both ends of the range", () => {
+    expect(parseLateEntryAge("45")).toEqual({ age: 45 });
+    expect(parseLateEntryAge(" 5 ")).toEqual({ age: 5 });
+    expect(parseLateEntryAge("100")).toEqual({ age: 100 });
+  });
+
+  it.each(["4", "101", "0", "-30", "45.5", "abc"])(
+    "rejects %s with a message saying what an age must be",
+    (value) => {
+      expect(parseLateEntryAge(value)).toEqual({
+        error: "Age must be a whole number between 5 and 100.",
+      });
+    },
+  );
 });
