@@ -88,7 +88,7 @@ The athletes entered in a League, each with a run heat, an age group and, when k
 _Avoid_: Entry list, roster (when you mean the whole League)
 
 **Late entry**:
-An athlete added to a League's Start list after it was imported, whether they are new to the Organization or have raced for it before. Their swim slot may stay unknown.
+An athlete added to a League's Start list after it was imported, whether they are new to the Organization or have raced for it before. Their swim slot may stay unknown. An Official may give their age, which fills in an empty birth year and never overwrites one.
 _Avoid_: Walk-up, new athlete
 
 **Heat roster**:
@@ -169,7 +169,7 @@ _Avoid_: Check-in page, roll call
 The Timer screen and the Position screen together. They do not include reconciliation or the Call room screen.
 
 **Points**:
-An athlete's score from a run and a swim: 1000 at the age group's base time, plus or minus a rate for every second faster or slower, per gender and age group. The run and swim components are shown separately and the total adds whichever exist. Swim Points include the Short course adjustment. An athlete with both times also gets an age bonus, shown as its own value and added once to the total: points for each year they are above the bottom of the age band on their League entry at the end of the season year, using an estimated birth year, which an Admin sets from the age file and an Official can correct by entering the athlete's age. Run and swim Points never include it. Points are not official SA Biathlon points.
+An athlete's score from a run and a swim: 1000 at the age group's base time, plus or minus a rate for every second faster or slower, per gender and age group. The run and swim components are shown separately and the total adds whichever exist. Swim Points include the Short course adjustment. An athlete with both times also gets an age bonus, shown as its own value and added once to the total: points for each year they are above the bottom of the age band on their League entry at the end of the season year, using an estimated birth year, which an Admin sets from the age file, an Official can give on a Late entry with no birth year, and an Official can correct by entering the athlete's age. Run and swim Points never include it. Points are not official SA Biathlon points.
 _Avoid_: Score (when you mean one component)
 
 **Provisional rank**:

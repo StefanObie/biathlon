@@ -122,6 +122,8 @@ function LateEntryForm({
   const result = lookup?.athleteNo === athleteNo ? lookup.result : null;
   const decision = result && "decision" in result ? result.decision : null;
   const existing = decision?.kind === "existing-athlete" ? decision : null;
+  const ageOnRecord =
+    result !== null && "decision" in result && result.hasBirthYear;
   const ageGroupLabels = existing
     ? AGE_GROUP_LABELS.filter(
         (label) => parseAgeGroup(label)?.gender === existing.gender,
@@ -203,6 +205,22 @@ function LateEntryForm({
               ))}
             </SelectContent>
           </Select>
+        </Field>
+        <Field orientation="responsive">
+          <FieldLabel htmlFor="age">Age</FieldLabel>
+          <Input
+            // Remount to clear anything typed before the lookup came back.
+            key={ageOnRecord ? "on-record" : "open"}
+            id="age"
+            name="age"
+            type="number"
+            disabled={ageOnRecord}
+          />
+          <FieldDescription>
+            {ageOnRecord
+              ? "An age is already on record. Use Correct age to change it."
+              : "Optional. A Senior or Master needs it for their age bonus."}
+          </FieldDescription>
         </Field>
         <Field orientation="responsive">
           <FieldLabel htmlFor="runHeat">Run heat</FieldLabel>
