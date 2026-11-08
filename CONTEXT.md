@@ -19,7 +19,7 @@ An Admin's offer by email for someone to become a Member of an Organization, opt
 _Avoid_: Invite code (the old shared signup code, which Organizations replace)
 
 **Invitation link**:
-The link in an Invitation email. Following it confirms the invitee's email, signs them in and accepts the Invitation in one step, with no Sign-in OTP. It works once, and only for someone who isn't already signed in as a different user.
+The link in an Invitation email. Following it confirms the invitee's email, signs them in and accepts the Invitation in one step, with no Sign-in OTP. That one step is only for an account that has never signed in: an invitee who has signed in before signs in with a Sign-in OTP first, and then the link accepts the Invitation. It works once, and only for someone who isn't already signed in as a different user.
 _Avoid_: Magic link, invite code
 
 **Sign-in OTP**:

@@ -47,3 +47,18 @@ export function acceptDecision(
     ? "signed-in-invitee"
     : "other-user";
 }
+
+export type InviteeSignInMethod = "link" | "sign-in-otp";
+
+/**
+ * How a signed-out invitee gets signed in, given when their account last
+ * signed in (null or missing if it never has). The link is a bearer
+ * credential, so it signs in only an account that has never been used. One
+ * that has signs in with a Sign-in OTP first, so a leaked link can't hand
+ * over an account with data of its own.
+ */
+export function inviteeSignInMethod(
+  lastSignInAt: string | null | undefined,
+): InviteeSignInMethod {
+  return lastSignInAt ? "sign-in-otp" : "link";
+}
