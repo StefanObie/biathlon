@@ -25,7 +25,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 
 const initialOtpState: RequestOtpState = {};
 
@@ -45,11 +45,13 @@ export function LoginForm({
     initialOtpState,
   );
 
-  useEffect(() => {
-    if (otpState.status === "otp_sent") {
-      setStep("code");
-    }
-  }, [otpState.status]);
+  // Each request returns a new state, so moving to the code step once per
+  // sent OTP still works after "Use a different email".
+  const [seenOtpState, setSeenOtpState] = useState(otpState);
+  if (otpState !== seenOtpState) {
+    setSeenOtpState(otpState);
+    if (otpState.status === "otp_sent") setStep("code");
+  }
 
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
