@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { acceptDecision, landingPath } from "./landing";
+import { acceptDecision, inviteeSignInMethod, landingPath } from "./landing";
 
 describe("landingPath", () => {
   it("sends Callers, Timekeepers and Placers to their League screen", () => {
@@ -49,5 +49,15 @@ describe("acceptDecision", () => {
 
   it("signs the invitee in when nobody is", () => {
     expect(acceptDecision("a@example.com", null)).toBe("sign-invitee-in");
+  });
+});
+
+describe("inviteeSignInMethod", () => {
+  it("lets an account that has never signed in use the link", () => {
+    expect(inviteeSignInMethod(null)).toBe("link");
+  });
+
+  it("makes an account that has signed in before use a Sign-in OTP", () => {
+    expect(inviteeSignInMethod("2026-11-08T10:05:00Z")).toBe("sign-in-otp");
   });
 });

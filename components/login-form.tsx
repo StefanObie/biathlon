@@ -31,8 +31,12 @@ const initialOtpState: RequestOtpState = {};
 
 export function LoginForm({
   className,
+  next = "/organizations",
   ...props
-}: React.ComponentPropsWithoutRef<"div">) {
+}: React.ComponentPropsWithoutRef<"div"> & {
+  /** A path on this site to go to once signed in. */
+  next?: string;
+}) {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"email" | "code">("email");
@@ -66,7 +70,7 @@ export function LoginForm({
         type: "email",
       });
       if (error) throw error;
-      router.push("/organizations");
+      router.push(next);
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {

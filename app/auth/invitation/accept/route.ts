@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { acceptDecision, landingPath } from "@/lib/invitations/landing";
+import {
+  acceptDecision,
+  inviteeSignInMethod,
+  landingPath,
+} from "@/lib/invitations/landing";
 import { hashInvitationSecret } from "@/lib/invitations/secret";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -10,6 +14,8 @@ import { createClient } from "@/lib/supabase/server";
  * page, which posts here, so a mail scanner that opens links can't use it
  * up. This confirms the invitee's email, signs them in (creating the
  * account if needed) and accepts the Invitation, with no Sign-in OTP.
+ * An account that has signed in before isn't signed in by the link: it
+ * signs in with a Sign-in OTP first and comes back to the link.
  *
  * Anything that goes wrong sends the visitor to the normal sign-in page.
  * A different signed-in user is left alone and the Invitation isn't
@@ -59,6 +65,14 @@ export async function POST(request: NextRequest) {
     email: open!.email,
   });
   if (linkError || !link.user) return fail("generateLink", linkError);
+
+  if (
+    decision === "sign-invitee-in" &&
+    inviteeSignInMethod(link.user.last_sign_in_at) === "sign-in-otp"
+  ) {
+    const back = `/auth/invitation?token=${encodeURIComponent(token)}`;
+    return redirectTo(`/auth/login?next=${encodeURIComponent(back)}`);
+  }
 
   // Accepting is atomic, so of two people opening the link at once only one
   // gets this far, and the other never gets a session.
