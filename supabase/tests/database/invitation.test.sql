@@ -7,7 +7,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(39);
+select plan(41);
 
 -- Fixtures, written as the table owner so RLS doesn't apply.
 
@@ -34,17 +34,23 @@ insert into league (id, organization_id, name, league_date, season) overriding s
   (9902, 902, 'League B', '2026-10-01', 2026);
 
 ---------------------------------------------------------------------------
--- Non-Admins can't invite, and can't read Invitations.
+-- The browser can't send Invitations at all: whoever calls send_invitation
+-- picks the secret, so only the app's server may.
 ---------------------------------------------------------------------------
 
 set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000e000b", "role": "authenticated", "email": "admin-b@invite.test"}';
+
+-- The account takeover: an Admin of their own Organization invites someone
+-- else's email with a secret they chose, then follows their own link.
+select throws_ok(
+  $$ select public.send_invitation(902, 'admin-a@invite.test', null, null, 'hash-attacker', '00000000-0000-0000-0000-0000000e000b') $$,
+  '42501', null,
+  'an Admin cannot send an Invitation from the browser, even for their own Organization'
+);
+
 set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000e00a1", "role": "authenticated", "email": "member@invite.test"}';
 
-select throws_ok(
-  $$ select public.send_invitation(901, 'x@invite.test', null, null, 'hash-member') $$,
-  '42501', 'Only an Admin can invite Members',
-  'an ordinary Member cannot send an Invitation'
-);
 select throws_ok(
   $$ insert into invitation (organization_id, email, secret_hash, invited_by, invited_by_email)
        values (901, 'x@invite.test', 'hash-direct', '00000000-0000-0000-0000-0000000e00a1', 'member@invite.test') $$,
@@ -52,22 +58,37 @@ select throws_ok(
   'nobody can insert an Invitation directly'
 );
 
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000e000b", "role": "authenticated", "email": "admin-b@invite.test"}';
+---------------------------------------------------------------------------
+-- The server sends on behalf of the signed-in user, who must be an Admin.
+---------------------------------------------------------------------------
+
+reset role;
+set local role service_role;
 
 select throws_ok(
-  $$ select public.send_invitation(901, 'x@invite.test', null, null, 'hash-other-org') $$,
+  $$ select public.send_invitation(901, 'x@invite.test', null, null, 'hash-member', '00000000-0000-0000-0000-0000000e00a1') $$,
+  '42501', 'Only an Admin can invite Members',
+  'an ordinary Member cannot send an Invitation'
+);
+select throws_ok(
+  $$ select public.send_invitation(901, 'x@invite.test', null, null, 'hash-other-org', '00000000-0000-0000-0000-0000000e000b') $$,
   '42501', 'Only an Admin can invite Members',
   'another Organization''s Admin cannot send an Invitation for it'
 );
+select throws_ok(
+  $$ select public.send_invitation(901, 'x@invite.test', null, null, 'hash-nobody', null) $$,
+  '42501', 'Only an Admin can invite Members',
+  'an Invitation needs an inviter'
+);
 
 ---------------------------------------------------------------------------
--- An Admin sends, replaces and cancels Invitations.
+-- An Admin sends, replaces and cancels Invitations. Sending runs as the
+-- server (service_role) on Admin A's behalf; reading, writing directly and
+-- cancelling run in Admin A's browser (authenticated).
 ---------------------------------------------------------------------------
-
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000e000a", "role": "authenticated", "email": "admin-a@invite.test"}';
 
 select lives_ok(
-  $$ select public.send_invitation(901, '  Invitee@Invite.Test ', 'caller', 9901, 'hash-1') $$,
+  $$ select public.send_invitation(901, '  Invitee@Invite.Test ', 'caller', 9901, 'hash-1', '00000000-0000-0000-0000-0000000e000a') $$,
   'an Admin invites someone with a Role on a League'
 );
 select results_eq(
@@ -80,14 +101,21 @@ select ok(
      from invitation where organization_id = 901),
   'an Invitation lasts 7 days'
 );
+
+-- In Admin A's browser:
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000e000a", "role": "authenticated", "email": "admin-a@invite.test"}';
 select throws_ok(
   $$ select secret_hash from invitation $$,
   '42501', null,
   'the secret hash cannot be read, even by an Admin'
 );
 
+-- As the server:
+set local role service_role;
+
 select lives_ok(
-  $$ select public.send_invitation(901, 'invitee@invite.test', 'official', null, 'hash-2') $$,
+  $$ select public.send_invitation(901, 'invitee@invite.test', 'official', null, 'hash-2', '00000000-0000-0000-0000-0000000e000a') $$,
   'sending again to the same email replaces the open Invitation'
 );
 select results_eq(
@@ -97,20 +125,23 @@ select results_eq(
 );
 
 select throws_ok(
-  $$ select public.send_invitation(901, 'member@invite.test', null, null, 'hash-3') $$,
+  $$ select public.send_invitation(901, 'member@invite.test', null, null, 'hash-3', '00000000-0000-0000-0000-0000000e000a') $$,
   '23505', 'member@invite.test is already a Member',
   'inviting an existing Member is refused'
 );
 select throws_ok(
-  $$ select public.send_invitation(901, 'y@invite.test', 'placer', 9902, 'hash-4') $$,
+  $$ select public.send_invitation(901, 'y@invite.test', 'placer', 9902, 'hash-4', '00000000-0000-0000-0000-0000000e000a') $$,
   '22023', 'That league does not exist',
   'a League from another Organization cannot be named'
 );
 select throws_ok(
-  $$ select public.send_invitation(901, 'y@invite.test', 'placer', 999999, 'hash-5') $$,
+  $$ select public.send_invitation(901, 'y@invite.test', 'placer', 999999, 'hash-5', '00000000-0000-0000-0000-0000000e000a') $$,
   '22023', 'That league does not exist',
   'the League must exist when sent'
 );
+
+-- In Admin A's browser:
+set local role authenticated;
 select throws_ok(
   $$ insert into invitation (organization_id, email, secret_hash, invited_by, invited_by_email)
        values (901, 'invitee@invite.test', 'hash-dup', '00000000-0000-0000-0000-0000000e000a', 'admin-a@invite.test') $$,
@@ -118,6 +149,7 @@ select throws_ok(
   'an Admin cannot write Invitations directly either'
 );
 
+-- As the table owner, so only the unique index can stop it:
 reset role;
 select throws_ok(
   $$ insert into invitation (organization_id, email, secret_hash, invited_by, invited_by_email)
@@ -125,23 +157,27 @@ select throws_ok(
   '23505', null,
   'an email has at most one open Invitation per Organization'
 );
-set local role authenticated;
 
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000e000b", "role": "authenticated", "email": "admin-b@invite.test"}';
+-- As the server, on Admin B's behalf:
+set local role service_role;
 select lives_ok(
-  $$ select public.send_invitation(902, 'invitee@invite.test', null, null, 'hash-b') $$,
+  $$ select public.send_invitation(902, 'invitee@invite.test', null, null, 'hash-b', '00000000-0000-0000-0000-0000000e000b') $$,
   'the same email can be invited to a different Organization'
 );
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000e000a", "role": "authenticated", "email": "admin-a@invite.test"}';
 
 ---------------------------------------------------------------------------
 -- Cancelling.
 ---------------------------------------------------------------------------
 
+-- Still as the server, on Admin A's behalf:
 select lives_ok(
-  $$ select public.send_invitation(901, 'cancel-me@invite.test', null, null, 'hash-cancel') $$,
+  $$ select public.send_invitation(901, 'cancel-me@invite.test', null, null, 'hash-cancel', '00000000-0000-0000-0000-0000000e000a') $$,
   'an Admin sends another Invitation'
 );
+
+-- In Admin A's browser:
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000e000a", "role": "authenticated", "email": "admin-a@invite.test"}';
 select lives_ok(
   $$ select public.cancel_invitation((select id from invitation where email = 'cancel-me@invite.test')) $$,
   'an Admin cancels a pending Invitation'
