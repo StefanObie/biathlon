@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ulid } from "ulid";
 import { toast } from "sonner";
 
@@ -193,11 +193,7 @@ export function TimeCapture({
   // time, see recordCapture), just the on-screen ticker. A closed heat's
   // clock is frozen at its close, so it doesn't tick.
   useEffect(() => {
-    if (startedAtMs === null || locked) {
-      setNow(null);
-      return;
-    }
-    setNow(Date.now());
+    if (startedAtMs === null || locked) return;
     const interval = setInterval(() => setNow(Date.now()), 47);
     return () => clearInterval(interval);
   }, [startedAtMs, locked]);
@@ -210,10 +206,12 @@ export function TimeCapture({
   const lastThree = allCaptures.slice(0, 3);
   const mostRecent = allCaptures[0];
 
-  const liveElapsed = useMemo(() => {
-    if (startedAtMs === null || now === null) return null;
-    return formatElapsed(now - startedAtMs);
-  }, [startedAtMs, now]);
+  // Until the first tick after a start, `now` may still be from before it,
+  // so the ticker shows zero rather than a negative time.
+  const liveElapsed =
+    startedAtMs === null || locked || now === null
+      ? null
+      : formatElapsed(Math.max(0, now - startedAtMs));
   const clock =
     frozenElapsedMs !== null
       ? formatElapsed(frozenElapsedMs)
@@ -251,6 +249,8 @@ export function TimeCapture({
 
   async function recordCapture(isPlaceholder: boolean) {
     if (startedAtMsRef.current === null || locked) return;
+    // Only ever runs from a button press, never during render.
+    // eslint-disable-next-line react-hooks/purity
     const elapsedMs = Date.now() - startedAtMsRef.current;
     const row: LocalTimeCapture = {
       id: ulid(),

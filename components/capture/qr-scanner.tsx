@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ScanLineIcon } from "lucide-react";
 
 import { startBarcodeScan, type ScannerControls } from "@/lib/scan/decoder";
@@ -72,10 +72,14 @@ function CameraStream({
   paused: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  // The scanner's callback outlives renders, so it reads the latest props
+  // through refs, kept current after each render.
   const onDetectRef = useRef(onDetect);
-  onDetectRef.current = onDetect;
   const pausedRef = useRef(paused);
-  pausedRef.current = paused;
+  useLayoutEffect(() => {
+    onDetectRef.current = onDetect;
+    pausedRef.current = paused;
+  });
   const [status, setStatus] = useState<"starting" | "active" | "error">(
     "starting",
   );
