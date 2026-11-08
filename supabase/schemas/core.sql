@@ -1456,14 +1456,19 @@ create policy "Admins can read their organizations' invitations"
   to authenticated
   using (private.is_org_member(organization_id, as_admin => true));
 
--- Sends an Invitation, or replaces the Organization's open one for that
--- email. The caller's app makes the secret and passes only its hash.
+-- Sends an Invitation on behalf of inviter_id, or replaces the Organization's
+-- open one for that email. Only the app's server calls this, with the
+-- service role: it makes the secret, emails it and passes only its hash.
+-- The browser must never choose the secret, or it could invite any email
+-- (another Organization's Admin, say) and follow its own link to sign in
+-- as them.
 create function public.send_invitation(
   org_id integer,
   invitee_email text,
   invitee_role league_role,
   invitee_league_id integer,
-  new_secret_hash text
+  new_secret_hash text,
+  inviter_id uuid
 )
 returns uuid
 language plpgsql
@@ -1472,11 +1477,14 @@ set search_path = ''
 as $$
 declare
   normalized text := lower(trim(coalesce(invitee_email, '')));
-  sender_email text := coalesce((select auth.jwt() ->> 'email'), 'unknown');
+  sender_email text := coalesce((select u.email from auth.users u where u.id = inviter_id), 'unknown');
   existing public.invitation;
   invitation_id uuid;
 begin
-  if not private.is_org_member(org_id, as_admin => true) then
+  if inviter_id is null or not exists (
+    select 1 from public.organization_member m
+    where m.organization_id = org_id and m.user_id = inviter_id and m.is_admin
+  ) then
     raise exception 'Only an Admin can invite Members' using errcode = '42501';
   end if;
   if normalized = '' or position('@' in normalized) = 0 then
@@ -1516,7 +1524,7 @@ begin
     set role = invitee_role,
         league_id = invitee_league_id,
         secret_hash = new_secret_hash,
-        invited_by = (select auth.uid()),
+        invited_by = inviter_id,
         invited_by_email = sender_email,
         created_at = now(),
         expires_at = now() + interval '7 days'
@@ -1535,7 +1543,7 @@ begin
     )
     values (
       org_id, normalized, invitee_role, invitee_league_id, new_secret_hash,
-      (select auth.uid()), sender_email
+      inviter_id, sender_email
     )
     returning id into invitation_id;
 
@@ -1550,8 +1558,8 @@ begin
 end;
 $$;
 
-revoke execute on function public.send_invitation(integer, text, league_role, integer, text) from public, anon;
-grant execute on function public.send_invitation(integer, text, league_role, integer, text) to authenticated;
+revoke execute on function public.send_invitation(integer, text, league_role, integer, text, uuid) from public, anon, authenticated;
+grant execute on function public.send_invitation(integer, text, league_role, integer, text, uuid) to service_role;
 
 -- Cancels a pending Invitation. Anything else, including someone else's
 -- Organization's, is reported the same way as one that doesn't exist.

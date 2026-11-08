@@ -1017,6 +1017,7 @@ export type Database = {
           invitee_email: string;
           invitee_league_id: number;
           invitee_role: Database["public"]["Enums"]["league_role"];
+          inviter_id: string;
           new_secret_hash: string;
           org_id: number;
         };

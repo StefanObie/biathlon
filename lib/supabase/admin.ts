@@ -4,9 +4,10 @@ import { env, requireServerEnv } from "@/lib/env";
 import type { Database } from "@/lib/supabase/database.types";
 
 /**
- * A client with the invite_members_email secret key, which bypasses RLS. Server-only, and
- * used only to accept an Invitation from its link: the invitee has no
- * session yet, so nothing else can. Create one per use, like the others.
+ * A client with the invite_members_email secret key, which bypasses RLS.
+ * Server-only, and used only for Invitations: to send one, so the browser
+ * never picks a link's secret, and to accept one from its link, since the
+ * invitee has no session yet. Create one per use, like the others.
  */
 export function createAdminClient() {
   return createClient<Database>(

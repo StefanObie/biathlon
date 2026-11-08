@@ -7,6 +7,7 @@ import { ROLE_LABEL, LEAGUE_ROLES, type LeagueRole } from "@/lib/access/roles";
 import { invitationEmail } from "@/lib/invitations/email";
 import { createInvitationSecret } from "@/lib/invitations/secret";
 import { sendEmail } from "@/lib/invitations/zeptomail";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export interface SendInvitationState {
@@ -19,6 +20,8 @@ export interface SendInvitationState {
  * Default team or one League's team. The database checks the sender is an
  * Admin, replaces an open Invitation for the email and refuses an existing
  * Member. The secret in the link is made here and only its hash is stored.
+ * The browser can't send an Invitation itself: whoever picks the secret can
+ * follow the link and sign in as the invitee, so only this server may.
  * If the email can't be sent, the Invitation is cancelled again so no
  * unsent link sits open.
  */
@@ -40,17 +43,23 @@ export async function sendInvitation(
 
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
+  const inviterId = claims?.claims.sub;
   const inviterEmail = claims?.claims.email;
-  if (!inviterEmail) return { error: "Sign in to invite people." };
+  if (!inviterId || !inviterEmail)
+    return { error: "Sign in to invite people." };
 
   const { secret, hash } = createInvitationSecret();
-  const { data: invitationId, error } = await supabase.rpc("send_invitation", {
-    org_id: organizationId,
-    invitee_email: email,
-    invitee_role: role as LeagueRole,
-    invitee_league_id: leagueId as number,
-    new_secret_hash: hash,
-  });
+  const { data: invitationId, error } = await createAdminClient().rpc(
+    "send_invitation",
+    {
+      org_id: organizationId,
+      invitee_email: email,
+      invitee_role: role as LeagueRole,
+      invitee_league_id: leagueId as number,
+      new_secret_hash: hash,
+      inviter_id: inviterId,
+    },
+  );
   if (error || !invitationId) {
     return { error: error?.message ?? "Failed to send the invitation." };
   }
