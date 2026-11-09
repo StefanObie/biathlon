@@ -4,8 +4,10 @@ export interface ExportPreviewRow extends ExportRow {
   runHeat: number;
   swimStatus: string | null;
   runStatus: string | null;
-  /** Athlete has run rows in heats other than their assigned entry.runHeat. */
-  strayRunHeats: number[];
+  /** The heat of the exported run when it is an Off-roster run, else null. */
+  ranInHeat: number | null;
+  /** Other Closed heats the athlete has Run results in, ascending. */
+  otherRunHeats: number[];
 }
 
 export interface ExportEntry {
@@ -31,7 +33,10 @@ export interface ExportSelection {
   rows: ExportPreviewRow[];
   /** Athletes in a closed heat with no time on either leg. */
   excludedCount: number;
-  /** Athletes left out because their assigned run heat isn't Closed. */
+  /**
+   * Athletes left out because their roster heat isn't Closed and they have no
+   * Run result in a heat that is.
+   */
   openHeatAthleteCount: number;
   /** The run heats those athletes are in, ascending. */
   openHeats: number[];
@@ -40,11 +45,12 @@ export interface ExportSelection {
 /**
  * Chooses which entered athletes reach the export, in entry order.
  *
- * An athlete is left out when their assigned run heat isn't Closed (ADR
- * 0001): only reconciled results are official, and that includes a heat
- * that was reopened after saving. Otherwise they appear if they have at
- * least one of the two times. Both kinds of left-out athlete are counted,
- * separately, not exported.
+ * Only Run results in Closed heats count (ADR 0001), and of those the one
+ * countingRunFirst puts first is exported, even an Off-roster run (ADR 0008).
+ * An athlete with no such Run result is left out while their roster heat
+ * isn't Closed, including a heat reopened after saving. Otherwise they appear
+ * if they have at least one of the two times. Both kinds of left-out athlete
+ * are counted, separately, not exported.
  *
  * Status is never used to filter or blank a time — see buildResultsXml.
  */
@@ -74,21 +80,21 @@ export function selectExportRows({
   const openHeats = new Set<number>();
 
   for (const entry of entries) {
-    if (!closedHeats.has(entry.runHeat)) {
+    const swim = swimByAthlete.get(entry.athleteNo);
+    const closedRuns = (runsByAthlete.get(entry.athleteNo) ?? [])
+      .filter((r) => closedHeats.has(r.runHeat))
+      .sort(countingRunFirst(entry.runHeat));
+    const [run] = closedRuns;
+    const otherRunHeats = closedRuns
+      .slice(1)
+      .map((r) => r.runHeat)
+      .sort((a, b) => a - b);
+
+    if (!run && !closedHeats.has(entry.runHeat)) {
       openHeatAthleteCount += 1;
       openHeats.add(entry.runHeat);
       continue;
     }
-
-    const swim = swimByAthlete.get(entry.athleteNo);
-    const athleteRuns = runsByAthlete.get(entry.athleteNo) ?? [];
-
-    // entry.runHeat is the athlete's official assignment, so that row wins;
-    // any other heat is a capture artifact surfaced as a warning, not merged.
-    const run = athleteRuns.find((r) => r.runHeat === entry.runHeat);
-    const strayRunHeats = athleteRuns
-      .filter((r) => r.runHeat !== entry.runHeat)
-      .map((r) => r.runHeat);
 
     const swimTime = swim?.swimTime ?? null;
     const runTime = run?.runTime ?? null;
@@ -106,7 +112,8 @@ export function selectExportRows({
       runHeat: entry.runHeat,
       swimStatus: swim?.status ?? null,
       runStatus: run?.status ?? null,
-      strayRunHeats,
+      ranInHeat: run && run.runHeat !== entry.runHeat ? run.runHeat : null,
+      otherRunHeats,
     });
   }
 
@@ -116,4 +123,21 @@ export function selectExportRows({
     openHeatAthleteCount,
     openHeats: [...openHeats].sort((a, b) => a - b),
   };
+}
+
+/**
+ * Orders an athlete's Closed-heat Run results so the one that counts comes
+ * first: an ok one with a time before any other, then the roster heat's, then
+ * the lowest-numbered heat's (ADR 0008). published_times applies the same
+ * rule in SQL, so the export and the public results pick the same run.
+ */
+function countingRunFirst(rosterHeat: number) {
+  return (a: ExportRun, b: ExportRun) =>
+    Number(isOkWithTime(b)) - Number(isOkWithTime(a)) ||
+    Number(b.runHeat === rosterHeat) - Number(a.runHeat === rosterHeat) ||
+    a.runHeat - b.runHeat;
+}
+
+function isOkWithTime(run: ExportRun) {
+  return run.status === "ok" && run.runTime !== null;
 }

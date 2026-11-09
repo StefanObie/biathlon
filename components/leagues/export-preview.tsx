@@ -75,7 +75,10 @@ export function ExportPreview({
   const nonOk = rows.filter(
     (row) => isFlagged(row.swimStatus) || isFlagged(row.runStatus),
   ).length;
-  const strayHeats = rows.filter((row) => row.strayRunHeats.length > 0).length;
+  const offRoster = rows.filter((row) => row.ranInHeat !== null).length;
+  const inOtherHeats = rows.filter(
+    (row) => row.otherRunHeats.length > 0,
+  ).length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -90,8 +93,13 @@ export function ExportPreview({
             <Badge variant="outline">{missingRun} missing run</Badge>
           )}
           {nonOk > 0 && <Badge variant="outline">{nonOk} dns/dnf/dq</Badge>}
-          {strayHeats > 0 && (
-            <Badge variant="destructive">{strayHeats} in other heats</Badge>
+          {offRoster > 0 && (
+            <Badge variant="outline">{offRoster} ran in another heat</Badge>
+          )}
+          {inOtherHeats > 0 && (
+            <Badge variant="destructive">
+              {inOtherHeats} with runs in more than one heat
+            </Badge>
           )}
           {excludedCount > 0 && (
             <Badge variant="outline">{excludedCount} with no times</Badge>
@@ -161,9 +169,12 @@ export function ExportPreview({
                 {isFlagged(row.runStatus) && (
                   <Badge variant="outline">run {row.runStatus}</Badge>
                 )}
-                {row.strayRunHeats.length > 0 && (
+                {row.ranInHeat !== null && (
+                  <Badge variant="outline">ran in heat {row.ranInHeat}</Badge>
+                )}
+                {row.otherRunHeats.length > 0 && (
                   <Badge variant="destructive">
-                    also heat {row.strayRunHeats.join(", ")}
+                    also heat {row.otherRunHeats.join(", ")}
                   </Badge>
                 )}
               </TableCell>

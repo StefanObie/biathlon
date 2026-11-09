@@ -2015,8 +2015,10 @@ $$;
 
 -- Every athlete entered in a League with their published times: a run time
 -- once its heat is Closed (ADR 0001), a swim time whenever it is recorded and
--- ok. Shared by the public results and the Medals screen, so the two can't
--- disagree. Athletes with no time at all are included; callers decide. The age
+-- ok. With ok runs in several Closed heats, the roster heat's counts, else the
+-- lowest-numbered heat's, as in the export (ADR 0008). Shared by the public
+-- results and the Medals screen, so the two can't disagree. Athletes with no
+-- time at all are included; callers decide. The age
 -- bonus comes from the points table row that applies on the League's date, for
 -- the age group on the entry, so an Unclassified athlete has a null bonus.
 -- missing_age says the row has a bonus rate above 0 but no birth year to use it
@@ -2052,7 +2054,7 @@ as $$
       and rr.status = 'ok'
       and rr.run_time is not null
       and r.closed_at is not null
-    order by rr.run_heat
+    order by rr.run_heat = e.run_heat desc, rr.run_heat
     limit 1
   ) run on true
   left join lateral (
