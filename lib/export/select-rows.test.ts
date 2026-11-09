@@ -22,8 +22,9 @@ const swim = (athleteNo: number, swimTime = "00:56.12"): ExportSwim => ({
 const run = (
   athleteNo: number,
   runHeat: number,
-  runTime = "01:47.03",
-): ExportRun => ({ athleteNo, runHeat, runTime, status: "ok" });
+  runTime: string | null = "01:47.03",
+  status = "ok",
+): ExportRun => ({ athleteNo, runHeat, runTime, status });
 
 describe("selectExportRows", () => {
   it("exports athletes whose heat is closed", () => {
@@ -43,7 +44,8 @@ describe("selectExportRows", () => {
       runHeat: 1,
       swimStatus: "ok",
       runStatus: "ok",
-      strayRunHeats: [],
+      ranInHeat: null,
+      otherRunHeats: [],
     });
     expect(result.openHeatAthleteCount).toBe(0);
     expect(result.openHeats).toEqual([]);
@@ -104,7 +106,7 @@ describe("selectExportRows", () => {
     expect(result.openHeatAthleteCount).toBe(0);
   });
 
-  it("uses the assigned heat's run and reports other heats as stray", () => {
+  it("uses the roster heat's run and lists the other heats", () => {
     const result = selectExportRows({
       entries: [entry(1, 1)],
       swims: [],
@@ -114,18 +116,93 @@ describe("selectExportRows", () => {
 
     expect(result.rows).toHaveLength(1);
     expect(result.rows[0].runTime).toBe("01:47.03");
-    expect(result.rows[0].strayRunHeats).toEqual([3]);
+    expect(result.rows[0]).toMatchObject({
+      ranInHeat: null,
+      otherRunHeats: [3],
+    });
   });
 
-  it("does not export a stray run when the assigned heat is closed without one", () => {
+  it("exports an Off-roster run and says which heat it came from", () => {
     const result = selectExportRows({
       entries: [entry(1, 1)],
       swims: [],
-      runs: [run(1, 2)],
-      closedHeats: new Set([1, 2]),
+      runs: [run(1, 7, "02:10.00")],
+      closedHeats: new Set([1, 7]),
     });
 
-    expect(result.rows).toEqual([]);
-    expect(result.excludedCount).toBe(1);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]).toMatchObject({
+      runTime: "02:10.00",
+      runHeat: 1,
+      ranInHeat: 7,
+      otherRunHeats: [],
+    });
+    expect(result.excludedCount).toBe(0);
+  });
+
+  it("uses the lowest-numbered heat when no run is in the roster heat", () => {
+    const result = selectExportRows({
+      entries: [entry(1, 1)],
+      swims: [],
+      runs: [run(1, 7, "02:10.00"), run(1, 5, "01:59.00")],
+      closedHeats: new Set([1, 5, 7]),
+    });
+
+    expect(result.rows[0]).toMatchObject({
+      runTime: "01:59.00",
+      ranInHeat: 5,
+      otherRunHeats: [7],
+    });
+  });
+
+  it("lets an ok Off-roster run beat a DNS in the roster heat", () => {
+    const result = selectExportRows({
+      entries: [entry(1, 1)],
+      swims: [],
+      runs: [run(1, 1, null, "dns"), run(1, 7, "02:10.00")],
+      closedHeats: new Set([1, 7]),
+    });
+
+    expect(result.rows[0]).toMatchObject({
+      runTime: "02:10.00",
+      runStatus: "ok",
+      ranInHeat: 7,
+      otherRunHeats: [1],
+    });
+  });
+
+  it("still exports a DQ when it is the athlete's only Run result", () => {
+    const result = selectExportRows({
+      entries: [entry(1, 1)],
+      swims: [swim(1)],
+      runs: [run(1, 1, "01:47.03", "dq")],
+      closedHeats: new Set([1]),
+    });
+
+    expect(result.rows[0]).toMatchObject({ runStatus: "dq", ranInHeat: null });
+  });
+
+  it("exports an Off-roster run while the roster heat is still open", () => {
+    const result = selectExportRows({
+      entries: [entry(1, 1)],
+      swims: [],
+      runs: [run(1, 7, "02:10.00")],
+      closedHeats: new Set([7]),
+    });
+
+    expect(result.rows[0]).toMatchObject({ runTime: "02:10.00", ranInHeat: 7 });
+    expect(result.openHeatAthleteCount).toBe(0);
+    expect(result.openHeats).toEqual([]);
+  });
+
+  it("does not count an ok Run result that has no time", () => {
+    const result = selectExportRows({
+      entries: [entry(1, 1)],
+      swims: [],
+      runs: [run(1, 1, null, "ok"), run(1, 7, "02:10.00")],
+      closedHeats: new Set([1, 7]),
+    });
+
+    expect(result.rows[0]).toMatchObject({ runTime: "02:10.00", ranInHeat: 7 });
   });
 });
