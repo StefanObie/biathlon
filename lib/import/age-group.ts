@@ -39,6 +39,8 @@ export const AGE_GROUP_LABELS = [
   "MASTERS 60+ MEN",
   "MASTERS 70+ WOMEN",
   "MASTERS 70+ MEN",
+  "MASTERS 80+ WOMEN",
+  "MASTERS 80+ MEN",
   "SPECIAL NEEDS FEMALE",
   "SPECIAL NEEDS MALE",
 ] as const;
@@ -52,6 +54,7 @@ export const AGE_GROUP_LABELS = [
  *   "U/19 BOYS"         -> { code: "U19", gender: "M" }
  *   "MASTERS 60+ WOMEN" -> { code: "M60", gender: "F" }
  *   "MASTERS 40+ MEN"   -> { code: "M40", gender: "M" }
+ *   "MASTER 80+ MEN"    -> { code: "M80", gender: "M" }  (singular spelling)
  *   "JNR WOMEN"         -> { code: "JNR", gender: "F" }
  *   "JNR MEN"           -> { code: "JNR", gender: "M" }
  *   "SENIORS WOMEN"     -> { code: "SEN", gender: "F" }
@@ -80,7 +83,8 @@ export function parseAgeGroup(label: string): ParsedAgeGroup | null {
     return { code: `U${under[1].padStart(2, "0")}`, gender };
   }
 
-  const masters = normalized.match(/^MASTERS\s+(\d{1,2})\+\s+(WOMEN|MEN)$/);
+  // Club files spell the Masters bands both "MASTERS" and "MASTER" (#93).
+  const masters = normalized.match(/^MASTERS?\s+(\d{1,2})\+\s+(WOMEN|MEN)$/);
   if (masters) {
     return { code: `M${masters[1].padStart(2, "0")}`, gender };
   }
