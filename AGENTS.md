@@ -8,4 +8,6 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-Do not add yourself to commit messages.
+Commit messages and PR descriptions carry no AI attribution: no co-author, session or "Generated with" lines.
+
+Work each issue in its own git worktree under `.claude/worktrees/issue-<n>`: other agents work in the main checkout at the same time.
