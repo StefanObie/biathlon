@@ -20,11 +20,11 @@ export async function getExportData(
   leagueId: number,
 ): Promise<ExportData> {
   const [
-    { data: entries },
-    { data: swims },
-    { data: runs },
-    { data: closedRaces },
-    { data: league },
+    { data: entries, error: entriesError },
+    { data: swims, error: swimsError },
+    { data: runs, error: runsError },
+    { data: closedRaces, error: closedRacesError },
+    { data: league, error: leagueError },
   ] = await Promise.all([
     supabase
       .from("entry")
@@ -50,6 +50,11 @@ export async function getExportData(
       .eq("id", leagueId)
       .maybeSingle(),
   ]);
+  if (entriesError) throw new Error(entriesError.message);
+  if (swimsError) throw new Error(swimsError.message);
+  if (runsError) throw new Error(runsError.message);
+  if (closedRacesError) throw new Error(closedRacesError.message);
+  if (leagueError) throw new Error(leagueError.message);
 
   const selection = selectExportRows({
     entries: (entries ?? []).map((entry) => ({

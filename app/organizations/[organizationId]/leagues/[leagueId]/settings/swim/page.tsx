@@ -46,8 +46,8 @@ async function SwimImportSection({
 
   const [
     { data: entries, error: entriesError },
-    { data: existing },
-    { data: league },
+    { data: existing, error: existingError },
+    { data: league, error: leagueError },
   ] = await Promise.all([
     // The whole league roster: resolution keys off (swim_heat, swim_lane)
     // across every heat in the file, not one heat at a time (§4.6).
@@ -69,6 +69,8 @@ async function SwimImportSection({
       .eq("id", leagueIdNum)
       .maybeSingle(),
   ]);
+  if (existingError) throw new Error(existingError.message);
+  if (leagueError) throw new Error(leagueError.message);
 
   if (entriesError) {
     return <p className="text-sm text-destructive">{entriesError.message}</p>;

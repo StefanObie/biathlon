@@ -65,12 +65,13 @@ async function OrganizationSection({
 
   // RLS only shows an Organization to its Members, so no membership means
   // there's nothing here for this user.
-  const { data: membership } = await supabase
+  const { data: membership, error: membershipError } = await supabase
     .from("organization_member")
     .select("is_admin, organization(id, name)")
     .eq("organization_id", organizationIdNum)
     .eq("user_id", userId)
     .maybeSingle();
+  if (membershipError) throw new Error(membershipError.message);
   if (!membership) notFound();
 
   const { is_admin: isAdmin, organization } = membership;
@@ -222,7 +223,7 @@ async function MembersTab({
   const supabase = await createClient();
   const [
     { data: members, error: membersError },
-    { data: leagues },
+    { data: leagues, error: leaguesError },
     { data: invitations, error },
   ] = await Promise.all([
     supabase.rpc("organization_members", { org_id: organizationId }),
@@ -240,6 +241,7 @@ async function MembersTab({
       .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false }),
   ]);
+  if (leaguesError) throw new Error(leaguesError.message);
 
   if (membersError || error) {
     return (
@@ -298,13 +300,15 @@ async function MembersTab({
 
 async function TeamTab({ organizationId }: { organizationId: number }) {
   const supabase = await createClient();
-  const [{ data: members, error }, { data: team }] = await Promise.all([
-    supabase.rpc("organization_members", { org_id: organizationId }),
-    supabase
-      .from("default_team_member")
-      .select("user_id, role")
-      .eq("organization_id", organizationId),
-  ]);
+  const [{ data: members, error }, { data: team, error: teamError }] =
+    await Promise.all([
+      supabase.rpc("organization_members", { org_id: organizationId }),
+      supabase
+        .from("default_team_member")
+        .select("user_id, role")
+        .eq("organization_id", organizationId),
+    ]);
+  if (teamError) throw new Error(teamError.message);
   if (error) {
     return <p className="text-sm text-destructive">{error.message}</p>;
   }
@@ -329,11 +333,12 @@ async function TeamTab({ organizationId }: { organizationId: number }) {
 // Where Swim import fetches each League's Swim results file from (#71).
 async function SwimTab({ organizationId }: { organizationId: number }) {
   const supabase = await createClient();
-  const { data: swimFolder } = await supabase
+  const { data: swimFolder, error: swimFolderError } = await supabase
     .from("swim_folder")
     .select("drive_folder_id")
     .eq("organization_id", organizationId)
     .maybeSingle();
+  if (swimFolderError) throw new Error(swimFolderError.message);
 
   return (
     <div className="max-w-xl">

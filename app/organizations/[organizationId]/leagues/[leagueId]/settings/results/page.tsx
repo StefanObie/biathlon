@@ -37,11 +37,12 @@ async function LeagueSettingsSection({
   if (!access || !canUse(access, "results")) return <NoAccess />;
 
   const supabase = await createClient();
-  const { data: league } = await supabase
+  const { data: league, error: leagueError } = await supabase
     .from("league")
     .select("visibility, results_slug")
     .eq("id", leagueIdNum)
     .maybeSingle();
+  if (leagueError) throw new Error(leagueError.message);
   if (!league) return <NoAccess />;
 
   return (

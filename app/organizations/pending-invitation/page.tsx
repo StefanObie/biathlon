@@ -40,7 +40,8 @@ export default function PendingInvitationPage() {
 
 async function Invitations() {
   const supabase = await createClient();
-  const { data } = await supabase.rpc("my_pending_invitations");
+  const { data, error } = await supabase.rpc("my_pending_invitations");
+  if (error) throw new Error(error.message);
   const names = (data ?? []).map((row) => row.organization_name);
   return names.length > 0
     ? `Pending invitation${names.length > 1 ? "s" : ""}: ${names.join(", ")}.`

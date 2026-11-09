@@ -79,10 +79,11 @@ async function HostingLine() {
     );
   }
 
-  const { data: memberships } = await supabase
+  const { data: memberships, error: membershipsError } = await supabase
     .from("organization_member")
     .select("organization(id, name)")
     .eq("user_id", userId);
+  if (membershipsError) throw new Error(membershipsError.message);
   const organizations = (memberships ?? []).map(
     (membership) => membership.organization,
   );

@@ -26,16 +26,20 @@ async function Landing(): Promise<null> {
   const userId = claims?.claims.sub;
   if (!userId) redirect("/auth/login");
 
-  const { data: memberships } = await supabase
+  const { data: memberships, error: membershipsError } = await supabase
     .from("organization_member")
     .select("organization(id, name)")
     .eq("user_id", userId);
+  if (membershipsError) throw new Error(membershipsError.message);
   const organizations = (memberships ?? [])
     .map((membership) => membership.organization)
     .sort((a, b) => a.name.localeCompare(b.name));
 
   if (organizations.length === 0) {
-    const { data: pending } = await supabase.rpc("my_pending_invitations");
+    const { data: pending, error: pendingError } = await supabase.rpc(
+      "my_pending_invitations",
+    );
+    if (pendingError) throw new Error(pendingError.message);
     redirect(
       pending && pending.length > 0
         ? "/organizations/pending-invitation"

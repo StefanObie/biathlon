@@ -39,11 +39,12 @@ async function LeagueHeader({
   }
 
   const supabase = await createClient();
-  const { data: league } = await supabase
+  const { data: league, error: leagueError } = await supabase
     .from("league")
     .select("id, name, league_date, season, organization_id")
     .eq("id", leagueIdNum)
     .maybeSingle();
+  if (leagueError) throw new Error(leagueError.message);
 
   // Hidden by RLS from anyone not on the League's team; the page below
   // shows them "no access".
