@@ -6,6 +6,11 @@ create schema private;
 
 grant usage on schema private to authenticated;
 
+-- Every table grants its roles each command its policies allow, explicitly.
+-- Production gives no default privileges on new tables while the local stack
+-- gives every command, so a table relying on defaults passes pgTAP and fails
+-- in production (#94). scripts/check-grants.mjs enforces this.
+
 create type gender as enum ('M', 'F');
 
 create type league_visibility as enum ('public', 'protected', 'private');
@@ -20,6 +25,7 @@ create table organization (
 );
 
 alter table organization enable row level security;
+grant select on organization to authenticated;
 
 create table organization_member (
   organization_id integer not null references organization (id) on delete cascade,
@@ -29,6 +35,7 @@ create table organization_member (
 );
 
 alter table organization_member enable row level security;
+grant select on organization_member to authenticated;
 
 create index organization_member_user_idx on organization_member (user_id);
 
@@ -47,6 +54,7 @@ comment on column athlete.birth_year is
   'Estimated, not exact: the year ages were taken minus the age given, so the age at the end of a season year may be a year out (ADR 0007).';
 
 alter table athlete enable row level security;
+grant select, delete on athlete to authenticated;
 
 -- A League's Organization is fixed once it's created (see
 -- league_organization_is_fixed below).
@@ -64,6 +72,7 @@ create table league (
 );
 
 alter table league enable row level security;
+grant select, insert, update, delete on league to authenticated;
 
 create index league_organization_idx on league (organization_id);
 
@@ -130,6 +139,7 @@ create table league_team_member (
 );
 
 alter table league_team_member enable row level security;
+grant select, insert, update on league_team_member to authenticated;
 
 -- One current entry per (League, Member, Role); ended ones pile up freely.
 create unique index league_team_member_current_idx
@@ -195,6 +205,7 @@ create table default_team_member (
 );
 
 alter table default_team_member enable row level security;
+grant select, insert, delete on default_team_member to authenticated;
 
 create index default_team_member_user_idx on default_team_member (user_id);
 
@@ -392,6 +403,7 @@ create table entry (
 );
 
 alter table entry enable row level security;
+grant select, insert, update, delete on entry to authenticated;
 
 create trigger entry_set_organization
   before insert or update on entry
@@ -426,6 +438,7 @@ create table points_table (
 );
 
 alter table points_table enable row level security;
+grant select on points_table to authenticated;
 
 -- No public-facing reads yet (that's Phase 4, §3/§6.1): anon stays
 -- default-deny via RLS-enabled-with-no-anon-policy. League-scoped tables
@@ -665,6 +678,7 @@ create table position_capture (
 );
 
 alter table position_capture enable row level security;
+grant select, insert, update on position_capture to authenticated;
 
 create trigger position_capture_set_organization
   before insert or update on position_capture
@@ -692,6 +706,7 @@ create table time_capture (
 );
 
 alter table time_capture enable row level security;
+grant select, insert, update on time_capture to authenticated;
 
 create trigger time_capture_set_author
   before insert or update on time_capture
@@ -723,6 +738,7 @@ create table league_race (
 );
 
 alter table league_race enable row level security;
+grant select, insert, update, delete on league_race to authenticated;
 
 -- Derived, overridable result (§6.5). Every mutation here is either
 -- 'auto' (from reconciling captures) or 'manual' (an operator override),
@@ -749,6 +765,7 @@ create table run_result (
 );
 
 alter table run_result enable row level security;
+grant select on run_result to authenticated;
 
 create trigger run_result_set_organization
   before insert or update on run_result
@@ -774,6 +791,7 @@ create table reconciliation_row (
 );
 
 alter table reconciliation_row enable row level security;
+grant select on reconciliation_row to authenticated;
 
 create policy "Officials can read their leagues' reconciliations"
   on reconciliation_row for select
@@ -798,6 +816,7 @@ create table audit_log (
 );
 
 alter table audit_log enable row level security;
+grant select, insert on audit_log to authenticated;
 
 create index audit_log_league_idx on audit_log (league_id);
 create index audit_log_organization_idx on audit_log (organization_id);
@@ -1063,6 +1082,7 @@ create table swim_result (
 );
 
 alter table swim_result enable row level security;
+grant select, insert, update, delete on swim_result to authenticated;
 
 create trigger swim_result_set_organization
   before insert or update on swim_result
@@ -1086,6 +1106,7 @@ create table swim_folder (
 );
 
 alter table swim_folder enable row level security;
+grant select, insert, update, delete on swim_folder to authenticated;
 
 -- Read by those who fetch from it, not every Member: the link is all that
 -- ties the folder to the Organization (ADR 0005).
@@ -1157,6 +1178,7 @@ create table operator_note (
 );
 
 alter table operator_note enable row level security;
+grant select, insert on operator_note to authenticated;
 
 create index operator_note_run_heat_idx
   on operator_note (league_id, run_heat);
@@ -1211,6 +1233,7 @@ create table call_room_check_in (
 );
 
 alter table call_room_check_in enable row level security;
+grant select, insert, update, delete on call_room_check_in to authenticated;
 
 -- The time and the Member are the database's, whatever the phone sent.
 create function private.stamp_check_in()
@@ -1370,6 +1393,7 @@ create table swim_call_room_check_in (
 );
 
 alter table swim_call_room_check_in enable row level security;
+grant select, insert, update, delete on swim_call_room_check_in to authenticated;
 
 create trigger swim_call_room_check_in_stamp
   before insert or update on swim_call_room_check_in
