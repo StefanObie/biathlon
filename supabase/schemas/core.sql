@@ -1120,6 +1120,10 @@ create table league_folder (
 
 alter table league_folder enable row level security;
 
+-- Granted explicitly: a project that doesn't automatically expose new tables
+-- gives no default privileges (#94).
+grant select, insert, update, delete on league_folder to authenticated;
+
 create policy "Officials can manage their leagues' league folder"
   on league_folder for all
   to authenticated
@@ -2430,6 +2434,10 @@ create table medal_presentation (
 );
 
 alter table medal_presentation enable row level security;
+
+-- Granted explicitly: a project that doesn't automatically expose new tables
+-- gives no default privileges (#94).
+grant select, insert, update, delete on medal_presentation to authenticated;
 
 -- The time and the Member are the database's, whatever the client sent, and
 -- marking a group again restamps both.
