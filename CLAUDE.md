@@ -4,7 +4,7 @@
 
 ### Issue tracker
 
-Read `docs/agents/issue-tracker.md` before any `gh` call: it holds this repo's commands for reading, creating, labelling and closing issues in `StefanObie/biathlon`.
+Read `docs/agents/issue-tracker.md` before any `gh` call: plain `gh issue view` fails on the installed gh 2.45, and the doc holds this repo's commands for reading, creating, labelling and closing issues in `StefanObie/biathlon`.
 
 ### Triage labels
 
