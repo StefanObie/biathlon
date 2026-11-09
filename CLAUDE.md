@@ -4,7 +4,7 @@
 
 ### Issue tracker
 
-Issues live as GitHub issues in `StefanObie/biathlon`, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Read `docs/agents/issue-tracker.md` before any `gh` call: it holds this repo's commands for reading, creating, labelling and closing issues in `StefanObie/biathlon`.
 
 ### Triage labels
 

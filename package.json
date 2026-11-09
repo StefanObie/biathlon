@@ -10,6 +10,7 @@
     "prepare": "husky",
     "db:check-grants": "node scripts/check-grants.mjs",
     "db:diff": "supabase db diff -f",
+    "db:new": "supabase migration new",
     "db:migrate": "supabase migration up",
     "db:types": "supabase gen types typescript --local > lib/supabase/database.types.ts"
   },
