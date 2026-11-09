@@ -102,11 +102,12 @@ async function findLeagueFolderFor(
   if ("status" in context) return context;
   const { supabase, swimFolderId, leagueName, leagueDate } = context;
 
-  const { data: remembered } = await supabase
+  const { data: remembered, error: rememberedError } = await supabase
     .from("league_folder")
     .select("drive_folder_id")
     .eq("league_id", league.leagueId)
     .maybeSingle();
+  if (rememberedError) throw new Error(rememberedError.message);
 
   let leagueFolder: DriveItem | null = null;
   if (remembered) {
@@ -181,12 +182,13 @@ export async function setSwimFolder(
   // account to learn whether a folder exists.
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
-  const { data: membership } = await supabase
+  const { data: membership, error: membershipError } = await supabase
     .from("organization_member")
     .select("is_admin")
     .eq("organization_id", organizationId)
     .eq("user_id", claims?.claims.sub ?? "")
     .maybeSingle();
+  if (membershipError) return { error: membershipError.message };
   if (!membership?.is_admin) {
     return { error: "Only an Admin can set the Swim folder." };
   }
@@ -248,18 +250,23 @@ async function swimFolderContext(league: LeagueRef): Promise<
   }
 
   const supabase = await createClient();
-  const [{ data: leagueRow }, { data: swimFolder }] = await Promise.all([
+  const [
+    { data: leagueRow, error: leagueRowError },
+    { data: swimFolder, error: swimFolderError },
+  ] = await Promise.all([
     supabase
       .from("league")
       .select("name, league_date")
       .eq("id", league.leagueId)
-      .single(),
+      .maybeSingle(),
     supabase
       .from("swim_folder")
       .select("drive_folder_id")
       .eq("organization_id", league.organizationId)
       .maybeSingle(),
   ]);
+  if (leagueRowError) throw new Error(leagueRowError.message);
+  if (swimFolderError) throw new Error(swimFolderError.message);
   if (!leagueRow) {
     return { status: "error", message: "That league doesn't exist." };
   }

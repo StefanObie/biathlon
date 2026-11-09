@@ -53,7 +53,7 @@ async function TimerHeatSection({
 
   const [
     { data: entries, error: entriesError },
-    { data: captures },
+    { data: captures, error: capturesError },
     { data: leagueRace, error: leagueRaceError },
     { data: checkIns, error: checkInsError },
   ] = await Promise.all([
@@ -81,6 +81,7 @@ async function TimerHeatSection({
       .select("athlete_no, run_heat")
       .eq("league_id", leagueIdNum),
   ]);
+  if (capturesError) throw new Error(capturesError.message);
 
   const error = entriesError ?? checkInsError;
   if (error) return <p className="text-sm text-destructive">{error.message}</p>;

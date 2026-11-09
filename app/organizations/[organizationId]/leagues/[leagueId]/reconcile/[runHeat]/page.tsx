@@ -54,15 +54,15 @@ async function ReconcileHeatSection({
 
   const [
     { data: leagueEntries, error: entriesError },
-    { data: positionCaptures },
-    { data: timeCaptures },
-    { data: runResults },
-    { data: leagueRunResults },
-    { data: notes },
+    { data: positionCaptures, error: positionCapturesError },
+    { data: timeCaptures, error: timeCapturesError },
+    { data: runResults, error: runResultsError },
+    { data: leagueRunResults, error: leagueRunResultsError },
+    { data: notes, error: notesError },
     { data: leagueRace, error: leagueRaceError },
-    { data: league },
-    { data: team },
-    { data: checkIns },
+    { data: league, error: leagueError },
+    { data: team, error: teamError },
+    { data: checkIns, error: checkInsError },
     { data: organizationAthletes, error: athletesError },
     { data: savedReconciliation, error: reconciliationError },
   ] = await Promise.all([
@@ -147,6 +147,14 @@ async function ReconcileHeatSection({
       .eq("run_heat", runHeatNum)
       .order("row_no"),
   ]);
+  if (positionCapturesError) throw new Error(positionCapturesError.message);
+  if (timeCapturesError) throw new Error(timeCapturesError.message);
+  if (runResultsError) throw new Error(runResultsError.message);
+  if (leagueRunResultsError) throw new Error(leagueRunResultsError.message);
+  if (notesError) throw new Error(notesError.message);
+  if (leagueError) throw new Error(leagueError.message);
+  if (teamError) throw new Error(teamError.message);
+  if (checkInsError) throw new Error(checkInsError.message);
 
   // Who can still capture on the League, to flag captures by anyone who
   // has since left its team (#36): the team, and the Organization's Admins.

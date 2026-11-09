@@ -65,11 +65,12 @@ async function writeResults(
 }
 
 async function currentSettings(supabase: Supabase, leagueId: number) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("league")
     .select("name, visibility, results_slug, organization(name)")
     .eq("id", leagueId)
     .maybeSingle();
+  if (error) throw new Error(error.message);
   return data;
 }
 

@@ -65,6 +65,9 @@ export async function sendInvitation(
   }
 
   try {
+    // The names only dress the email, which falls back to "an organization"
+    // and "the default team" without them.
+    // eslint-disable-next-line biathlon/no-unchecked-supabase-error
     const [{ data: organization }, { data: league }] = await Promise.all([
       supabase
         .from("organization")

@@ -13,11 +13,12 @@ export async function ResultsLink({
   isAdmin: boolean;
 }) {
   const supabase = await createClient();
-  const { data: league } = await supabase
+  const { data: league, error: leagueError } = await supabase
     .from("league")
     .select("visibility, results_slug")
     .eq("id", leagueId)
     .maybeSingle();
+  if (leagueError) throw new Error(leagueError.message);
   if (!league) return null;
 
   const link = resultsLink({

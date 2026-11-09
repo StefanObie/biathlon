@@ -78,10 +78,11 @@ export async function saveAgeUpload(
   });
   if (error) return { error: error.message };
 
-  const { data: leagues } = await supabase
+  const { data: leagues, error: leaguesError } = await supabase
     .from("league")
     .select("id")
     .eq("organization_id", organizationId);
+  if (leaguesError) return { error: leaguesError.message };
   for (const { id } of leagues ?? []) updateTag(leagueResultsTag(id));
   revalidatePath(`/organizations/${organizationId}`, "layout");
 

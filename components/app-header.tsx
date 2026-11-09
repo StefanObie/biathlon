@@ -17,9 +17,9 @@ export async function AppHeader() {
   const email = claims?.claims.email;
 
   const [
-    { data: memberships },
-    { data: leagues },
-    { data: team },
+    { data: memberships, error: membershipsError },
+    { data: leagues, error: leaguesError },
+    { data: team, error: teamError },
     cookieStore,
   ] = await Promise.all([
     supabase
@@ -34,6 +34,9 @@ export async function AppHeader() {
       .is("ended_at", null),
     cookies(),
   ]);
+  if (membershipsError) throw new Error(membershipsError.message);
+  if (leaguesError) throw new Error(leaguesError.message);
+  if (teamError) throw new Error(teamError.message);
 
   const organizations = (memberships ?? [])
     .map((m) => ({

@@ -23,15 +23,19 @@ export const getLeagueAccess = cache(
     if (!userId) return null;
 
     // RLS only shows the League to someone who holds a Role on it.
-    const { data: league } = await supabase
+    const { data: league, error: leagueError } = await supabase
       .from("league")
       .select("organization_id")
       .eq("id", leagueId)
       .maybeSingle();
+    if (leagueError) throw new Error(leagueError.message);
     if (!league) return null;
     if (league.organization_id !== organizationId) notFound();
 
-    const [{ data: membership }, { data: team }] = await Promise.all([
+    const [
+      { data: membership, error: membershipError },
+      { data: team, error: teamError },
+    ] = await Promise.all([
       supabase
         .from("organization_member")
         .select("is_admin")
@@ -45,6 +49,8 @@ export const getLeagueAccess = cache(
         .eq("user_id", userId)
         .is("ended_at", null),
     ]);
+    if (membershipError) throw new Error(membershipError.message);
+    if (teamError) throw new Error(teamError.message);
 
     return {
       isAdmin: membership?.is_admin ?? false,

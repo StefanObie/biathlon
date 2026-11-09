@@ -43,11 +43,12 @@ export async function createLeague(
   }
 
   const supabase = await createClient();
-  const { data: organization } = await supabase
+  const { data: organization, error: organizationError } = await supabase
     .from("organization")
     .select("name")
     .eq("id", organizationId)
     .maybeSingle();
+  if (organizationError) return { error: organizationError.message };
   if (!organization) return { error: "Choose an organization." };
 
   // New Leagues are Public, with the Organization and League names as their
@@ -101,11 +102,12 @@ async function leagueOrganizationId(
   supabase: ServerClient,
   leagueId: number,
 ): Promise<number | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("league")
     .select("organization_id")
     .eq("id", leagueId)
     .maybeSingle();
+  if (error) throw new Error(error.message);
   return data?.organization_id ?? null;
 }
 
@@ -433,12 +435,13 @@ export async function addLateEntry(
   });
   if (entryError?.code === "23505") {
     // Someone else added them in the meantime.
-    const { data } = await supabase
+    const { data, error: lookupError } = await supabase
       .from("entry")
       .select("run_heat")
       .eq("league_id", leagueId)
       .eq("athlete_no", athleteNo)
       .maybeSingle();
+    if (lookupError) return { error: lookupError.message };
     if (data)
       return { error: alreadyOnStartListMessage(athleteNo, data.run_heat) };
   }

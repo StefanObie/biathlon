@@ -20,10 +20,11 @@ async function Profile() {
   const { data: claims } = await supabase.auth.getClaims();
   const userId = claims?.claims.sub ?? "";
 
-  const { data: memberships } = await supabase
+  const { data: memberships, error: membershipsError } = await supabase
     .from("organization_member")
     .select("organization(id, name)")
     .eq("user_id", userId);
+  if (membershipsError) throw new Error(membershipsError.message);
   const organizations = (memberships ?? [])
     .map((membership) => membership.organization)
     .sort((a, b) => a.name.localeCompare(b.name));

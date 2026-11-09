@@ -53,7 +53,7 @@ async function PositionHeatSection({
 
   const [
     { data: leagueEntries, error: entriesError },
-    { data: captures },
+    { data: captures, error: capturesError },
     { data: leagueRace, error: leagueRaceError },
     { data: organizationAthletes, error: athletesError },
     { data: checkIns, error: checkInsError },
@@ -88,6 +88,7 @@ async function PositionHeatSection({
       .select("athlete_no, run_heat")
       .eq("league_id", leagueIdNum),
   ]);
+  if (capturesError) throw new Error(capturesError.message);
 
   if (entriesError) {
     return <p className="text-sm text-destructive">{entriesError.message}</p>;

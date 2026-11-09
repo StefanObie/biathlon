@@ -38,21 +38,24 @@ async function LeagueTeamSection({
   if (!access || !canUse(access, "team")) return <NoAccess />;
 
   const supabase = await createClient();
-  const { data: league } = await supabase
+  const { data: league, error: leagueError } = await supabase
     .from("league")
     .select("organization_id, name")
     .eq("id", leagueIdNum)
-    .single();
+    .maybeSingle();
+  if (leagueError) throw new Error(leagueError.message);
   if (!league) return <NoAccess />;
 
-  const [{ data: members, error }, { data: team }] = await Promise.all([
-    supabase.rpc("organization_members", { org_id: league.organization_id }),
-    supabase
-      .from("league_team_member")
-      .select("user_id, role")
-      .eq("league_id", leagueIdNum)
-      .is("ended_at", null),
-  ]);
+  const [{ data: members, error }, { data: team, error: teamError }] =
+    await Promise.all([
+      supabase.rpc("organization_members", { org_id: league.organization_id }),
+      supabase
+        .from("league_team_member")
+        .select("user_id, role")
+        .eq("league_id", leagueIdNum)
+        .is("ended_at", null),
+    ]);
+  if (teamError) throw new Error(teamError.message);
 
   if (error) {
     return <p className="text-sm text-destructive">{error.message}</p>;
