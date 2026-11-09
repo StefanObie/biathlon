@@ -38,14 +38,15 @@ TypeScript, Next.js (App Router) on Vercel, Supabase (Postgres, Auth, RLS, decla
 
 ## Scripts
 
-| Command                           | Does                                                                |
-| --------------------------------- | ------------------------------------------------------------------- |
-| `npm run dev`                     | Start the Next.js dev server                                        |
-| `npm run build` / `npm run start` | Production build and start                                          |
-| `npm run lint`                    | ESLint                                                              |
-| `npm run test`                    | Vitest                                                              |
-| `npm run db:diff <name>`          | Diff `supabase/schemas/` against the local DB and write a migration |
-| `npm run db:migrate`              | Apply pending migrations                                            |
-| `npm run db:types`                | Regenerate `lib/supabase/database.types.ts` from the local DB       |
+| Command                           | Does                                                                  |
+| --------------------------------- | --------------------------------------------------------------------- |
+| `npm run dev`                     | Start the Next.js dev server                                          |
+| `npm run build` / `npm run start` | Production build and start                                            |
+| `npm run lint`                    | ESLint                                                                |
+| `npm run test`                    | Vitest                                                                |
+| `npm run db:diff <name>`          | Diff `supabase/schemas/` against the local DB and write a migration   |
+| `npm run db:new <name>`           | Create an empty, timestamped migration for a hand-written data change |
+| `npm run db:migrate`              | Apply pending migrations                                              |
+| `npm run db:types`                | Regenerate `lib/supabase/database.types.ts` from the local DB         |
 
-Schema changes go in `supabase/schemas/core.sql`; generated migrations live in `supabase/migrations/` and are reviewed before applying, since `points_table` is versioned by season.
+Schema changes go in `supabase/schemas/core.sql`; generated migrations live in `supabase/migrations/` and are reviewed before applying, since `points_table` is versioned by season. Data changes, such as a `points_table` update, can't be diffed: create them with `npm run db:new <name>` so the version is the real time, never a hand-picked one that another branch may also use.
