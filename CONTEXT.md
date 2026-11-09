@@ -99,6 +99,10 @@ _Avoid_: Walk-up, new athlete
 The athletes entered to run in a given heat: one heat's share of the Start list.
 _Avoid_: Start list (that's the whole League, not one heat)
 
+**Off-roster run**:
+A Run result in a heat whose Heat roster the athlete isn't on. It counts like any other Run result. The athlete's Start list entry keeps the heat they were entered in: the Start list is the plan, and Run results are what happened. When an athlete has Run results in more than one Closed heat, an ok Run result beats one that isn't ok (DNS, DNF, DQ). Between equals, the one in their roster heat counts, otherwise the one in the lowest-numbered heat. The public results, the Medals screen and the export all use that same Run result.
+_Avoid_: Stray run, wrong heat
+
 **Closed**:
 The state a heat enters when an official saves its Reconciliation. A closed heat accepts no new captures, and its results are official and published. Its Reconciliation can't be changed until an official reopens the heat, giving a reason. A swim time has no Closed state and is published as soon as it is recorded and ok.
 _Avoid_: Published, finalised, reconciled, locked
