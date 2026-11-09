@@ -238,8 +238,8 @@ insert into position_capture (id, league_id, run_heat, position, athlete_no, dev
 -- Public at /results/gauteng-north-biathlon-results-demo. The mix covers a
 -- tie (101 and 103), a run-only athlete (109), a swim-only athlete (111),
 -- no-shows (110, 128) and an athlete in heat 3 with no published time yet
--- (122), none of whom are listed, and an athlete whose age group is not in
--- the points table (127, M80: Unclassified). Masters show the age bonus: 123's
+-- (122), none of whom are listed, and a Masters 80+ athlete (127). Masters
+-- show the age bonus: 123's
 -- bonus puts 123 ahead of 129, who is faster but has no birth year, and 121 has
 -- a birth year but only a swim, so no bonus.
 insert into league (id, name, league_date, season, organization_id) overriding system value

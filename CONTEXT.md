@@ -87,6 +87,10 @@ _Avoid_: Race, wave
 The athletes entered in a League, each with a run heat, an age group and, when known, a swim slot. It is first filled from an imported start list file and can grow by Late entries.
 _Avoid_: Entry list, roster (when you mean the whole League)
 
+**Age group**:
+The band of ages and the gender an athlete is entered in for one League, such as Masters 80+ Men. It is set by their Start list entry, not worked out from their age, and it decides which row of the points table scores them and which group they are ranked and given Medal places in.
+_Avoid_: Category, division, class
+
 **Late entry**:
 An athlete added to a League's Start list after it was imported, whether they are new to the Organization or have raced for it before. Their swim slot may stay unknown. An Official may give their age, which fills in an empty birth year and never overwrites one.
 _Avoid_: Walk-up, new athlete

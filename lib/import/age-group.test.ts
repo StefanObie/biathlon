@@ -29,6 +29,16 @@ describe("parseAgeGroup", () => {
     expect(parseAgeGroup(label)).toEqual(expected);
   });
 
+  it.each([
+    ["MASTER 40+ WOMEN", { code: "M40", gender: "F" }],
+    ["MASTER 50+ MEN", { code: "M50", gender: "M" }],
+    ["MASTER 60+ WOMEN", { code: "M60", gender: "F" }],
+    ["MASTER 70+ MEN", { code: "M70", gender: "M" }],
+    ["MASTER 80+ MEN", { code: "M80", gender: "M" }],
+  ] as const)("parses the singular spelling %s", (label, expected) => {
+    expect(parseAgeGroup(label)).toEqual(expected);
+  });
+
   it("is case-insensitive and trims whitespace", () => {
     expect(parseAgeGroup("  u/09 girls  ")).toEqual({
       code: "U09",
@@ -40,6 +50,11 @@ describe("parseAgeGroup", () => {
     expect(parseAgeGroup("OPEN")).toBeNull();
     expect(parseAgeGroup("SENIORS")).toBeNull();
     expect(parseAgeGroup("")).toBeNull();
+  });
+
+  it("returns null for a Masters band without the MASTER or MASTERS word", () => {
+    expect(parseAgeGroup("80+ MEN")).toBeNull();
+    expect(parseAgeGroup("MSTRS 80+ MEN")).toBeNull();
   });
 
   it.each(AGE_GROUP_LABELS)(
@@ -56,6 +71,11 @@ describe("ageGroupLabel", () => {
       const parsed = parseAgeGroup(label)!;
       expect(ageGroupLabel(parsed.code, parsed.gender)).toBe(label);
     }
+  });
+
+  it("has a Masters 80+ label for each gender", () => {
+    expect(ageGroupLabel("M80", "F")).toBe("MASTERS 80+ WOMEN");
+    expect(ageGroupLabel("M80", "M")).toBe("MASTERS 80+ MEN");
   });
 
   it("is null for a code with no label", () => {
