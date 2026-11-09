@@ -25,6 +25,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx eslint .
+      - run: npm run db:check-grants
 
   typecheck:
     name: Typecheck

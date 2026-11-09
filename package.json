@@ -8,6 +8,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "prepare": "husky",
+    "db:check-grants": "node scripts/check-grants.mjs",
     "db:diff": "supabase db diff -f",
     "db:migrate": "supabase migration up",
     "db:types": "supabase gen types typescript --local > lib/supabase/database.types.ts"
@@ -77,6 +78,7 @@
     ],
     "*.{json,md,css}": [
       "prettier --write"
-    ]
+    ],
+    "supabase/schemas/*.sql": "node scripts/check-grants.mjs"
   }
 }
